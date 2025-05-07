@@ -195,9 +195,8 @@ class numericalDer{
     //nCr is binomial coefficients and S{i=a,b} is summarion over a to b
     container mul_derivatives(const container& u, const container& v, int order){
       if(u.size()==1&&v.size()==1) order = 0;
-      size_t j = pastNonZero(v);
-      size_t k = pastNonZero(u);
-      int min = std::min(j, k);
+      else if(u.size()==1) order = v.size() - 1;
+      else if(v.size()==1) order = u.size() - 1;
       container f;
       if((u.size()==1&&u[0]==0)||(v.size()==1&&v[0]==0)){
         f = {0};
@@ -206,9 +205,9 @@ class numericalDer{
       f.resize(order + 1, 0);
       for(int n = 0; n < order + 1; n++){
         container& NCR = nCr[n];
-        int minP = std::min(n + 1, min);
-        for(int i = 0; i < minP; i++){
-          f[n] += NCR[i]*u[n-i]*v[i];
+        for(int i = 0; i < n+1; i++){
+          if((n-i)<u.size()&&(i)<v.size())
+            f[n] += NCR[i]*u[n-i]*v[i];
         }
       }
       return f;
@@ -577,7 +576,7 @@ class numericalDer{
     //formula that i had derived:
     //f = u^c:
     //f(n) = (c·u(n)·f(0)+S{i=1,n-1}(f(i)·u(n-i)·(nCr{n-1,i}·c-nCr{n-1,i-1})))/u(0)
-    //or f(n) = (c·u(n)·f(0)+S{i=1,n-1}(f(n-i)·u(i)·(nCr{n-1,i-1}·c-nCr{n-1,i})))/u(0)
+    //or f(n) = (c·u(n)·f(0)+S{i=1,n-1}(f(n-i)·u(i)·(nCr{n-1,i}-nCr{n-1,i-1}·c)))/u(0)
     //we'll be using the second method since that allows for more optimization.
     container pow_const_power(const container& u, long double c, int order){
       container f;
@@ -591,7 +590,7 @@ class numericalDer{
         f = {0.0L};
         return f;
       }
-      f.resize(order + 1,0.0L);
+      f.resize(order + 1, 0.0L);
       if(u[0]==0) return f;
       int k = pastNonZero(u);
       f[0] = std::pow(u[0], c);
@@ -602,7 +601,7 @@ class numericalDer{
         container& NCR = nCr[n-1];
         long double result = 0.0L;
         for(int i = 1; i < limit; i++){
-          result += u[i]*f[n-i]*(NCR[i-1]*c-NCR[i]);
+          result += u[i]*f[n-i]*(NCR[i]-NCR[i-1]*c);
         }
         if(n < u.size()) f[n] = c*f[0]*u[n];
         f[n] -= result;
