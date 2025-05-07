@@ -814,7 +814,8 @@ class expression{
     expression(const std::string& input, bool allow_var = true): entered_expression(input), allow_variable(allow_var){}
 
     void clean(){
-      
+      if(!this->anamoly) return;
+        
       this->anamoly = false;
       
       //initialization
@@ -1031,6 +1032,7 @@ class expression{
       std::string line;
       std::getline(is, line);
       obj.entered_expression = line;
+      obj.clean();
       return is;
     }
 };
