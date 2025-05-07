@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include <stdexcept>
+#include <functional>
 
 //make sure that parsing mechanism is included for
 //further ease and proper evaluation
@@ -18,7 +19,7 @@ class numericalDer{
   
   public:
     
-    DerExprAtPoint(bool a = false): LoadThrow(a){}
+    numericalDer(bool a = false): LoadThrow(a){}
     
     //main function(s) to be used
     //overloaded functions for ease-of-use
@@ -29,35 +30,39 @@ class numericalDer{
       fill_nCr(order);
       long double point = get_point();
       load_throw(expr.result(), order);
+      if(unary_funcs.empty()) make_map();
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
-    container numerical_der(const expression& expr){
+    container numerical_der(expression& expr){
       validate_expr(expr);
       int order = get_order();
       if(expr.is_constant()) order = 0;
       fill_nCr(order);
       long double point = get_point();
       load_throw(expr.result(), order);
+      if(unary_funcs.empty()) make_map();
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
-    container numerical_der(const expression& expr, int order){
+    container numerical_der(expression& expr, int order){
       validate_expr(expr);
       if(expr.is_constant()) order = 0;
       validate_order(order);
       fill_nCr(order);
       long double point = get_point();
       load_throw(expr.result(), order);
+      if(unary_funcs.empty()) make_map();
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
-    container numerical_der(const expression& expr, int order, long double point){
+    container numerical_der(expression& expr, int order, long double point){
       validate_expr(expr);
       if(expr.is_constant()) order = 0;
       validate_order(order);
       fill_nCr(order);
       load_throw(expr.result(), order);
+      if(unary_funcs.empty()) make_map();
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
@@ -66,15 +71,44 @@ class numericalDer{
     
     void dismiss(){this->LoadThrow = false;}
     
-    void clear(){this->nCr.clear();}
+    void clear(){this->nCr.clear();this->unary_funcs.clear();this->binary_funcs.clear();}
     
   private:
     
     bool LoadThrow;
     
-    constexpr long double PI = 3.141592653589793238462643383279502884197L;
+    static constexpr long double PI = 3.141592653589793238462643383279502884197L;
         
     std::vector<container> nCr;
+    
+    void make_map(){
+        unary_funcs["exp"] = std::bind(&numericalDer::exp_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["ln"] = std::bind(&numericalDer::ln_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sin"] = std::bind(&numericalDer::sin_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["cos"] = std::bind(&numericalDer::cos_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["csc"] = std::bind(&numericalDer::csc_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sec"] = std::bind(&numericalDer::sec_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["tan"] = std::bind(&numericalDer::tan_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["cot"] = std::bind(&numericalDer::cot_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["asin"] = std::bind(&numericalDer::asin_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["acos"] = std::bind(&numericalDer::acos_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["acsc"] = std::bind(&numericalDer::acsc_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["asec"] = std::bind(&numericalDer::asec_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["atan"] = std::bind(&numericalDer::atan_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["acot"] = std::bind(&numericalDer::acot_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sinh"] = std::bind(&numericalDer::sinh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["cosh"] = std::bind(&numericalDer::cosh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["csch"] = std::bind(&numericalDer::csch_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sech"] = std::bind(&numericalDer::sech_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["tanh"] = std::bind(&numericalDer::tanh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["coth"] = std::bind(&numericalDer::coth_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+
+        binary_funcs["pow"] = std::bind(&numericalDer::pow_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["add"] = std::bind(&numericalDer::add_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["sub"] = std::bind(&numericalDer::sub_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["mul"] = std::bind(&numericalDer::mul_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["div"] = std::bind(&numericalDer::div_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+    }
     
     void load_throw(const std::string& expr, int order){
       if(!this->LoadThrow) return;
@@ -129,7 +163,8 @@ class numericalDer{
     }
     
     int pastNonZero(const container& v){
-      int j = v.size()-1;
+      if(v.empty()) return 0;
+      size_t j = v.size()-1;
       while(!(j<0)&&v[j]==0) j--;
       return j + 1;
     }
@@ -160,9 +195,9 @@ class numericalDer{
     //nCr is binomial coefficients and S{i=a,b} is summarion over a to b
     container mul_derivatives(const container& u, const container& v, int order){
       if(u.size()==1&&v.size()==1) order = 0;
-      int j = pastNonZero(v);
-      int k = pastNonZero(u);
-      size_t min = std::min(j, k);
+      size_t j = pastNonZero(v);
+      size_t k = pastNonZero(u);
+      int min = std::min(j, k);
       container f;
       if((u.size()==1&&u[0]==0)||(v.size()==1&&v[0]==0)){
         f = {0};
@@ -373,7 +408,7 @@ class numericalDer{
       container eu2d = eu2n;
       eu2n[0] -= 1;
       eu2d[0] += 1;
-      return div_derivatives(eu2n, eu2d);
+      return div_derivatives(eu2n, eu2d, order);
     }
     
     container coth_derivatives(const container& u, int order){
@@ -384,7 +419,7 @@ class numericalDer{
       container eu2d = eu2n;
       eu2d[0] -= 1;
       eu2n[0] += 1;
-      return div_derivatives(eu2n, eu2d);
+      return div_derivatives(eu2n, eu2d, order);
     }
     
     //minimal complex struct, useful for optimizing trig functions
@@ -417,10 +452,9 @@ class numericalDer{
     std::vector<complex> exp_polar_der(const container& u, int order){
       if(u.size()==1) order = 0;
       std::vector<complex> f(order + 1, 0.0L);
-      int k = u.size()-1;
-      while(!(k<0)&&u[k]==0) k--;
-      k++;
-      f[0] = {std::cos(u[0]), std::sin(u[0])};
+      int k = pastNonZero(u);
+      f[0].r = std::cos(u[0]);
+      f[0].i = std::sin(u[0]);
       for(int n = 1; n < order + 1; n++){
         int limit = std::min(k, n+1);
         container& NCR = nCr[n-1];
@@ -498,7 +532,7 @@ class numericalDer{
     
     //it has similar formula as tanh and it is:
     //f = tan(u);
-//f(n) = (1 + (f(0))²)·u(n) + 2·S{i=0,n-2}(nCr{n-1,i}·u(i+1)·S{j=0,n-2-i}(nCr{n-2-i,j}·f(j)·f(n-i-j-1)))
+    //f(n) = (1 + (f(0))²)·u(n) + 2·S{i=0,n-2}(nCr{n-1,i}·u(i+1)·S{j=0,n-2-i}(nCr{n-2-i,j}·f(j)·f(n-i-j-1)))
     container tan_derivatives(const container& u, int order){
       if(u.size()==1) order = 0;
       if(std::abs(std::remainder(u[0], PI/2.0)) < 1e-18) throw std::runtime_error("Value in tan is at singularity, please re-configure your expression or choose a different point for evaluation.");
@@ -631,7 +665,7 @@ class numericalDer{
     //again we'll be using the second form for better potential performance.
     //and for n > 27(n: n³ ≥ 3n²) we'll be using another trick.
     container asin_derivatives(const container& u, int order){
-      if(u.size==1) order = 0;
+      if(u.size()==1) order = 0;
       if(std::abs(u[0]) > 1) throw std::runtime_error("Arcsin is undefined at |argument| greater than one, please recheck your equation and point of evaluation.");
       container f(order + 1, 0);
       f[0] = std::asin(u[0]);
@@ -672,7 +706,7 @@ class numericalDer{
     //but we'll just use asin since that's more maintainable.
     //arccos = π/2 - arcsin(1/x)
     container acos_derivatives(const container& u, int order){
-      if(u.size==1) order = 0;
+      if(u.size()==1) order = 0;
       if(std::abs(u[0]) > 1) throw std::runtime_error("Arccos is undefined at |argument| greater than one, please recheck your equation and point of evaluation.");
       container f(order + 1, 0);
       f[0] = std::acos(u[0]);
@@ -686,7 +720,7 @@ class numericalDer{
     
     //arccosec(u) = arcsin(1/u)
     container acsc_derivatives(const container& u, int order){
-      if(u.size==1) order = 0;
+      if(u.size()==1) order = 0;
       if(std::abs(u[0]) < 1) throw std::runtime_error("Arccosec is undefined at |argument| less than one, please recheck your equation and point of evaluation.");
       container f(order + 1, 0);
       f[0] = std::asin(1/u[0]);
@@ -699,7 +733,7 @@ class numericalDer{
     
     //arcsec(u) = arccos(1/u) = π/2 - arcsin(1/x)
     container asec_derivatives(const container& u, int order){
-      if(u.size==1) order = 0;
+      if(u.size()==1) order = 0;
       if(std::abs(u[0]) < 1) throw std::runtime_error("Arcsec is undefined at |argument| less than one, please recheck your equation and point of evaluation.");
       container f(order + 1, 0);
       f[0] = std::acos(1/u[0]);
@@ -766,24 +800,8 @@ class numericalDer{
     }
     
     //call the appropriate functions according to the name
-    std::unordered_map<std::string, std::function<container(container, int)>> unary_funcs{
-      {"exp", exp_derivatives }, {"ln", log_derivatives },
-      {"sin", sin_derivatives }, {"cos", cos_derivatives },
-      {"csc", csc_derivatives }, {"sec", sec_derivatives },
-      {"tan", tan_derivatives }, {"cot", cot_derivatives },
-      {"asin", asin_derivatives }, {"acos", cos_derivatives },
-      {"acsc", acsc_derivatives }, {"asec", sec_derivatives },
-      {"atan", tan_derivatives }, {"acot", cot_derivatives },
-      {"sinh", sinh_derivatives }, {"cosh", cosh_derivatives },
-      {"csch", csch_derivatives }, {"sech", sech_derivatives },
-      {"tanh", tanh_derivatives }, {"coth", coth_derivatives }
-    };
-    
-    std::unordered_map<std::string, std::function<container(container, container, int)>> binary_funcs{
-      {"pow", pow_derivatives }, {"add", add_derivatives },
-      {"sub", sub_derivatives }, {"mul", mul_derivatives },
-      {"div", div_derivatives }
-    };
+    std::unordered_map<std::string, std::function<container(const container&, int)>> unary_funcs;
+    std::unordered_map<std::string, std::function<container(const container&, const container&, int)>> binary_funcs;
     
     //unified recursive decent
     container unified_diff(const std::string& expr, int order, long double point){
@@ -807,14 +825,14 @@ class numericalDer{
         bool c = isConstant(expr);
         order = c ? 0 : order;
         container result;
-        std::string inner_expr = expr.substr(t+1, expr.length()-1-t);
+        std::string inner_expr = expr.substr(t+1, expr.length()-2-t);
         if(unary_funcs.count(function)){
           container inner_data = unified_diff(inner_expr, order, point);
           result = unary_funcs[function](inner_data, order);
         }
         else if(binary_funcs.count(function)){
           std::string str1, str2;
-            auto [dispatch1, dispatch2]= split_string(inner_expr);
+            auto [dispatch1, dispatch2] = split_string(inner_expr);
             str1 = std::move(dispatch1);
             str2 = std::move(dispatch2);
           container inner_data1, inner_data2;
@@ -822,7 +840,6 @@ class numericalDer{
             inner_data2 = unified_diff(str2, order, point);
             result = binary_funcs[function](inner_data1, inner_data2, order);
         }
-        else throw std::runtime_error("An unexpected error occured.");
         container der{result};
         return der;
       }
@@ -875,17 +892,11 @@ class numericalDer{
     }
     
     //if provided equation is not valid, throw an error
-    void validate_expr(const expression& expr){
+    void validate_expr(expression& expr){
       if(!expr.is_safe()){
         expr.clean();
         if(!expr.is_safe()){
-          try{
-            throw std::runtime_error("Provided expression is invalid.");
-          }catch(const std::exception& e){
-            std::cerr << e.what() << std::endl;
-            std::cerr << expr << std::endl;
-            std::terminate();
-          }
+          throw std::runtime_error("Provided expression is invalid.\n" + expr.result());
         }
       }
     }
