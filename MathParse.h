@@ -1032,7 +1032,7 @@ class expression{
     friend std::istream& operator>>(std::istream& is, expression& obj){
       std::string line;
       std::getline(is, line);
-      obj.entered_expression = line;
+      obj.update(line, true);
       return is;
     }
 };
