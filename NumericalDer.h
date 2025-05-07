@@ -1,5 +1,4 @@
 #pragma once
-
 #include <cmath>
 #include <unordered_map>
 #include <vector>
@@ -10,9 +9,12 @@
 //further ease and proper evaluation
 #include "MathParse.h"
 
+namespace SSM{
+    
 //used to calculate all derivatives of a expression
 //from order 0 to n (where cap on n is 500 or warn and 
 //ask for order again) at a specific point.
+
 class numericalDer{
   
   using container = std::vector<long double>;
@@ -907,3 +909,5 @@ class numericalDer{
     }
     
 };
+
+}
