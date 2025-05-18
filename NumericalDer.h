@@ -1,79 +1,78 @@
 #pragma once
-#include <cmath>
-#include <unordered_map>
-#include <vector>
-#include <stdexcept>
-#include <functional>
 
-//make sure that parsing mechanism is included for
-//further ease and proper evaluation
-#include "MathParse.h"
-
-namespace SSM{
+namespace der{
     
 //used to calculate all derivatives of a expression
 //from order 0 to n (where cap on n is 500 or warn and 
 //ask for order again) at a specific point.
 
-class numericalDer{
+class nder{
   
   using container = std::vector<long double>;
   
+  long double m_point;
+  
   public:
     
-    numericalDer(bool a = false): LoadThrow(a){}
+    nder(bool a = false): LoadThrow(a){}
     
     //main function(s) to be used
     //overloaded functions for ease-of-use
     container numerical_der(){
-      expression expr = get_expression();
+      parse::expression expr = get_expression();
       int order = get_order();
       if(expr.is_constant()) order = 0;
       fill_nCr(order);
       long double point = get_point();
+      m_point = point;
       load_throw(expr.result(), order);
       if(unary_funcs.empty()) make_map();
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
-    container numerical_der(expression& expr){
+    container numerical_der(parse::expression& expr){
       validate_expr(expr);
       int order = get_order();
       if(expr.is_constant()) order = 0;
       fill_nCr(order);
       long double point = get_point();
+      m_point = point;
       load_throw(expr.result(), order);
       if(unary_funcs.empty()) make_map();
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
-    container numerical_der(expression& expr, int order){
+    container numerical_der(parse::expression& expr, int order){
       validate_expr(expr);
       if(expr.is_constant()) order = 0;
       validate_order(order);
       fill_nCr(order);
       long double point = get_point();
+      m_point = point;
       load_throw(expr.result(), order);
       if(unary_funcs.empty()) make_map();
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
-    container numerical_der(expression& expr, int order, long double point){
+    container numerical_der(parse::expression& expr, int order, long double point){
       validate_expr(expr);
       if(expr.is_constant()) order = 0;
       validate_order(order);
       fill_nCr(order);
       load_throw(expr.result(), order);
       if(unary_funcs.empty()) make_map();
+      m_point = point;
       container result = unified_diff(expr.result(), order, point);
       return result;
     }
-    
+
+    long double point() const {return m_point;}
+
     void optimize(){this->LoadThrow = true;}
     
     void dismiss(){this->LoadThrow = false;}
     
-    void clear(){this->nCr.clear();this->unary_funcs.clear();this->binary_funcs.clear();}
+    void clear(){this->nCr.clear();this->unary_funcs.clear();this->binary_funcs.clear();m_point = 1E-308;}
     
   private:
     
@@ -84,38 +83,38 @@ class numericalDer{
     std::vector<container> nCr;
     
     void make_map(){
-        unary_funcs["exp"] = std::bind(&numericalDer::exp_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["ln"] = std::bind(&numericalDer::ln_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["sin"] = std::bind(&numericalDer::sin_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["cos"] = std::bind(&numericalDer::cos_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["csc"] = std::bind(&numericalDer::csc_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["sec"] = std::bind(&numericalDer::sec_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["tan"] = std::bind(&numericalDer::tan_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["cot"] = std::bind(&numericalDer::cot_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["asin"] = std::bind(&numericalDer::asin_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["acos"] = std::bind(&numericalDer::acos_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["acsc"] = std::bind(&numericalDer::acsc_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["asec"] = std::bind(&numericalDer::asec_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["atan"] = std::bind(&numericalDer::atan_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["acot"] = std::bind(&numericalDer::acot_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["sinh"] = std::bind(&numericalDer::sinh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["cosh"] = std::bind(&numericalDer::cosh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["csch"] = std::bind(&numericalDer::csch_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["sech"] = std::bind(&numericalDer::sech_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["tanh"] = std::bind(&numericalDer::tanh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
-        unary_funcs["coth"] = std::bind(&numericalDer::coth_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["exp"] = std::bind(&nder::exp_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["ln"] = std::bind(&nder::ln_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sin"] = std::bind(&nder::sin_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["cos"] = std::bind(&nder::cos_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["csc"] = std::bind(&nder::csc_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sec"] = std::bind(&nder::sec_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["tan"] = std::bind(&nder::tan_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["cot"] = std::bind(&nder::cot_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["asin"] = std::bind(&nder::asin_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["acos"] = std::bind(&nder::acos_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["acsc"] = std::bind(&nder::acsc_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["asec"] = std::bind(&nder::asec_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["atan"] = std::bind(&nder::atan_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["acot"] = std::bind(&nder::acot_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sinh"] = std::bind(&nder::sinh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["cosh"] = std::bind(&nder::cosh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["csch"] = std::bind(&nder::csch_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["sech"] = std::bind(&nder::sech_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["tanh"] = std::bind(&nder::tanh_derivatives, this, std::placeholders::_1, std::placeholders::_2);
+        unary_funcs["coth"] = std::bind(&nder::coth_derivatives, this, std::placeholders::_1, std::placeholders::_2);
 
-        binary_funcs["pow"] = std::bind(&numericalDer::pow_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-        binary_funcs["add"] = std::bind(&numericalDer::add_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-        binary_funcs["sub"] = std::bind(&numericalDer::sub_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-        binary_funcs["mul"] = std::bind(&numericalDer::mul_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-        binary_funcs["div"] = std::bind(&numericalDer::div_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["pow"] = std::bind(&nder::pow_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["add"] = std::bind(&nder::add_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["sub"] = std::bind(&nder::sub_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["mul"] = std::bind(&nder::mul_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+        binary_funcs["div"] = std::bind(&nder::div_derivatives, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
     }
     
     void load_throw(const std::string& expr, int order){
       if(!this->LoadThrow) return;
       int count = std::count(expr.begin(), expr.end(), '(');
-      if(order*count>5000) throw std::runtime_error("Function load is heavy, consider allowing load_heavy order+expression to continue.");
+      if(order*count>10000) throw std::runtime_error("Function load is heavy, consider allowing load_heavy order+expression to continue.");
     }
     
     //fill nCr with correct number of terms
@@ -592,9 +591,9 @@ class numericalDer{
         f = {0.0L};
         return f;
       }
-      f.resize(order + 1, 0.0L);
-      if(u[0]==0) return f;
       int k = pastNonZero(u);
+      if(c > 0 && std::remainder(c, 1.0L) == 0 && order > (k - 1) * c ) order = (k - 1) * c;
+      f.resize(order + 1, 0.0L);
       f[0] = std::pow(u[0], c);
       //case of negative to the power of something that's not divisble by two and negative
       if(std::isnan(f[0])) throw std::runtime_error("Function is undefined at the point, issue was in pow, please check your expression or point of evaluation.");
@@ -847,8 +846,8 @@ class numericalDer{
     }
     
     //get a valid equation from the user
-    expression get_expression(){
-      expression expr;
+    parse::expression get_expression(){
+      parse::expression expr;
       std::cout << "Enter your expression: ";
       std::cin >> expr;
       expr.clean();
@@ -865,15 +864,15 @@ class numericalDer{
     //get a valid order from the user withing constraints
     int get_order(){
       int order;
-      std::cout << "Enter the order you'd like (0-500): ";
-      while(!(std::cin >> order)||(order < 0 || order > 500)){
+      std::cout << "Enter the order you'd like (0-1000): ";
+      while(!(std::cin >> order)||(order < 0 || order > 1000)){
         if(std::cin.fail()){
           std::cout << "An error occured, please enter a valid number: ";
         }
         else if(order < 0){
           std::cout << "Order can't be negative, please enter again: ";
         }
-        else std::cout << "Order can't be greater than 500, please enter again: ";
+        else std::cout << "Order can't be greater than 1000, please enter again: ";
         std::cin.clear();
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
       }
@@ -893,7 +892,7 @@ class numericalDer{
     }
     
     //if provided equation is not valid, throw an error
-    void validate_expr(expression& expr){
+    void validate_expr(parse::expression& expr){
       if(!expr.is_safe()){
         expr.clean();
         if(!expr.is_safe()){
@@ -905,9 +904,35 @@ class numericalDer{
     //if provided order is not within constraints, throw an error
     void validate_order(const int& order){
       if(order < 0) throw std::runtime_error("Provided order can't be negative.");
-      if(order > 500) throw std::runtime_error("Provided order can't be greater than 500.");
+      if(order > 1000) throw std::runtime_error("Provided order can't be greater than 1000.");
     }
     
 };
+
+    poly::full TaylorSeries(bool to_dismiss){
+    
+        der::nder der;
+        if(to_dismiss)
+            der.dismiss();
+    
+        std::vector<long double> coefficients;
+        coefficients = der.numerical_der();
+        
+        for(int i = 2; i < coefficients.size(); i++){
+            for(int j = i; j < coefficients.size(); j++){
+                coefficients[j] /= i;
+            }
+        }
+    
+        long double point = der.point();
+    
+        poly::full to_compose({-point, 1});
+        poly::full main_poly(coefficients);
+    
+        main_poly.compose(to_compose);
+    
+        return main_poly;
+
+    }
 
 }
