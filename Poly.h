@@ -1,15 +1,7 @@
-//#pragma once
+#pragma once
 
+//#include "SimpleSymbolic.h"
 //WORK IN PROGRESS
-
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <numeric>
-#include <cmath>
-#include <string>
-#include <limits>
-#include <iomanip>
 
 namespace{
   
@@ -100,7 +92,7 @@ namespace{
     return result;
   }
   
-  static constexpr long double threshold = 1E-13;
+  static constexpr long double threshold = 1E-14;
   
 }
 
@@ -947,8 +939,8 @@ namespace poly{
       dense& operator+=(long double val){
         if(val==0) return *this;
         dense other({val},0,true);
-        dense result(*this);
-        //can't directl extract a index as min_deg can also not be 0.
+        dense& result = *this;
+        //can't directly extract a index as min_deg can also not be 0.
         addSub(result, other, false);
         return result;
       }
@@ -965,7 +957,7 @@ namespace poly{
       dense& operator-=(long double val){
         if(val==0) return *this;
         dense other({val},0,true);
-        dense result(*this);
+        dense& result = *this;
         addSub(result, other, true);
         return result;
       }
@@ -1508,18 +1500,4 @@ namespace poly{
       
   };
   
-}
-
-int main(){
-  poly::dense poly1({1.0L, 1.0L, 1.0L},4,true);
-  poly::dense poly2({1.0L, 1.0L},5,false);
-  poly::dense poly3(1,true);
-
-  
-  std::cout << poly1 << std::endl;
-  std::cout << poly1.derivative() << std::endl;
-  std::cout << poly1.derivative().derivative() << std::endl;
-  std::cout << poly1.integrate() << std::endl;
-  std::cout << poly1.integrate().derivative() << std::endl;
-  std::cout << poly1.nth_derivative(2);
 }
