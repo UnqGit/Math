@@ -1,14 +1,6 @@
 #pragma once
 
-#include <iostream>
-#include <string>
-#include <unordered_set>
-#include <algorithm>
-#include <stack>
-#include <utility>
-#include <cctype>
-
-namespace SSM{
+namespace parse{
 
 class expression{
   
