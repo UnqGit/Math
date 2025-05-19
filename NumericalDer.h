@@ -581,22 +581,27 @@ class nder{
     //we'll be using the second method since that allows for more optimization.
     container pow_const_power(const container& u, long double c, int order){
       container f;
-      if(c==0){
-        //if size of u isn't 0 then i know that order > 0 as that's the only chance any size can be greater than 1
-        if(u.size()!=1&&u[0]==0) throw std::runtime_error("Derivation of 0⁰ values function is undefined at this point, please look into your expression and re-enter.");
+      if(c == 0){
+        // if(u.size()!=1&&u[0]==0) throw std::runtime_error("Derivation of 0⁰ values function is undefined at this point, please look into your expression and re-enter.");
         f = {1.0L};
         return f;
       }
-      if(u.size()==1&&u[0]==0){
-        f = {0.0L};
-        return f;
-      }
       int k = pastNonZero(u);
-      if(c > 0 && std::remainder(c, 1.0L) == 0 && order > (k - 1) * c ) order = (k - 1) * c;
+      bool is_int = c > 0 && std::remainder(c, 1.0L) == 0;
+      if(is_int && order > (k - 1) * c) order = (k - 1) * c;
       f.resize(order + 1, 0.0L);
       f[0] = std::pow(u[0], c);
       //case of negative to the power of something that's not divisble by two and negative
       if(std::isnan(f[0])) throw std::runtime_error("Function is undefined at the point, issue was in pow, please check your expression or point of evaluation.");
+      //condition for when formula would fail, i.e u(0) == 0
+      if(u[0] == 0){
+        if(is_int){
+          if(order == (k - 1) * c) f[order] = std::tgamma((k - 1) * c + 1);
+          else if(order >= c);//make it work and correct
+        }
+        else if(order > c) throw std::runtime_error("Derivative of function with non-integer/negative power with inner function value being 0 is undefined.");
+        return f;
+      }
       for(int n = 1; n < order + 1; n++){
         int limit = std::min(k, n);
         container& NCR = nCr[n-1];
@@ -929,9 +934,7 @@ class nder{
         poly::full to_compose({-point, 1});
         poly::full main_poly(coefficients);
     
-        main_poly.compose(to_compose);
-    
-        return main_poly;
+        return main_poly.compose(to_compose);
 
     }
 
