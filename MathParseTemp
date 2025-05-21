@@ -57,7 +57,7 @@ class expression{
         "ncr", "npr", "add",
         "sub", "mul", "div",
         "mod", "flr", "rnd",
-        "ceil", "ftrl"
+        "ceil", "ftrl", "pow"
       };
       
       std::string to_check;
