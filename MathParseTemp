@@ -192,12 +192,13 @@ class expression{
       //so that exp doesn't become 2.718*xp
       //and pi should be converted before exp for the cases
       //such as expi where it should be 2.718*x*3.141
-      std::string to_change1[22] = {
+      std::string to_change1[26] = {
         "·", "*", "×", "*", "÷", "/", "√", "#",
         "pi", "=", "π", "=", "exp", "EXP", "sec", "SEC",
-        "e", "@", "EXP", "exp", "SEC", "sec"
+        "ceil", "CEIL", "e", "@", "EXP", "exp", "SEC", "sec",
+        "CEIL", "ceil"
       };
-      for(int i = 0; i < 22; i+=2){
+      for(int i = 0; i < 26; i+=2){
         size_t t = input.find(to_change1[i]);
         while(t!=std::string::npos){
           input.replace(t, to_change1[i].length(), to_change1[i+1]);
@@ -589,7 +590,7 @@ class expression{
         //closing parenthesis rule
         else if(input[i]==')'){
           if((i+1)<input.length()&&lookup.count(input[i+1])&&
-          !(input[i+1]==')')){
+          !(input[i+1]==')'||input[i+1]=='!')){
             input.insert(i+1,"*");
           }
         }
@@ -768,21 +769,22 @@ class expression{
         input.replace(t, 1, ")");
         for(; i >= 0; i--) {
 
-          if((i == 0 || ops.find(input[i]) != ops.end())) {
-            if(parenthesis == 0) {
-              break;
-            }
-            else {
-              this->err_log = "INVALID FACTORIAL PLACEMENT.";
+          if(input[i] == '(') {
+            if(parenthesis == 0) break;
+            parenthesis--;
+            if(parenthesis < 0) {
+              this->err_log = "INVALID PARENTHESIS PLACEMENT.";
               this->anamoly = true;
               return;
             }
           }
 
-          else if(input[i] == '(') {
-            parenthesis--;
-            if(parenthesis < 0) {
-              this->err_log = "INVALID PARENTHESIS PLACEMENT.";
+          else if((i == 0 || ops.find(input[i]) != ops.end())) {
+            if(parenthesis == 0) {
+              break;
+            }
+            else {
+              this->err_log = "INVALID FACTORIAL PLACEMENT.";
               this->anamoly = true;
               return;
             }
@@ -947,6 +949,8 @@ class expression{
     expression(const std::string& input, bool allow_var = true): entered_expression(input), allow_variable(allow_var){}
 
     void clean(){
+      
+      if(!this->anamoly) return;
       
       this->anamoly = false;
       
