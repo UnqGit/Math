@@ -806,7 +806,7 @@ class expression{
         "pow","gcd","ncr","npr","add","sub","mul",
         "div","mod"
       };
-      std::unordered_set<char> invalid_precedince {
+      std::unordered_set<char> invalid_precedence {
         ',','*','/','+','-','(','^'
       };
       std::unordered_set<char> invalid_subsidence {
@@ -814,8 +814,7 @@ class expression{
       };
       std::string temp;
       int functions = 0, parenthesis = 0;
-      bool allow_comma = false;
-      std::stack<size_t> parenthesis_index;
+      std::stack<std::pair<size_t, bool>> parenthesis_index;
       for(int i = 0; i < input.size(); i++) {
         if(std::islower(input[i])) {
           temp += input[i];
@@ -823,9 +822,7 @@ class expression{
         else {
           if(input[i] == '(') {
             if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()){
-              allow_comma = true;
-              parenthesis_index.push(parenthesis);
-              std::cout << parenthesis_index.top() << " " << i << std::endl;
+              parenthesis_index.push({parenthesis,false});
             }
             parenthesis++;
           }
@@ -836,27 +833,27 @@ class expression{
               this->anamoly = true;
               return;
             }
-            if(!parenthesis_index.empty() && parenthesis_index.top() == parenthesis) {
-              std::cout << i << " " << parenthesis_index.top() << std::endl;
-              parenthesis_index.pop();
-              if(allow_comma) {
+            if(!parenthesis_index.empty() && parenthesis_index.top().first == parenthesis) {
+              if(!parenthesis_index.top().second) {
                 this->err_log = "NO COMMA IN A BINARY FUNCTION.";
                 this->anamoly = true;
                 return;
               }
-              if(!parenthesis_index.empty()) {
-                allow_comma = true;
-              }
+              parenthesis_index.pop();
             }
           }
           else if(input[i] == ',') {
-            if(!allow_comma){
-              if(parenthesis_index.empty()) this->err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
-              else this->err_log = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
+            if(parenthesis_index.empty()){
+              this->err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
               this->anamoly = true;
               return;
             }
-            if((i == 0)||invalid_precedince.find(input[i-1])!=invalid_precedince.end()) {
+            if(parenthesis_index.top().second){
+              this->err_log = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
+              this->anamoly = true;
+              return;
+            }
+            if((i == 0)||invalid_precedence.find(input[i-1])!=invalid_precedence.end()) {
               this->err_log = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
               this->anamoly = true;
               return;
@@ -866,7 +863,7 @@ class expression{
               this->anamoly = true;
               return;
             }
-            allow_comma = false;
+            parenthesis_index.top().second = true;
           }
           temp.clear();
         }
