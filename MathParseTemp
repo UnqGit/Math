@@ -796,11 +796,49 @@ class expression{
         "pow","gcd","ncr","npr","add","sub","mul",
         "div"
       };
-
+      std::unordered_set<char> invalid_precedince {
+        ',','*','/','+','-','('
+      }
       std::string temp;
+      int functions = 0, parenthesis = 0;
+      bool allow_comma = false;
+      std::stack<size_t> paren_count;
       for(int i = 0; i < input.size(); i++) {
-        if(std::islower(input[i])){
+        if(std::islower(input[i])) {
           temp += input[i];
+        }
+        else {
+          // if(temp.empty()) continue;
+          if(input[i] == '(') {
+            if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()){
+              allow_comma = true;
+              paren_count.push(parenthesis);
+            }
+            parenthesis++;
+          }
+          else if(input == ')') {
+            parenthesis--;
+            if(parenthesis < 0) {
+              this->err_log = "INVALID PARENTHESIS PLACEMENT.";
+              this->anamoly = true;
+              return;
+            }
+            if(!paren_count.empty() && paren_count.top() == parenthesis) {
+              paren_count.pop();
+              if(allow_comma) {
+                this->err_log = "NO COMMA IN A BINARY FUNCTION.";
+                this->anamoly = true;
+                return;
+              }
+              if(!paren_count.empty()) {
+                allow_comma = true;
+              }
+            }
+          }
+          else if(input[i] == ',') {
+            if((i == 0)||(input[i-1]))
+            if(!allow_comma)
+          }
         }
       }
   
