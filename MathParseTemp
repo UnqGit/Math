@@ -53,10 +53,11 @@ class expression{
         "acsc", "asec", "atan",
         "acot", "sinh", "cosh",
         "csch", "sech", "tanh",
-        "coth", "ftrl", "gcd",
+        "coth", "abs", "gcd",
         "ncr", "npr", "add",
         "sub", "mul", "div",
-        "abs"
+        "mod", "flr", "rnd",
+        "ceil", "ftrl"
       };
       
       std::string to_check;
@@ -479,7 +480,10 @@ class expression{
       //of loops needed.
       //eg, cosine->co-sine->co-sin->cosin->cos
   
-      std::string to_change[18] = {
+      std::string to_change[24] = {
+        "floor", "flr",
+        "factorial","ftrl",
+        "round","rnd",
         "sine", "sin",
         "cosin", "cos",
         "tangent", "tan",
@@ -490,7 +494,7 @@ class expression{
         "cosec", "csc",
         "ar", "a"
       };
-      for(int i = 0; i < 18; i+=2){
+      for(int i = 0; i < 24; i+=2){
     
         size_t t = input.find(to_change[i]);
     
@@ -752,11 +756,15 @@ class expression{
         return;
       }
       std::unordered_set<char> ops{
-        '-','+','*','^','/',','
+        '-','+','*','^','/',',','('
       };
       while(t != std::string::npos) {
         int parenthesis = 0, i = t - 1;
-        if(ops.find(input[t-1])!=ops.end()||input[t-1]=='(');
+        if(ops.find(input[t-1])!=ops.end()||input[t-1]=='('){
+          this->err_log = "NO ARGUMENT IN FACTORIAL FUNCTION.";
+          this->anamoly = true;
+          return;
+        }
         input.replace(t, 1, ")");
         for(; i >= 0; i--) {
 
@@ -794,11 +802,14 @@ class expression{
 
       std::unordered_set<std::string> binary_funcs {
         "pow","gcd","ncr","npr","add","sub","mul",
-        "div"
+        "div","mod"
       };
       std::unordered_set<char> invalid_precedince {
-        ',','*','/','+','-','('
-      }
+        ',','*','/','+','-','(','^'
+      };
+      std::unordered_set<char> invalid_subsidence {
+        ',','*','/',')','^'
+      };
       std::string temp;
       int functions = 0, parenthesis = 0;
       bool allow_comma = false;
@@ -808,7 +819,9 @@ class expression{
           temp += input[i];
         }
         else {
-          // if(temp.empty()) continue;
+          // if(!temp.empty()) {
+          //   if(binary_funcs.find(temp) != binary_funcs.end())
+          // }
           if(input[i] == '(') {
             if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()){
               allow_comma = true;
@@ -816,7 +829,7 @@ class expression{
             }
             parenthesis++;
           }
-          else if(input == ')') {
+          else if(input[i] == ')') {
             parenthesis--;
             if(parenthesis < 0) {
               this->err_log = "INVALID PARENTHESIS PLACEMENT.";
@@ -836,9 +849,25 @@ class expression{
             }
           }
           else if(input[i] == ',') {
-            if((i == 0)||(input[i-1]))
-            if(!allow_comma)
+            if(!allow_comma){
+              if(paren_count.empty()) this->err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
+              else this->err_log = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
+              this->anamoly = true;
+              return;
+            }
+            if((i == 0)||invalid_precedince.find(input[i-1])!=invalid_precedince.end()) {
+              this->err_log = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
+              this->anamoly = true;
+              return;
+            }
+            if((i == input.size()-1) || invalid_subsidence.find(input[i + 1]) != invalid_subsidence.end()) {
+              this->err_log = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
+              this->anamoly = true;
+              return;
+            }
+            allow_comma = false;
           }
+          temp.clear();
         }
       }
   
@@ -972,6 +1001,9 @@ class expression{
       remove_empt(input, flag);
       
       implicit_mult(input);
+      if(this->anamoly) return;
+      
+      valid_commas(input);
       if(this->anamoly) return;
       
       factorial_convert(input);
