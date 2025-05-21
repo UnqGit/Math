@@ -59,7 +59,7 @@ class expression{
         "mod", "flr", "rnd",
         "ceil", "ftrl", "pow"
       };
-      
+
       std::string to_check;
       
       for(int i = 0; i < input.size(); i++){
@@ -343,7 +343,7 @@ class expression{
       
       //delimiters to make sure we insert at correct position
       std::unordered_set<char> map{
-        '+','-','*','/','^','('
+        '+','-','*','/','^','(',','
       };
       
       //initialize function name to be added and the potential
@@ -664,7 +664,7 @@ class expression{
   
       //sets for fast lookups
       std::unordered_set<char> ops{
-        '+','-','*','/','^'
+        '+','-','*','/','^',
       };
       std::unordered_set<char> sign{
         '+','-'
@@ -815,19 +815,17 @@ class expression{
       std::string temp;
       int functions = 0, parenthesis = 0;
       bool allow_comma = false;
-      std::stack<size_t> paren_count;
+      std::stack<size_t> parenthesis_index;
       for(int i = 0; i < input.size(); i++) {
         if(std::islower(input[i])) {
           temp += input[i];
         }
         else {
-          // if(!temp.empty()) {
-          //   if(binary_funcs.find(temp) != binary_funcs.end())
-          // }
           if(input[i] == '(') {
             if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()){
               allow_comma = true;
-              paren_count.push(parenthesis);
+              parenthesis_index.push(parenthesis);
+              std::cout << parenthesis_index.top() << " " << i << std::endl;
             }
             parenthesis++;
           }
@@ -838,21 +836,22 @@ class expression{
               this->anamoly = true;
               return;
             }
-            if(!paren_count.empty() && paren_count.top() == parenthesis) {
-              paren_count.pop();
+            if(!parenthesis_index.empty() && parenthesis_index.top() == parenthesis) {
+              std::cout << i << " " << parenthesis_index.top() << std::endl;
+              parenthesis_index.pop();
               if(allow_comma) {
                 this->err_log = "NO COMMA IN A BINARY FUNCTION.";
                 this->anamoly = true;
                 return;
               }
-              if(!paren_count.empty()) {
+              if(!parenthesis_index.empty()) {
                 allow_comma = true;
               }
             }
           }
           else if(input[i] == ',') {
             if(!allow_comma){
-              if(paren_count.empty()) this->err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
+              if(parenthesis_index.empty()) this->err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
               else this->err_log = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
               this->anamoly = true;
               return;
