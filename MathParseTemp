@@ -664,6 +664,8 @@ class expression {
         // If a decimal is found, check if it follows a number, if not insert
         // a 0 before it, and if it isn't followed by a number, remove it.
 
+        // Also correct potential oversight of multiple decimals following each other.
+
         else if(input[i] == '.') {
           if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
             input.erase(i, 1);
