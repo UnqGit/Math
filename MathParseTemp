@@ -508,139 +508,133 @@ class expression{
       }
     }
 
-    //change continous sets of implicit multiplication
-    //to explicit multiplication
-    void implicit_mult(std::string& input){
-  
-      std::unordered_set<char> lookup{
-        'x','0','1','2','3','4','5','6','7','8','9',
-        ')','(','#','!'
-      };
-  
-      for(int i = 0; i < input.length(); i++){
-    
-        //sqrt rule
-        if(input[i]=='#'){
-          if(i>0&&lookup.count(input[i-1])&&!
-          (input[i-1]=='('||input[i-1]=='#')){
-            input.insert(i,"*");
+    // Implicit to explicit multiplication.
+    void implicit_mult(std::string &input) noexcept {
+
+      std::unordered_set<char> lookup {'x','0','1','2','3','4','5','6','7','8','9',')','(','#','!'};
+
+      for(int i = 0; i < input.length(); i++) {
+
+        // Sqrt rule.
+        if(input[i] == '#') {
+          if(i > 0 && lookup.count(input[i - 1]) &&
+          !(input[i - 1]=='(' || input[i - 1] == '#')) {
+            input.insert(i, "*");
             i++;
           }
-      
-          //error check
-          if((i+1)<input.size()&&input[i+1]==')'){
-            this->err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
-            this->anamoly = true;
+
+          // Error check.
+          if((i + 1) < input.size() && input[i + 1] == ')') {
+            this -> err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
+            this -> anamoly = true;
             return;
           } 
-    
+
         }
-        
-        //variable rule
-        else if(input[i]=='x'){
-          if(i>0&&input[i-1]=='e') continue;
-          if(i>0&&lookup.count(input[i-1])&&
-          !(input[i-1]=='('||input[i-1]=='#')){
-            input.insert(i,"*");
+
+        // Variable rule.
+        else if(input[i] == 'x') {
+          if(i > 0 && input[i - 1] == 'e') continue;
+          if(i > 0 && lookup.count(input[i - 1]) &&
+          !(input[i - 1] == '(' || input[i - 1] == '#')) {
+            input.insert(i, "*");
             i++;
           }
-          if((i+1)<input.length()&&(std::islower(input[i+1])||(
-          (lookup.count(input[i+1])&&input[i+1]!=')')))){
-            input.insert(i+1,"*");
+          if((i + 1) < input.length() && (std::islower(input[i + 1]) || (
+          (lookup.count(input[i + 1]) && input[i + 1] != ')')))) {
+            input.insert(i + 1, "*");
           }
         }
-        
-        //function rule
-        else if(std::islower(input[i])){
-          if(i>0&&(std::isdigit(input[i-1])||input[i-1]==')')){
-            input.insert(i,"*");
+
+        // Function rule.
+        else if(std::islower(input[i])) {
+          if(i > 0 && (std::isdigit(input[i - 1]) || input[i - 1] == ')')) {
+            input.insert(i, "*");
             i++;
           }
         }
-        
+
+        // Factorial symbol rule.
         else if(input[i] == '!') {
-          if((i+1)<input.size()&&(std::isalnum(input[i+1])))
-            input.insert(i+1,"*");
+          if((i + 1) < input.size() && (std::isalnum(input[i + 1]))) input.insert(i + 1, "*");
         }
-        
-        //opening parenthesis rule
-        else if(input[i]=='('){
-          if(i>0&&lookup.count(input[i-1])&&
-          !(input[i-1]=='('||input[i-1]=='#')){
-            input.insert(i,"*");
+
+        // Opening parenthesis rule.
+        else if(input[i] == '(') {
+          if(i > 0 && lookup.count(input[i - 1]) &&
+          !(input[i - 1] == '(' || input[i - 1] == '#')) {
+            input.insert(i, "*");
             i++;
           }
-    
-          //error check
-          if((i+1)<input.size()&&input[i+1]==')'){
-            this->err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
-            this->anamoly = true;
+
+          // Error check.
+          if((i + 1) < input.size() && input[i + 1] == ')') {
+            this -> err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
+            this -> anamoly = true;
             return;
           } 
-    
+
         }
-        
-        //closing parenthesis rule
-        else if(input[i]==')'){
-          if((i+1)<input.length()&&lookup.count(input[i+1])&&
-          !(input[i+1]==')'||input[i+1]=='!')){
-            input.insert(i+1,"*");
+
+        // Closing parenthesis rule.
+        else if(input[i] == ')') {
+          if((i + 1) < input.length() && lookup.count(input[i + 1]) &&
+          !(input[i + 1] == ')' || input[i + 1] == '!')) {
+            input.insert(i + 1, "*");
           }
         }
       }
     }
 
-    //check if a superscript is directly followed by
-    //a decimal which is likely to be an error
-    bool pow_dec_wrong(const std::string& input){
-      std::string super[10]={
-        "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"
-      };
-      for(int i = 0; i < 10; i++){
+    // Check if a superscript is directly followed by
+    // a decimal which is likely to be an error.
+    bool pow_dec_wrong(const std::string &input) const noexcept {
+      std::string super[10] = {"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
+      for(int i = 0; i < 10; i++) {
         size_t t = input.find(super[i]);
-        while(t!=std::string::npos){
-          if((t+super[i].length()<input.length())&&input[t+super[i].length()]=='.')
-          return true;
-          t = input.find(super[i], t+super[i].length());
+        while(t != std::string::npos) {
+          if((t + super[i].length() < input.length()) && input[t + super[i].length()] == '.') return true;
+          t = input.find(super[i], t + super[i].length());
         }
       }
       return false;
     }
-    
-    //check for any invalid characters that aren't allowed
-    bool invalid_char(const std::string& input){
-      std::unordered_set<std::string> lookup{
+
+    // Check for any invalid characters that aren't allowed.
+    bool invalid_char(const std::string &input) const noexcept {
+      std::unordered_set<std::string> lookup {
         "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹",
         "0","1","2","3","4","5","6","7","8","9",
-        "e","x","p","s","q","r","t","a","n","i",
-        "c","o","w","l","g","h","^","+","-","/",
-        "*","÷","×","·","√","π",".","(",")",",",
-        "d","u","b","v","m","!","f"
+        "^","+","-","/","*","÷","×","·","√","π",
+        ".","(",")",",","!","a","b","c","d","e",
+        "f","g","h","i","l","m","n","o","p","q",
+        "r","s","t","u","v","w","x"
       };
       for (int i = 0; i < input.size(); ) {
         unsigned char c = input[i];
         int len = 1;
-        //shenanigans for unicode
+        // Shenanigans for unicode.
         if ((c & 0x80) == 0) len = 1;
         else if ((c & 0xE0) == 0xC0) len = 2;
         else if ((c & 0xF0) == 0xE0) len = 3;
         else if ((c & 0xF8) == 0xF0) len = 4;
         else return true;
-        if((i+len)>input.size()) return true;
+        if((i + len) > input.size()) return true;
         if (!lookup.count(input.substr(i, len))) return true;
         i += len;
       }
       return false;
     }
 
-    void remove_empt(std::string& input, bool& flag){
-       //remove any empty parenthesis and turn flag boollean
-       //to true for further correct error_message
+    // Remove empty parenthesis.
+    void remove_empt(std::string &input, bool &flag) const noexcept {
+       // Remove any empty parenthesis and turn flag boollean
+       // to true for further correct error_message.
        size_t t = input.find("()");
-       while(t!=std::string::npos){
-        flag = true;
+       while(t != std::string::npos) {
+         flag = true;
          input.replace(t, 2, "");
-         t = input.find("()", t==0?0:t-1);
+         t = input.find("()", t == 0 ? 0 : t - 1);
        }
      }
 
@@ -856,6 +850,7 @@ class expression{
   
     }
 
+    // Make sure decimals has valid format.
     void invalid_decimal(const std::string &input) noexcept {
 
       // Early empty string check.
@@ -1085,6 +1080,16 @@ class expression{
       return this -> modified_expression.substr(t + 1, length - t - 2);
     }
 
+    // Swaping mechanism with another expression.
+    expression &swap(expression &other) {
+      std::swap(this -> entered_expression, other.entered_expression);
+      std::swap(this -> modified_expression, other.modified_expression);
+      std::swap(this -> allow_variable, other.allow_variable);
+      std::swap(this -> err_log, other.err_log);
+      std::swap(this -> anamoly, other.anamoly);
+      return *this;
+    }
+
     // Provide inner expression as a new expression object if present.
     expression inner_expression() const noexcept {
       expression result;
@@ -1093,6 +1098,7 @@ class expression{
       if(this -> err_log == "SUCCESSFULLY MODIFIED.") result.modified_expression = inner;
       result.err_log = this -> err_log;
       result.anamoly = this -> anamoly;
+      return result;
     }
 
     // Reset the class back to default.
