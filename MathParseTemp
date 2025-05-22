@@ -98,18 +98,18 @@ class expression{
         return;
       }
     }
-    
-    //checks if there are correct numbers of opening and closing
-    //parenthesis, if not add where needed
-    void app_paren(std::string& input, bool& flag){
+
+    // Checks if there are correct numbers of opening and closing
+    // parenthesis, if not add where needed.
+    void app_paren(std::string &input, bool &flag) noexcept {
       int parenthesis = 0;
-      for(int i = 0; i < input.size(); i++){
-        if(input[i]=='('){
+      for(int i = 0; i < input.size(); i++) {
+        if(input[i] == '(') {
           parenthesis++;
         }
-        else if(input[i]==')'){
-          if(parenthesis==0){
-            input = "("+input;
+        else if(input[i] == ')') {
+          if(parenthesis == 0) {
+            input = "(" + input;
             flag = true;
             i++;
           }
@@ -119,164 +119,145 @@ class expression{
       input += std::string(parenthesis, ')');
     }
 
-    //called at last of the cleaner function to ensure this works properly
-    void paren_cleaner(std::string& input) noexcept{
-      //Parenthesis count check is done before calling
-      //this function.
-      //Initialize a stack to keep track of opening
-      //parenthesis index and potential for removal 
-  
-      std::stack<std::pair<int,bool>> holder;
-  
-      //only need to iterate through the string once
-  
-      for(int i = 0; i < input.length(); i++){
-    
-        if(input[i]=='('){
-      
-          //if the opening parenthesis isn't preceded by
-          //a function, add to the potential
-      
-          if(i>0){
-            char ch = input[i-1];
-            if(!std::islower(ch)){
-              holder.push({i,1});
-            }
-            else holder.push({i,0});
+    // Call at last of the cleaner function to ensure this works properly.
+    void paren_cleaner(std::string &input) noexcept {
+      // Parenthesis count check is done before calling
+      // this function.
+      // Initialize a stack to keep track of opening
+      // parenthesis index and potential for removal.
+      std::stack<std::pair<size_t, bool>> holder;
+
+      // Only need to iterate through the string once.
+      for(int i = 0; i < input.length(); i++) {
+
+        if(input[i] == '(') {
+
+          //If the opening parenthesis isn't preceded by
+          //a function, add to the potential.
+          if(i > 0) {
+            char ch = input[i - 1];
+            if(!std::islower(ch)) holder.push({i, true});
+            else holder.push({i, false});
           }
-       
-          //if the parenthesis is at the start, still
-          //add potential for removal
-      
-          else holder.push({i,1});
+
+          //If the parenthesis is at the start, still add potential for removal.
+          else holder.push({i, true});
         }
-    
-        else if(input[i]==')'){
-          
-          //error check
-          if(holder.empty()||(!holder.empty()&&(holder.top().first==i-1))){
-            this->err_log = "INVALID PARENTHESIS ORDER/USE.";
-            this->anamoly = true;
+
+        else if(input[i] == ')') {
+
+          // Error check.
+          if(holder.empty() || (!holder.empty() && (holder.top().first == i - 1))) {
+            this -> err_log = "INVALID PARENTHESIS ORDER/USE.";
+            this -> anamoly = true;
             return;
           }
-          
-          if(holder.top().second){
-            
-            //if it had potential
-            //remove the parenthesis 
-        
-            input.erase(i,1);
-            input.erase(holder.top().first,1);
-            i-=2;
+
+          if(holder.top().second) {
+
+            // If it had potential remove the parenthesis. 
+            input.erase(i, 1);
+            input.erase(holder.top().first, 1);
+            i -= 2;
           }
-      
-          //remove the top-most nest from the stack
-      
+
+          // Remove the top-most nest from the stack.
           holder.pop();
-    
         }
       }
     }
 
-    void basic_cleanup(std::string& input){
-      //convert unicode operators and constants into
-      //normal operators and placeholders respectfully
-      //reason why exp and sec are chaned temporarily is
-      //so that exp doesn't become 2.718*xp
-      //and pi should be converted before exp for the cases
-      //such as expi where it should be 2.718*x*3.141
+    void basic_cleanup(std::string &input) noexcept {
+      // Convert unicode operators and constants into
+      // normal operators and placeholders respectfully
+      // reason why exp and sec are chaned temporarily is
+      // so that exp doesn't become 2.718*xp
+      // and pi should be converted before exp for the cases
+      // such as expi where it should be '2.718*x*3.141'.
       std::string to_change1[26] = {
         "·", "*", "×", "*", "÷", "/", "√", "#",
         "pi", "=", "π", "=", "exp", "EXP", "sec", "SEC",
         "ceil", "CEIL", "e", "@", "EXP", "exp", "SEC", "sec",
         "CEIL", "ceil"
       };
-      for(int i = 0; i < 26; i+=2){
+      for(int i = 0; i < 26; i += 2) {
         size_t t = input.find(to_change1[i]);
-        while(t!=std::string::npos){
-          input.replace(t, to_change1[i].length(), to_change1[i+1]);
-          t = input.find(to_change1[i], t+to_change1[i].length()-1-(to_change1[i]=="√"?1:0));
-          //idk why but the extra check for √ symbol separately
-          //was necessary for it to work...
-          ///it was due to multi byte nature of √
+        while(t != std::string::npos) {
+          input.replace(t, to_change1[i].length(), to_change1[i + 1]);
+          t = input.find(to_change1[i], t + to_change1[i].length() - 1 - (to_change1[i] == "√" ? 1 : 0));
+          // Subtraction by 1 is needed for √ because it is of multibyte natue (unicode).
         }
       }
-  
-      std::string to_change2[24]={
+
+      std::string to_change2[24] = {
         "⁰", "0", "¹", "1", "²", "2", "³", "3", "⁴", "4",
         "⁵", "5", "⁶", "6", "⁷", "7", "⁸", "8", "⁹", "9",
         "=", "3.14159265358979323846264338327950288419",
         "@", "2.71828182845904523536028747135266249775"
       };
-      std::unordered_set<char> lookup{
-        '0','1','2','3','4','5','6','7','8','9',
-        '.',')','=','@'
-      };
-  
-      //add approapriate operators where needed
-      for(int i = 0; i < 24; i+=2){
+      std::unordered_set<char> lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
+
+      // Add approapriate operators where needed.
+      for(int i = 0; i < 24; i += 2) {
         size_t t = input.find(to_change2[i]);
         while(t != std::string::npos){
           std::string substring = to_change2[i];
-          int update=0;
-          if(t > 0 && (lookup.count(input[t-1])||std::islower(input[t-1])))
-            substring = (i<20?"^":"*")+substring;
-      
-          //we can't check the immediate next character as
-          //superscripts are unicode and not single byte ASCII
-          if((t+to_change2[i].length()<input.size())&&((std::islower(input[t+to_change2[i].length()]))||
-          (lookup.count(input[t+to_change2[i].length()])&&input[t+to_change2[i].length()]!=')'))){
-            substring+="*";
+          int update = 0;
+          if(t > 0 && (lookup.count(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? "^" : "*") + substring;
+
+          // We can't check the immediate next character as
+          // superscripts are unicode and not single byte ASCII.
+          if((t + to_change2[i].length() < input.size()) && ((std::islower(input[t + to_change2[i].length()])) ||
+          (lookup.count(input[t + to_change2[i].length()]) && input[t + to_change2[i].length()] != ')'))) {
+            substring += "*";
             update++;
           }
-          input.replace(t,to_change2[i].size(),substring);
-          t = input.find(to_change2[i],t+substring.length()-update);
+          input.replace(t, to_change2[i].size(), substring);
+          t = input.find(to_change2[i], t + substring.length() - update);
         }
       }
-  
-      //reason why this couldn't be done in the first loop itself
-      //is that something like 2³⁴ would become 2^3^4
-      for(int i = 0; i < 24; i+=2){
+
+      // Reason why this couldn't be done in the first loop itself
+      // is that something like 2³⁴ would become 2^3^4.
+      for(int i = 0; i < 24; i += 2) {
         size_t t = input.find(to_change2[i]);
-        while(t!=std::string::npos){
-          input.replace(t, to_change2[i].length(), to_change2[i+1]);
-          t = input.find(to_change2[i], t+to_change2[i].length()-1-(i<20?1:0));
-          //again idk why but an extra -1 was needed after some changes
-          //to the code
-          ///again, due to multibyte nature of superscripts
+        while(t != std::string::npos) {
+          input.replace(t, to_change2[i].length(), to_change2[i + 1]);
+          t = input.find(to_change2[i], t + to_change2[i].length() - 1 - (i < 20 ? 1 : 0));
+          // Due to multibyte nature of superscripts we have to subtract 1.
         }
       }
-  
-      //normalize signs and decimals
-      for(int i = 0; i < input.size(); i++){
-        if(input[i]=='+'||input[i]=='-'){
-          int count = input[i]=='-', j = 1;
-          
-          //if the current character (we can check characters safely
-          //now that we have changed unicode characters into
-          //ASCII characters) is a '+' or a '-', find the next character
-          //which isn't one of them and replace the entire substring
-          //with equivalent sign
-          
-         while((i+j)<input.size()&&(input[i+j]=='+'||input[i+j]=='-')){
-            count+=input[i+j]=='-';
+
+      // Normalize signs and decimals.
+      for(int i = 0; i < input.size(); i++) {
+        if(input[i] == '+' || input[i] == '-') {
+          int count = (input[i] == '-'), j = 1;
+
+          // If the current character (we can check characters safely
+          // now that we have changed unicode characters into
+          // ASCII characters) is a '+' or a '-', find the next character
+          // which isn't one of them and replace the entire substring
+          // with equivalent sign.
+
+         while((i + j) < input.size() && (input[i + j] == '+' || input[i + j] == '-')) {
+            count += input[i + j] == '-';
             j++;
           }
-          if(j>1) input.replace(i, j, (count&1?"-":"+"));
+          if(j > 1) input.replace(i, j, (count & 1 ? "-" : "+"));
         }
-        
-        //if a decimal is found, check if it follows a number, if not insert
-        //a 0 before it, and if it isn't followed by a number, remove it
-        
-        else if(input[i]=='.'){
-          if(i==input.size()-1||(i<input.size()-1&&!std::isdigit(input[i+1]))){
+
+        // If a decimal is found, check if it follows a number, if not insert
+        // a 0 before it, and if it isn't followed by a number, remove it.
+
+        else if(input[i] == '.') {
+          if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
             input.erase(i, 1);
             i--;
           }
-          if(i>-1&&(input[i]=='.')&&(i==0||(i>0&&!std::isdigit(input[i-1])))){
-            input.insert(i,"0");
+          if(i > -1 && (input[i] == '.') && (i == 0 || (i > 0 && !std::isdigit(input[i - 1])))) {
+            input.insert(i, "0");
             i++;
-            if(i==input.size()-1||(i<input.size()-1&&!std::isdigit(input[i+1]))){
+            if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
               input.erase(i, 1);
               i--;
             }
@@ -285,65 +266,59 @@ class expression{
       }
     }
 
-    //replace the '#'(ASCII)(temporarily replaced for '√'(unicode))
-    //with sqrt() format
-    void add_sqrt(std::string& input) noexcept{
-      
-      //sets of delimiters to check from
-      std::unordered_set<char> map{
-        '+','-','*','/','^',',',')'
-      };
-      
-      //count the number of #, which we have to change
-      
+    // Replace the '#'(ASCII)(temporarily replaced for '√'(unicode)) with sqrt() format.
+    void add_sqrt(std::string &input) noexcept {
+
+      // Sets of delimiters to check from.
+      std::unordered_set<char> map {'+','-','*','/','^',',',')'};
+
+      // Count the number of #, which we have to change.
+
       int count = std::count(input.begin(), input.end(), '#');
-      int t = input.length()-1, h, parenthesis=0;
-      
-      for(int i = 0; i < count; i++){
-        
-        //find the first '#' from back(right associative)
-        //starting from previous index of '#' found
+      int t = input.length() - 1, h, parenthesis = 0;
+
+      for(int i = 0; i < count; i++) {
+
+        // Find the first '#' from back(right associative)
+        // starting from previous index of '#' found.
         for(h = t+1; h >= 0; h--)
-          if(input[h]=='#'){t=h;break;}
-        
-        //replace the '#' with sqrt(
-        input.replace(t,1,"sqrt(");
-        
-        //start from the newer index which is changed by
-        //adding the 5 character wide "sqrt("
-        //and find the appropriate index to insert closing
-        //parenthesis
+          if(input[h] == '#') {t = h; break;}
+
+        // Replace the '#' with 'sqrt('.
+        input.replace(t, 1, "sqrt(");
+
+        // Start from the newer index which is changed by
+        // adding the 5 character wide "sqrt("
+        // and find the appropriate index to insert closing
+        // parenthesis.
         t += 5;
         int j = t;
-        for(; j < input.length(); j++){
-          if((map.count(input[j]))&&parenthesis==0){
-            if(j==t&&(input[j]=='+'||input[j]=='-')) continue;
-            if(!(j==t+1&&((input[j]=='(')&&(input[j-1]=='+'||input[j-1]=='-'))))
-            break;
+        for(; j < input.length(); j++) {
+          if((map.count(input[j])) && parenthesis == 0) {
+            if(j == t && (input[j] == '+' || input[j] == '-')) continue;
+            if(!(j == t + 1 && ((input[j] == '(') && (input[j - 1] == '+' || input[j - 1] == '-')))) break;
           }
-          if(input[j]=='(')parenthesis++;
-          else if(input[j]==')')parenthesis--;
+          if(input[j] == '(') parenthesis++;
+          else if(input[j] == ')') parenthesis--;
         }
-        if(j<input.size()-1){
-          input.insert(j,")");
+        if(j < input.size() - 1) {
+          input.insert(j, ")");
         }
-        else input+=")";
+        else input += ")";
       }
     }
 
-    //convert ^,/,*,+,- into function like structure
-    void binary_ops(std::string& input, char delimiter) noexcept{
-      
-      //delimiters to make sure we insert at correct position
-      std::unordered_set<char> map{
-        '+','-','*','/','^','(',','
-      };
-      
-      //initialize function name to be added and the potential
-      //error message using a switch and based on input delimiter
+    // Convert (^ / * + -) into function like-structure.
+    void binary_ops(std::string &input, char delimiter) noexcept {
+
+      // Delimiters to make sure we insert at correct position.
+      std::unordered_set<char> map {'+','-','*','/','^','(',','};
+
+      // Initialize function name to be added and the potential
+      // error message using a switch and based on input delimiter
       std::string function, error_name;
       bool check_hang = true;
-      switch(delimiter){
+      switch(delimiter) {
         case'^':
           function = "pow(";
           error_name = "EXPONENTIATION";
@@ -367,113 +342,110 @@ class expression{
           check_hang = false;
           break;
       }
-      
-      //if delimiter is '^' starting position is end of the string
-      //otherwise at the start to respect the associativity of
-      //operations
-      int index = delimiter=='^'?input.length()-2:0, count = std::count(input.begin(), input.end(), delimiter);
-      
-      //used stop as a lambda to account for update in string and indices
-      auto stop = [&](){return delimiter=='^'?0:input.length();};
-      //to find the next delimiter go back by 1 if delimiter is carret
-      //otherwise go ahead for associativity
-      int update = delimiter=='^'?-1:1, offset = delimiter=='^'?1:0;
-      
-      for(int i = 0; i < count; i++){
-        
-        for(int j = index+offset; j != stop(); j+=update){
-          if(input[j]==delimiter){
+
+      // If delimiter is '^' starting position is end of the string
+      // otherwise at the start to respect the associativity of operations.
+      int index = delimiter == '^' ? input.length() - 2 : 0, count = std::count(input.begin(), input.end(), delimiter);
+
+      // Used stop as a lambda to account for update in string and indices.
+      auto stop = [&](){return delimiter == '^' ? 0 : input.length(); };
+      // To find the next delimiter go back by 1 if delimiter is carret
+      // otherwise go ahead for associativity.
+      int update = delimiter == '^' ? -1 : 1, offset = delimiter == '^' ? 1 : 0;
+
+      for(int i = 0; i < count; i++) {
+
+        for(int j = index + offset; j != stop(); j += update) {
+          if(input[j] == delimiter) {
             index = j;
             break;
           }
         }
-        
-        input[index]=',';
-        if(index==0||(index>0&&map.count(input[index-1]))){
-          
-          //if the operator can't have no first argument
-          //which are '*','/'&'^' log error anf return
-          if(check_hang){
-            this->err_log = "HANGING ";
-            this->err_log += error_name;
-            this->err_log += " OPERATOR.";
-            this->anamoly = true;
+
+        input[index] = ',';
+        if(index == 0 || (index > 0 && map.count(input[index - 1]))) {
+
+          // If the operator can't have no first argument
+          // which are '*','/'&'^' log error and return.
+          if(check_hang) {
+            this -> err_log = "HANGING ";
+            this -> err_log += error_name;
+            this -> err_log += " OPERATOR.";
+            this -> anamoly = true;
             return;
           }
-          
-          //if the standalone operator is '+' erase it, as for 
-          //example +8==8
-          if(delimiter=='+'){
+
+          //If the standalone operator is '+' erase it.
+          if(delimiter == '+') {
             input.erase(index, 1);
             index--;
             continue;
           }
-          
-          //if the standalone operator is '-' subtract from 0
-          else{
-            input.insert(index>0?index:0, "sub(0");
+
+          // If the standalone operator is '-' subtract from 0.
+          else {
+            input.insert(index > 0 ? index : 0, "sub(0");
             index += 5;
           }
         }
-        
-        //if not standalone find the appropiate left position
-        //and insert the function name
-        else{
+
+        // If not standalone find the appropiate left position
+        // and insert the function name.
+        else {
           int parenthesis = 0, j = index - 1;
-          for(; j > 0; j--){
-            if(map.count(input[j])&&parenthesis==0){
-              break;
-            }
-            if(input[j]==')')parenthesis++;
-            else if(input[j]=='(')parenthesis--;
+          for(; j > 0; j--) {
+            if(map.count(input[j]) && parenthesis == 0) break;
+            if(input[j] == ')') parenthesis++;
+            else if(input[j] == '(') parenthesis--;
           }
-          input.insert(j<=0?0:j+1, function);
-          index+=4;
+          input.insert(j <= 0 ? 0 : j + 1, function);
+          index += 4;
         }
-        
-        //erase '(' from map as to make sure we don't stop
-        //anywhere prematurely and add ')' as a new delimiter
+
+        // Erase '(' from map as to make sure we don't stop
+        // anywhere prematurely and add ')' as a new delimiter.
         map.erase('(');
         map.insert(')');
-        
-        int j = index+1, parenthesis=0;
-        for(;j < input.length(); j++){
-          if(map.count(input[j])&&parenthesis==0){
-            if((delimiter!='+'&&delimiter!='-')&&(input[j]=='+'||input[j]=='-')&&j==index+1) continue;
+
+        int j = index + 1, parenthesis=0;
+        for(;j < input.length(); j++) {
+          if(map.count(input[j]) && parenthesis == 0) {
+            if((delimiter != '+' && delimiter != '-') && (input[j] == '+' || input[j] == '-') && j == index + 1) continue;
               break;
           }
-          if(input[j]==')')parenthesis--;
-          else if(input[j]=='(')parenthesis++;
+          if(input[j] == ')') parenthesis--;
+          else if(input[j] == '(') parenthesis++;
         }
-        
-        //if stopped index is right after index it is a trailing
-        //operator and so flag it as error
-        if(j-index==1||index==input.length()-1){
-          this->err_log = "TRAILING ";
-          this->err_log += error_name;
-          this->err_log += " OPERATOR.";
-          this->anamoly = true;
+
+        // If stopped index is right after index it is a trailing
+        // operator and so flag it as error.
+        if(j - index == 1 || index == input.length() - 1) {
+          this -> err_log = "TRAILING ";
+          this -> err_log += error_name;
+          this -> err_log += " OPERATOR.";
+          this -> anamoly = true;
           return;
         }
-        
-        //insert ')' at the position found
-        else if(j<input.length()-1) input.insert(j,")");
-        else input+=")";
-        
-        //reset map to default
+
+        // Insert ')' at the position found.
+        else if(j < input.length() - 1) input.insert(j, ")");
+        else input += ")";
+
+        // Reset map to default.
         map.erase(')');
         map.insert('(');
       }
     }
-    
-    void func_name_norm(std::string& input){
- 
-      //converts several aliases to a consistent set of functions
-      //things like cosine also get convered because of the order
-      //in which they are performed ultimately reducing the number
-      //of loops needed.
-      //eg, cosine->co-sine->co-sin->cosin->cos
-  
+
+    // Convert aliases to normal function names.
+    void func_name_norm(std::string &input) noexcept {
+
+      // Converts several aliases to a consistent set of functions
+      // things like cosine also get convered because of the order
+      // in which they are performed ultimately reducing the number
+      // of loops needed.
+      // eg, cosine->co-sine->co-sin->cosin->cos.
+
       std::string to_change[24] = {
         "floor", "flr",
         "factorial","ftrl",
@@ -488,22 +460,22 @@ class expression{
         "cosec", "csc",
         "ar", "a"
       };
-      for(int i = 0; i < 24; i+=2){
-    
+      for(int i = 0; i < 24; i+=2) {
+
         size_t t = input.find(to_change[i]);
-    
-        while(t!=std::string::npos){
-          //a separate check for "arc" to remove incorrectly flagging
-          //arcot, which would've become aot without separation
-          if(to_change[i]=="arc"){
-            if((t+to_change[i].length())<input.length()&&!(
-            input[t+to_change[i].length()]=='o'))
-            input.replace(t, to_change[i].length(), to_change[i+1]);
+
+        while(t != std::string::npos) {
+          // A separate check for "arc" to remove incorrectly flagging
+          // arcot, which would've become aot without separation.
+          if(to_change[i] == "arc") {
+            if((t + to_change[i].length()) < input.length() &&
+            !(input[t + to_change[i].length()] == 'o'))
+            input.replace(t, to_change[i].length(), to_change[i + 1]);
           }
-      
-          else input.replace(t, to_change[i].length(), to_change[i+1]);
-          t = input.find(to_change[i], t+to_change[i+1].length());
-      
+
+          else input.replace(t, to_change[i].length(), to_change[i + 1]);
+          t = input.find(to_change[i], t + to_change[i + 1].length());
+
         }
       }
     }
@@ -784,16 +756,15 @@ class expression{
     // Make sure commmas are only present in binary functions and with correct conditions at that.
     void valid_commas(const std::string &input) noexcept {
 
-      std::unordered_set<std::string> binary_funcs {
-        "pow","gcd","ncr","npr","add","sub","mul","div","mod"
-      };
+      std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod"};
       std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
       std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
       std::string temp;
       int functions = 0, parenthesis = 0;
+
       // A stack to hold the amount of indices present before encountering a binary function,
       // and a bool containing the data if we've encountered a comma in the function.
-      std::stack<std::pair<size_t, bool>> parenthesis_count;
+      std::stack<std::pair<int, bool>> parenthesis_count;
       for(int i = 0; i < input.size(); i++) {
         if(std::islower(input[i])) {
           temp += input[i];
