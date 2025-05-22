@@ -61,34 +61,37 @@ namespace {
     "ceil", "ftrl", "pow"
   };
 
-  std::string err_empty_string = "EMPTY STRING.";
-  std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
-  std::string err_invalid_characters = "INVALID CHARACTERS.";
-  std::string err_incorrect_paren_use = "INCORRCET USE OF PARENTHESIS.";
-  std::string err_invalid_parenthesis = "INVALID PARENTHESIS.";
-  std::string done_modified = "SUCCESSFULLY MODIFIED.";
-  std::string err_not_modified = "NOT MODIFIED.";
-  std::string open_paren = "(", close_paren = ")", hash = "#";
-  std::string empty_string = "";
-  std::string x_str = "x";
-  std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
-  std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
-  std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
-  std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
-  std::string apostrophe_dot = "'.", dot = ".";
-  std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
-  std::string sqrt_func_str = "sqrt(", sub_0_func_str = "sub(0", ftrl_func_str = "ftrl(";
-  std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
-  std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
-  std::string err_full_exp = "EXPONENTIATION", err_full_div = "DIVISION", err_full_mul = "MULTIPLICATION", err_full_sub = "SUBTRACTION";
-  std::string err_full_add = "ADDITION";
-  std::string invalid_fact_place = "INVALID FACTORIAL PLACEMENT.", err_no_arg_fact = "NO ARGUMENT IN FACTORIAL FUNCTION.";
-  std::string err_no_comma = "NO COMMA IN A BINARY FUNCTION.", err_used_comma = "USE OF COMMA IN A NON BINARY FUNCTION.";
-  std::string err_mul_comma = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.", err_no_first_arg = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
-  std::string err_no_second_arg = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
-  std::string err_hanging_dec = "HANGING DECIMAL.", err_dec_not_followed = "DECIMAL NOT FOLLOWED BY A NUMBER.";
-  std::string err_dec_not_follows = "DECIMAL NOT PRECEDED BY A NUMBER.", err_trailing_dec = "TRAILING DECIMAL.";
-  std::string err_mul_dec = "MULTIPLE DECIMALS IN ONE NUMBER.";
+  // Pre-compile strings so it doesn't cost time.
+  const std::string err_empty_string = "EMPTY STRING.";
+  const std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
+  const std::string err_invalid_characters = "INVALID CHARACTERS.";
+  const std::string err_incorrect_paren_use = "INCORRCET USE OF PARENTHESIS.";
+  const std::string err_invalid_parenthesis = "INVALID PARENTHESIS.";
+  const std::string done_modified = "SUCCESSFULLY MODIFIED.";
+  const std::string err_not_modified = "NOT MODIFIED.";
+  const std::string open_paren = "(", close_paren = ")", hash = "#";
+  const std::string empty_string = "";
+  const std::string x_str = "x";
+  const std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
+  const std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
+  const std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
+  const std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
+  const std::string apostrophe_dot = "'.", dot = ".";
+  const std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
+  const std::string sqrt_func_str = "sqrt(", sub_0_func_str = "sub(0", ftrl_func_str = "ftrl(";
+  const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
+  const std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
+  const std::string err_full_exp = "EXPONENTIATION", err_full_div = "DIVISION", err_full_mul = "MULTIPLICATION", err_full_sub = "SUBTRACTION";
+  const std::string err_full_add = "ADDITION";
+  const std::string invalid_fact_place = "INVALID FACTORIAL PLACEMENT.", err_no_arg_fact = "NO ARGUMENT IN FACTORIAL FUNCTION.";
+  const std::string err_no_comma = "NO COMMA IN A BINARY FUNCTION.", err_used_comma = "USE OF COMMA IN A NON BINARY FUNCTION.";
+  const std::string err_mul_comma = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.", err_no_first_arg = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
+  const std::string err_no_second_arg = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
+  const std::string err_hanging_dec = "HANGING DECIMAL.", err_dec_not_followed = "DECIMAL NOT FOLLOWED BY A NUMBER.";
+  const std::string err_dec_not_follows = "DECIMAL NOT PRECEDED BY A NUMBER.", err_trailing_dec = "TRAILING DECIMAL.";
+  const std::string err_mul_dec = "MULTIPLE DECIMALS IN ONE NUMBER.";
+  const std::string fp_org_str = "\nOriginal: ", fp_mod_str = "\nModified: ", fp_status_str = "\nStatus: ";
+  const std::string fr_log_str = "\nLog: ", fp_no_str = "No ", fp_anamoly_detected = "Anamoly Detected.";
 }
 
 namespace parse {
@@ -1268,36 +1271,36 @@ class expression {
     
     // Printing function for ease_of_use.
     void print(std::ostream &os) const {
-      os << "\nOriginal: " << this -> entered_expression;
-      os << "\nModified: ";
-      if(!anamoly && this -> modified_expression.find("(") != std::string::npos) {
+      os << fp_org_str << this -> entered_expression;
+      os << fp_mod_str;
+      if(!anamoly && this -> modified_expression.find(open_paren) != std::string::npos) {
         os << '\n';
         int parenthesis = 0;
         std::string string = this -> modified_expression;
         for(int i = 0; i < string.size(); i++) {
           if(string[i] == '(') {
-            os << string[i] << "\n";
+            os << string[i] << '\n';
             parenthesis++;
             os << std::string(2 * parenthesis, ' ');
           }
           else if(string[i] == ')') {
             parenthesis--;
             if(parenthesis < 0) throw std::runtime_error("Unexpected error: parenthesis parsing didn't occur correctly.");
-            os << "\n" << std::string(2 * parenthesis, ' ') << string[i];
+            os << '\n' << std::string(2 * parenthesis, ' ') << string[i];
           }
           else if(string[i] == ',') {
-            os << string[i] << "\n" << std::string(2 * parenthesis, ' ');
+            os << string[i] << '\n' << std::string(2 * parenthesis, ' ');
           }
           else os << string[i];
         }
       }
       else os << this -> modified_expression;
-      os << "\nStatus: " << ((anamoly && this -> err_log != "NOT MODIFIED.") ? "" : "No ") << "Anamoly Detected.";
-      os << "\nLog: " << this -> err_log << "\n";
+      os << fp_status_str << ((anamoly && this -> err_log != err_not_modified) ? empty_string : fp_no_str) << fp_anamoly_detected;
+      os << fr_log_str << this -> err_log << '\n';
     }
 
     // Output stream operator to print all the useful information.
-    friend std::ostream& operator<<(std::ostream& os, const expression& obj){
+    friend std::ostream &operator<<(std::ostream &os, const expression &obj){
       obj.print(os);
       return os;
     }
@@ -1316,7 +1319,7 @@ class expression {
     std::string modified_expression;
     bool anamoly = true;
     bool allow_variable = true;
-    std::string err_log = "NOT MODIFIED.";
+    std::string err_log = err_not_modified;
 };
 
 }
