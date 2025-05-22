@@ -1,44 +1,44 @@
 #pragma once
 
-namespace parse{
+namespace parse {
 
-class expression{
-
-    //checks if a string of lowercase letters more than a letter
+class expression {
+  // Helper functions.
+  private:
+    //Checks if a string of lowercase letters more than a letter
     //long is followed by a '(' or not (to check if functions are followed
-    //by a '(')
-    void app_func_call(const std::string& input, bool flag) noexcept{
+    //by a '(').
+    void app_func_call(const std::string &input, bool flag) noexcept {
       int to_check = 0;
-      for(int i = 0; i < input.size(); i++){
-        if(std::islower(input[i]))to_check++;
-        else{
-          if(to_check==0) continue;
-          if(to_check > 1){
-            if(input[i]!='('){
-              if(flag) this->err_log = "NO ARGUMENT FOR FUNCTION.";
-              else this->err_log = "FUNCTION NOT FOLLOWED BY '('.";
-              this->anamoly = true;
+      for(int i = 0; i < input.size(); i++) {
+        if(std::islower(input[i])) to_check++;
+        else {
+          if(to_check == 0) continue;
+          if(to_check > 1) {
+            if(input[i] != '(') {
+              if(flag) this -> err_log = "NO ARGUMENT FOR FUNCTION.";
+              else this -> err_log = "FUNCTION NOT FOLLOWED BY '('.";
+              this -> anamoly = true;
               return;
             }
           }
-          to_check=0;
+          to_check = 0;
         }
       }
-      if(to_check>1){
-        if(flag) this->err_log = "NO ARGUMENT FOR FUNCTION.";
-        else this->err_log = "FUNCTION NOT FOLLOWED BY '('.";
-        this->anamoly = true;
+      if(to_check > 1) {
+        if(flag) this -> err_log = "NO ARGUMENT FOR FUNCTION.";
+        else this -> err_log = "FUNCTION NOT FOLLOWED BY '('.";
+        this -> anamoly = true;
         return;
       }
     }
-    
-    //checks if continuous set of strings in the modified string is
-    //an intended function via a map to check easily
-    void app_func_name(const std::string& input) noexcept{
-      
-      //store all the intended function names in a map for
-      //fast lookup
-      std::unordered_set<std::string> map{
+
+    // Checks if continuous set of strings in the modified string is
+    // an intended function via a map to check easily.
+    void app_func_name(const std::string &input) noexcept {
+      // Store all the intended function names in a map for
+      // fast lookup.
+      std::unordered_set<std::string> map {
         "x", "exp", "ln",
         "sqrt", "sin", "cos",
         "csc", "sec", "tan",
@@ -52,49 +52,42 @@ class expression{
         "mod", "flr", "rnd",
         "ceil", "ftrl", "pow"
       };
-
       std::string to_check;
-      
-      for(int i = 0; i < input.size(); i++){
-        
-        //store continuous set of lowercase letters into
-        //a temporary string
-        if(std::islower(input[i])){
-          to_check+=input[i];
-        }
-        
-        else{
-          
-          //if the prevous letter also wasn't an alphabet
+      for(int i = 0; i < input.size(); i++) {
+
+        // Store continuous set of lowercase letters into a temporary string.
+        if(std::islower(input[i])) to_check += input[i];
+        else {
+
+          // If the prevous letter also wasn't an alphabet.
           if(to_check.empty()) continue;
-          
-          //if the string stored as potential functions aren't
-          //present in the map, flag them otherwise reset and continue
-          else{
-            if(map.count(to_check)){
-              if(to_check=="x"&&(!this->allow_variable)){
-                this->err_log = "VARIABLE IN NON-FUNCTION EXPRESSION.";
-                this->anamoly = true;
+
+          // If the string stored as potential functions aren't
+          // present in the map, flag them otherwise reset and continue.
+          else {
+            if(map.count(to_check)) {
+              if(to_check == "x" && (!this -> allow_variable)) {
+                this -> err_log = "VARIABLE IN NON-FUNCTION EXPRESSION.";
+                this -> anamoly = true;
                 return;
               }
               to_check = "";
               continue;
             }
-            else{
-              this->err_log = "INVALID STRING OF LETTERS.";
-              this->anamoly = true;
+            else {
+              this -> err_log = "INVALID STRING OF LETTERS: '" + to_check + "'.";
+              this -> anamoly = true;
               return;
             }
           }
-          
         }
       }
-      
-      //if the temporary variable isn't empty then check it as a
-      //necessary function or variable, if not, then flag
-      if(!to_check.empty()&&!map.count(to_check)){
-        this->err_log = "INVALID STRING OF LETTERS.";
-        this->anamoly = true;
+
+      // If the temporary variable isn't empty then check it as a
+      // necessary function or variable, if not, then flag.
+      if(!to_check.empty() && !map.count(to_check)) {
+        this -> err_log = "INVALID STRING OF LETTERS.";
+        this -> anamoly = true;
         return;
       }
     }
