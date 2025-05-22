@@ -18,11 +18,11 @@ namespace {
     "cosec", "csc",
     "ar", "a"
   };
-  std::string temporary_conversion[26] {
+  std::string temporary_conversion[30] {
     "·", "*", "×", "*", "÷", "/", "√", "#",
     "pi", "=", "π", "=", "exp", "EXP", "sec", "SEC",
-    "ceil", "CEIL", "e", "@", "EXP", "exp", "SEC", "sec",
-    "CEIL", "ceil"
+    "ceil", "CEIL", "neg", "NEG", "e", "@", "EXP", "exp", "SEC", "sec",
+    "CEIL", "ceil", "NEG", "neg"
   };
   std::string unicode_conversion[24] {
     "⁰", "0", "¹", "1", "²", "2", "³", "3", "⁴", "4",
@@ -58,7 +58,8 @@ namespace {
     "ncr", "npr", "add",
     "sub", "mul", "div",
     "mod", "flr", "rnd",
-    "ceil", "ftrl", "pow"
+    "ceil", "ftrl", "pow",
+    "neg"
   };
 
   // Pre-compile strings so it doesn't cost time.
@@ -78,7 +79,7 @@ namespace {
   const std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
   const std::string apostrophe_dot = "'.", dot = ".";
   const std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
-  const std::string sqrt_func_str = "sqrt(", sub_0_func_str = "sub(0", ftrl_func_str = "ftrl(";
+  const std::string sqrt_func_str = "sqrt(", neg_func_str = "neg(", ftrl_func_str = "ftrl(";
   const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
   const std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
   const std::string err_full_exp = "EXPONENTIATION", err_full_div = "DIVISION", err_full_mul = "MULTIPLICATION", err_full_sub = "SUBTRACTION";
@@ -603,7 +604,7 @@ class expression {
       // and pi should be converted before exp for the cases
       // such as expi where it should be '2.718*x*3.141'.
 
-      for(int i = 0; i < 26; i += 2) {
+      for(int i = 0; i < 30; i += 2) {
         size_t t = input.find(temporary_conversion[i]);
         while(t != std::string::npos) {
           input.replace(t, temporary_conversion[i].length(), temporary_conversion[i + 1]);
@@ -801,10 +802,12 @@ class expression {
             continue;
           }
 
-          // If the standalone operator is '-' subtract from 0.
+          // If the standalone operator is '-', use the function "neg()".
           else {
-            input.insert(index > 0 ? index : 0, sub_0_func_str);
-            index += 5;
+            input.erase(index, 1);
+            index--;
+            input.insert(index > 0 ? index : 0, neg_func_str);
+            index += 4;
           }
         }
 
