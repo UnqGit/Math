@@ -60,6 +60,16 @@ namespace {
     "mod", "flr", "rnd",
     "ceil", "ftrl", "pow"
   };
+
+  std::string err_empty_string = "EMPTY STRING.";
+  std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
+  std::string err_invalid_characters = "INVALID CHARACTERS.";
+  std::string err_incorrect_paren_use = "INCORRCET USE OF PARENTHESIS.";
+  std::string err_invalid_parenthesis = "INVALID PARENTHESIS.";
+  std::string done_modified = "SUCCESSFULLY MODIFIED.";
+  std::string err_not_modified = "NOT MODIFIED.";
+  std::string open_paren = "(";
+  std::string empty_string = "";
 }
 
 namespace parse {
@@ -94,7 +104,7 @@ class expression {
       input = unmodified;
       if(input.empty()) {
         this -> anamoly = true;
-        this -> err_log = "EMPTY STRING.";
+        this -> err_log = err_empty_string;
         return;
       }
       bool flag = false;
@@ -110,14 +120,14 @@ class expression {
 
       // Check if superscript is directly followed by a decimal which is likely to be mistake.
       if(pow_dec_wrong(input)) {
-        this -> err_log = "POWER FOLLOWED BY NORMAL DECIMAL.";
+        this -> err_log = err_decimal_after_superscript;
         this -> anamoly = true;
         return;
       }
 
       // Check for any character which isn't in the allowed character set.
       if(invalid_char(input)) {
-        this -> err_log = "INVALID CHARACTERS.";
+        this -> err_log = err_invalid_characters;
         this -> anamoly = true;
         return;
       }
@@ -170,7 +180,7 @@ class expression {
       int opening_parenthesis = std::count(input.begin(), input.end(), '(');
       int closing_parenthesis = std::count(input.begin(), input.end(), ')');
       if(opening_parenthesis != closing_parenthesis) {
-        this -> err_log = "INCORRECT PARENTHESIS.";
+        this -> err_log = err_incorrect_paren_use;
         this -> anamoly = true;
         return;
       }
@@ -188,13 +198,13 @@ class expression {
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
       if(input.empty()) {
-        this -> err_log = flag ? "INVALID PARENTHESIS." : "EMPTY STRING.";
+        this -> err_log = flag ? err_invalid_parenthesis : err_empty_string;
         this -> anamoly = true;
         return;
       }
 
       // Log if successfully updated.
-      this -> err_log = "SUCCESSFULLY MODIFIED.";
+      this -> err_log = done_modified;
 
       // Should be able to parse in 40-70 µs for most input strings.
     }
@@ -219,21 +229,21 @@ class expression {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anamoly = true;
-      this -> err_log = "NOT MODIFIED.";
+      this -> err_log = err_not_modified;
       return *this;
     }
 
     // Return the outermost function name or the entire expression if there isn't a function.
     std::string om_function() const noexcept {
-      if(this -> anamoly) return "";
-      size_t t = this -> modified_expression.find("(");
-      if(t == std::string::npos) return "";
+      if(this -> anamoly) return empty_string;
+      size_t t = this -> modified_expression.find(open_paren);
+      if(t == std::string::npos) return empty_string;
       return this -> modified_expression.substr(0, t);
     }
 
     // Check if the outermost function is a binary function.
     bool is_om_binary() const noexcept {
-      size_t t = modified_expression.find("(");
+      size_t t = modified_expression.find(open_paren);
       if(this -> anamoly || t == std::string::npos) return false;
       return binary_funcs.find(this -> modified_expression.substr(0, t)) != binary_funcs.end();
     }
@@ -241,14 +251,14 @@ class expression {
     // Check for unary functions.
     bool is_om_unary() const noexcept {
       if(this -> anamoly) return false;
-      size_t t = modified_expression.find("(");
+      size_t t = modified_expression.find(open_paren);
       return (t == std::string::npos) || binary_funcs.find(this -> modified_expression.substr(0, t)) == binary_funcs.end();
     }
 
     // Provide the first inner string inside the parenthesis.
     std::string inner_string() const noexcept {
-      size_t t  = this -> modified_expression.find("(");
-      if(this -> anamoly || t == std::string::npos) return "";
+      size_t t  = this -> modified_expression.find(open_paren);
+      if(this -> anamoly || t == std::string::npos) return empty_string;
       int len = this -> modified_expression.length();
       return this -> modified_expression.substr(t + 1, len - (t + 2));
     }
@@ -256,8 +266,8 @@ class expression {
     // Provide the first inner expression (enire expression if unary or first expression from binary functions)
     // as string if present.
     std::string first_expression_str() const noexcept {
-      if(this -> anamoly) return "";
-      size_t t = this -> modified_expression.find("(");
+      if(this -> anamoly) return empty_string;
+      size_t t = this -> modified_expression.find(open_paren);
       if(t == std::string::npos) return this -> modified_expression;
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
@@ -275,8 +285,8 @@ class expression {
     // Provide the second inner expression (no expression if unary or second expression from binary functions)
     // as string if present.
     std::string second_expression_str() const noexcept {
-      if(this -> anamoly || this -> is_om_unary()) return "";
-      size_t t = this -> modified_expression.find("(");
+      if(this -> anamoly || this -> is_om_unary()) return empty_string;
+      size_t t = this -> modified_expression.find(open_paren);
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
       int parenthesis = 0, i = t + 1;
@@ -293,7 +303,7 @@ class expression {
     // as expression if present.
     expression first_expression() const noexcept {
       if(this -> anamoly) return expression();
-      size_t t = this -> modified_expression.find("(");
+      size_t t = this -> modified_expression.find(open_paren);
       if(t == std::string::npos) return *this;
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
@@ -327,7 +337,7 @@ class expression {
     // as expression if present.
     expression second_expression() const noexcept {
       if(this -> anamoly || this -> is_om_unary()) return expression();
-      size_t t = this -> modified_expression.find("(");
+      size_t t = this -> modified_expression.find(open_paren);
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
       int parenthesis = 0, i = t + 1;
@@ -363,7 +373,7 @@ class expression {
       this -> modified_expression.clear();
       this -> anamoly = true;
       this -> allow_variable = true;
-      this -> err_log = "NOT MODIFIED.";
+      this -> err_log = err_not_modified;
       return *this;
     }
 
@@ -372,7 +382,7 @@ class expression {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anamoly = true;
-      this -> err_log = "NOT MODIFIED.";
+      this -> err_log = err_not_modified;
       if(cleanse) this -> clean();
       return *this;
     }
@@ -654,6 +664,7 @@ class expression {
 
       // Sets of delimiters to check from.
       std::unordered_set<char> delimiter_map {'+','-','*','/','^',',',')'};
+      // Cannot save this in the constant section as we are updating the map.
 
       // Count the number of #, which we have to change.
 
@@ -696,6 +707,7 @@ class expression {
 
       // Delimiters to make sure we insert at correct position.
       std::unordered_set<char> delimiter_map {'+','-','*','/','^','(',','};
+      // Cannot save this in the constant section as we are updating the map.
 
       // Initialize function name to be added and the potential
       // error message using a switch and based on input delimiter
