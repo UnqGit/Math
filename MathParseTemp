@@ -245,9 +245,17 @@ class expression {
       return (t == std::string::npos) || binary_funcs.find(this -> modified_expression.substr(0, t)) == binary_funcs.end();
     }
 
+    // Provide the first inner string inside the parenthesis.
+    std::string inner_string() const noexcept {
+      size_t t  = this -> modified_expression.find("(");
+      if(this -> anamoly || t == std::string::npos) return "";
+      int len = this -> modified_expression.length();
+      return this -> modified_expression.substr(t + 1, len - (t + 2));
+    }
+
     // Provide the first inner expression (enire expression if unary or first expression from binary functions)
     // as string if present.
-    std::string first_function() const noexcept {
+    std::string first_expression_str() const noexcept {
       if(this -> anamoly) return "";
       size_t t = this -> modified_expression.find("(");
       if(t == std::string::npos) return this -> modified_expression;
@@ -266,7 +274,7 @@ class expression {
 
     // Provide the second inner expression (no expression if unary or second expression from binary functions)
     // as string if present.
-    std::string second_function() const noexcept {
+    std::string second_expression_str() const noexcept {
       if(this -> anamoly || this -> is_om_unary()) return "";
       size_t t = this -> modified_expression.find("(");
       size_t len = this -> modified_expression.length();
@@ -279,6 +287,64 @@ class expression {
         else if(input[i] == ',') if(parenthesis == 0) break;
       }
       return input.substr(i + 1, len - 2 - i);
+    }
+
+    // Provide the first inner expression (enire expression if unary or first expression from binary functions)
+    // as expression if present.
+    expression first_expression() const noexcept {
+      if(this -> anamoly) return expression();
+      size_t t = this -> modified_expression.find("(");
+      if(t == std::string::npos) return *this;
+      size_t len = this -> modified_expression.length();
+      std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
+      if(this -> is_om_unary()) {
+        expression inner;
+        inner.entered_expression = inner_expr;
+        inner.modified_expression = inner_expr;
+        inner.anamoly = false;
+        inner.allow_variable = this -> allow_variable;
+        inner.err_log = this -> err_log;
+        return inner;
+      }
+      int parenthesis = 0, i = t + 1;
+      const std::string &input = this -> modified_expression;
+      for(; i < len - 1; i++) {
+        if(input[i] == '(') parenthesis++;
+        else if(input[i] == ')') parenthesis--;
+        else if(input[i] == ',') if(parenthesis == 0) break;
+      }
+      std::string new_expr = input.substr(t + 1, i - (t + 1));
+      expression result;
+      result.entered_expression = new_expr;
+      result.modified_expression = new_expr;
+      result.anamoly = false;
+      result.allow_variable = this -> allow_variable;
+      result.err_log = this -> err_log;
+      return result;
+    }
+
+    // Provide the second inner expression (no expression if unary or second expression from binary functions)
+    // as expression if present.
+    expression second_expression() const noexcept {
+      if(this -> anamoly || this -> is_om_unary()) return expression();
+      size_t t = this -> modified_expression.find("(");
+      size_t len = this -> modified_expression.length();
+      std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
+      int parenthesis = 0, i = t + 1;
+      const std::string &input = this -> modified_expression;
+      for(; i < len - 1; i++) {
+        if(input[i] == '(') parenthesis++;
+        else if(input[i] == ')') parenthesis--;
+        else if(input[i] == ',') if(parenthesis == 0) break;
+      }
+      std::string new_expr = input.substr(i + 1, len - 2 - i);
+      expression result;
+      result.entered_expression = new_expr;
+      result.modified_expression = new_expr;
+      result.anamoly = false;
+      result.allow_variable = this -> allow_variable;
+      result.err_log = this -> err_log;
+      return result;
     }
 
     // Swaping mechanism with another expression.
