@@ -75,11 +75,20 @@ namespace {
   std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
   std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
   std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
-  std::string apostrophe_dot = "'.";
-  std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*";
-  std::string sqrt_func_str = "sqrt(", sub_0_func_str = "sub(0";
+  std::string apostrophe_dot = "'.", dot = ".";
+  std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
+  std::string sqrt_func_str = "sqrt(", sub_0_func_str = "sub(0", ftrl_func_str = "ftrl(";
   std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
   std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
+  std::string err_full_exp = "EXPONENTIATION", err_full_div = "DIVISION", err_full_mul = "MULTIPLICATION", err_full_sub = "SUBTRACTION";
+  std::string err_full_add = "ADDITION";
+  std::string invalid_fact_place = "INVALID FACTORIAL PLACEMENT.", err_no_arg_fact = "NO ARGUMENT IN FACTORIAL FUNCTION.";
+  std::string err_no_comma = "NO COMMA IN A BINARY FUNCTION.", err_used_comma = "USE OF COMMA IN A NON BINARY FUNCTION.";
+  std::string err_mul_comma = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.", err_no_first_arg = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
+  std::string err_no_second_arg = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
+  std::string err_hanging_dec = "HANGING DECIMAL.", err_dec_not_followed = "DECIMAL NOT FOLLOWED BY A NUMBER.";
+  std::string err_dec_not_follows = "DECIMAL NOT PRECEDED BY A NUMBER.", err_trailing_dec = "TRAILING DECIMAL.";
+  std::string err_mul_dec = "MULTIPLE DECIMALS IN ONE NUMBER.";
 }
 
 namespace parse {
@@ -726,24 +735,24 @@ class expression {
       switch(delimiter) {
         case'^':
           function = pow_func_str;
-          error_name = "EXPONENTIATION";
+          error_name = err_full_exp;
           break;
         case'/':
           function = div_func_str;
-          error_name = "DIVISION";
+          error_name = err_full_div;
           break;
         case'*':
           function = mul_func_str;
-          error_name = "MULTIPLICATION";
+          error_name = err_full_mul;
           break;
         case'-':
           function = sub_func_str;
-          error_name = "SUBTRACTION";
+          error_name = err_full_sub;
           check_hang = false;
           break;
         case'+':
           function = add_func_str;
-          error_name = "ADDITION";
+          error_name = err_full_add;
           check_hang = false;
           break;
       }
@@ -1080,28 +1089,27 @@ class expression {
 
     // Convert from implicit '!' to explicit function calls of "ftrl()".
     void factorial_convert(std::string &input) noexcept {
-
-      size_t t = input.find("!");
+      size_t t = input.find(exclaimation);
       if(t == 0) {
-        this -> err_log = "INVALID FACTORIAL PLACEMENT.";
+        this -> err_log = invalid_fact_place;
         this -> anamoly = true;
         return;
       }
       while(t != std::string::npos) {
         int parenthesis = 0, i = t - 1;
         if(ops.find(input[t - 1]) != ops.end() || input[t - 1] == '(') {
-          this -> err_log = "NO ARGUMENT IN FACTORIAL FUNCTION.";
+          this -> err_log = err_no_arg_fact;
           this -> anamoly = true;
           return;
         }
-        input.replace(t, 1, ")");
+        input.replace(t, 1, close_paren);
         for(; i >= 0; i--) {
 
           if(input[i] == '(') {
             if(parenthesis == 0) break;
             parenthesis--;
             if(parenthesis < 0) {
-              this -> err_log = "INVALID PARENTHESIS PLACEMENT.";
+              this -> err_log = err_incorrect_paren_use;
               this -> anamoly = true;
               return;
             }
@@ -1112,7 +1120,7 @@ class expression {
               break;
             }
             else {
-              this -> err_log = "INVALID FACTORIAL PLACEMENT.";
+              this -> err_log = invalid_fact_place;
               this -> anamoly = true;
               return;
             }
@@ -1122,8 +1130,8 @@ class expression {
 
         }
 
-        input.insert(i == 0 ? i : i + 1, "ftrl(");
-        t = input.find("!", t + 4);
+        input.insert(i == 0 ? i : i + 1, ftrl_func_str);
+        t = input.find(exclaimation, t + 4);
       }
 
     }
@@ -1151,13 +1159,13 @@ class expression {
           else if(input[i] == ')') {
             parenthesis--;
             if(parenthesis < 0) {
-              this -> err_log = "INVALID PARENTHESIS PLACEMENT.";
+              this -> err_log = err_incorrect_paren_use;
               this -> anamoly = true;
               return;
             }
             if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
               if(!parenthesis_count.top().second) {
-                this -> err_log = "NO COMMA IN A BINARY FUNCTION.";
+                this -> err_log = err_no_comma;
                 this -> anamoly = true;
                 return;
               }
@@ -1166,22 +1174,22 @@ class expression {
           }
           else if(input[i] == ',') {
             if(parenthesis_count.empty() || parenthesis_count.top().first != parenthesis - 1) {
-              this -> err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
+              this -> err_log = err_used_comma;
               this -> anamoly = true;
               return;
             }
             if(parenthesis_count.top().second) {
-              this -> err_log = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
+              this -> err_log = err_mul_comma;
               this -> anamoly = true;
               return;
             }
             if((i == 0) || invalid_precedence.find(input[i - 1]) != invalid_precedence.end()) {
-              this -> err_log = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
+              this -> err_log = err_no_first_arg;
               this -> anamoly = true;
               return;
             }
             if((i == input.size() - 1) || invalid_subsidence.find(input[i + 1]) != invalid_subsidence.end()) {
-              this -> err_log = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
+              this -> err_log = err_no_second_arg;
               this -> anamoly = true;
               return;
             }
@@ -1198,14 +1206,13 @@ class expression {
 
       // Early empty string check.
       if(input.empty()) {
-        this -> err_log = "EMPTY STRING.";
+        this -> err_log = err_empty_string;
         this -> anamoly = true;
         return;
       }
-
-      size_t t = input.find(".");
+      size_t t = input.find(dot);
       if(t == 0) {
-        this -> err_log = "HANGING DECIMAL.";
+        this -> err_log = err_hanging_dec;
         this -> anamoly = true;
         return;
       }
@@ -1214,7 +1221,7 @@ class expression {
 
         // Check if decimal is preceded by a number.
         if(!std::isdigit(input[t - 1])) {
-          this -> err_log = "DECIMAL NOT PRECEDED BY A NUMBER.";
+          this -> err_log = err_dec_not_follows;
           this -> anamoly = true;
           return;
         }
@@ -1223,7 +1230,7 @@ class expression {
         if(t < input.length()) {
 
           if(!std::isdigit(input[t + 1])) {
-            this -> err_log = "DECIMAL NOT FOLLOWED BY A NUMBER.";
+            this -> err_log = err_dec_not_followed;
             this -> anamoly = true;
             return;
           }
@@ -1239,8 +1246,8 @@ class expression {
 
               // And it is another decimal, flag it.
               if(input[t + j] == '.') {
-                this -> err_log = ((t + j == input.length() - 1) ? "TRAILING DECIMAL."
-                : "MULTIPLE DECIMALS IN ONE NUMBER.");
+                this -> err_log = ((t + j == input.length() - 1) ? err_trailing_dec
+                : err_mul_dec);
                 this -> anamoly = true;
                 return;
               }
@@ -1252,7 +1259,7 @@ class expression {
           }
         }
 
-        t = input.find(".", t + 1);
+        t = input.find(dot, t + 1);
       }
     }
 
