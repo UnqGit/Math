@@ -643,120 +643,114 @@ class expression{
          t = input.find("()", t==0?0:t-1);
        }
      }
-    
-    //handle incorrect operator orders and malperformed
-    //operators
-    void malform_ops(std::string& input){
-  
-      //flag early if encountering an empty string
-      if(input.empty()){
-        this->err_log = "NO EXPRESSION.";
-        this->anamoly = true;
+
+    // Transform operators into explicit function calls with appropiate error flagging.
+    void malform_ops(std::string &input) noexcept {
+
+      // Flag early if encountering an empty string.
+      if(input.empty()) {
+        this -> err_log = "NO EXPRESSION.";
+        this -> anamoly = true;
         return;
       }
-  
-      //sets for fast lookups
-      std::unordered_set<char> ops{
-        '+','-','*','/','^',
-      };
-      std::unordered_set<char> sign{
-        '+','-'
-      };
-  
-      //flag lone signs
-      if(input.size()==1&&ops.count(input.front())){
-        this->err_log = "NO FUNCTIONALITY TO OPERATOR.";
-        this->anamoly = true;
+
+      // Sets for fast lookups.
+      std::unordered_set<char> ops {'+','-','*','/','^',};
+      std::unordered_set<char> sign {'+','-'};
+
+      // Flag lone signs.
+      if(input.size() == 1 && ops.count(input.front())) {
+        this -> err_log = "NO FUNCTIONALITY TO OPERATOR.";
+        this -> anamoly = true;
         return;
       }
-  
-      for(int i = 0; i < input.length(); i++){
-    
-        //handled in other functions too but flag for safety
-        if(input[i]=='('&&(i+1)<input.length()&&input[i+1]==')'){
-          this->err_log = "EMPTY PARENTHESIS, NO ARGUMENT.";
-          this->anamoly = true;
+
+      for(int i = 0; i < input.length(); i++) {
+
+        // Handled in other functions too but flag for safety.
+        if(input[i] == '(' && (i + 1) < input.length() && input[i + 1] == ')') {
+          this -> err_log = "EMPTY PARENTHESIS, NO ARGUMENT.";
+          this -> anamoly = true;
           return;
         }
-    
-        if(ops.count(input[i])){
+
+        if(ops.count(input[i])) {
       
-          //if a unary plus sign at the start, flag it
-          if(i==0&&input[i]=='+'){
-            if(input.size()!=1){
-              input.erase(i,1);
+          // If a unary plus sign at the start and input size is not greater than 1, flag it.
+          if(i == 0 && input[i] == '+') {
+            if(input.size() != 1) {
+              input.erase(i, 1);
               i--;
               continue;
             }
-            else{
-              this->err_log = "NO FUNCTIONALITY TO OPERATOR.";
-              this->anamoly = true;
+            else {
+              this -> err_log = "NO FUNCTIONALITY TO OPERATOR.";
+              this -> anamoly = true;
             }
           }
-      
-          //rules for error flag or unary plus sign removal
-          if(i>0){
-            if(input[i-1]=='('&&input[i]!='-'){
-              if(input[i]=='+'){
+
+          // Rules for error flag or unary plus sign removal.
+          if(i > 0) {
+            if(input[i - 1] == '(' && input[i] != '-') {
+              if(input[i] == '+') {
                 input.erase(i, 1);
                 i--;
                 continue;
               }
-              this->err_log = "HANGING OPERATOR AFTER PARENTHESIS.";
-              this->anamoly = true;
+              this -> err_log = "HANGING OPERATOR AFTER PARENTHESIS.";
+              this -> anamoly = true;
               return;
             }
-            if((i+1)<input.size()){
-              if(input[i+1]==')'){
-                this->err_log = "TRAILING OPERATOR BEFORE PARENTHESIS.";
-                this->anamoly = true;
+            if((i + 1) < input.size()) {
+              if(input[i + 1] == ')') {
+                this -> err_log = "TRAILING OPERATOR BEFORE PARENTHESIS.";
+                this -> anamoly = true;
                 return;
               }
-              else if(ops.count(input[i+1])){
-                if(input[i+1]=='+'){
-                  input.erase(i+1, 1);
+              else if(ops.count(input[i + 1])) {
+                if(input[i + 1] == '+') {
+                  input.erase(i + 1, 1);
                   i--;
                   continue;
                 }
-                else if(!sign.count(input[i])&&input[i+1]=='-') continue;
-                else{
-                  this->err_log = "MALFORMED OPERATORS.";
-                  this->anamoly = true;
+                else if(!sign.count(input[i]) && input[i + 1] == '-') continue;
+                else {
+                  this -> err_log = "MALFORMED OPERATORS.";
+                  this -> anamoly = true;
                   return;
                 }
               }
             }
-            else{
-              this->err_log = "TRAILING OPERATOR.";
-              this->anamoly = true;
+            else {
+              this -> err_log = "TRAILING OPERATOR.";
+              this -> anamoly = true;
               return;
             }
           }
-          else if(!sign.count(input[i])||((i+1)<input.length()&&sign.count(input[i+1]))){
-            this->err_log = "HANGING OPERATOR.";
-            this->anamoly = true;
+          else if(!sign.count(input[i]) || ((i + 1) < input.length() && sign.count(input[i + 1]))) {
+            this -> err_log = "HANGING OPERATOR.";
+            this -> anamoly = true;
             return;
           }
         }
       }
     }
 
-    void factorial_convert(std::string& input) {
-      
+    // Convert from implicit '!' to explicit function calls of "ftrl()".
+    void factorial_convert(std::string &input) noexcept {
+
       size_t t = input.find("!");
       if(t == 0) {
-        this->err_log = "INVALID FACTORIAL PLACEMENT.";
-        this->anamoly = true;
+        this -> err_log = "INVALID FACTORIAL PLACEMENT.";
+        this -> anamoly = true;
         return;
       }
-      std::unordered_set<char> ops{
-        '-','+','*','^','/',',','('
-      };
+      std::unordered_set<char> ops {'-','+','*','^','/',',','('};
       while(t != std::string::npos) {
         int parenthesis = 0, i = t - 1;
-        if(ops.find(input[t-1])!=ops.end()||input[t-1]=='('){
-          this->err_log = "NO ARGUMENT IN FACTORIAL FUNCTION.";
-          this->anamoly = true;
+        if(ops.find(input[t - 1]) != ops.end() || input[t - 1] == '(') {
+          this -> err_log = "NO ARGUMENT IN FACTORIAL FUNCTION.";
+          this -> anamoly = true;
           return;
         }
         input.replace(t, 1, ")");
@@ -766,8 +760,8 @@ class expression{
             if(parenthesis == 0) break;
             parenthesis--;
             if(parenthesis < 0) {
-              this->err_log = "INVALID PARENTHESIS PLACEMENT.";
-              this->anamoly = true;
+              this -> err_log = "INVALID PARENTHESIS PLACEMENT.";
+              this -> anamoly = true;
               return;
             }
           }
@@ -777,8 +771,8 @@ class expression{
               break;
             }
             else {
-              this->err_log = "INVALID FACTORIAL PLACEMENT.";
-              this->anamoly = true;
+              this -> err_log = "INVALID FACTORIAL PLACEMENT.";
+              this -> anamoly = true;
               return;
             }
           }
@@ -790,73 +784,71 @@ class expression{
         input.insert(i == 0 ? i : i + 1, "ftrl(");
         t = input.find("!", t + 4);
       }
-      
+
     }
 
-    void valid_commas(const std::string& input) {
+    // Make sure commmas are only present in binary functions and with correct conditions at that.
+    void valid_commas(const std::string &input) noexcept {
 
       std::unordered_set<std::string> binary_funcs {
-        "pow","gcd","ncr","npr","add","sub","mul",
-        "div","mod"
+        "pow","gcd","ncr","npr","add","sub","mul","div","mod"
       };
-      std::unordered_set<char> invalid_precedence {
-        ',','*','/','+','-','(','^'
-      };
-      std::unordered_set<char> invalid_subsidence {
-        ',','*','/',')','^'
-      };
+      std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
+      std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
       std::string temp;
       int functions = 0, parenthesis = 0;
-      std::stack<std::pair<size_t, bool>> parenthesis_index;
+      // A stack to hold the amount of indices present before encountering a binary function,
+      // and a bool containing the data if we've encountered a comma in the function.
+      std::stack<std::pair<size_t, bool>> parenthesis_count;
       for(int i = 0; i < input.size(); i++) {
         if(std::islower(input[i])) {
           temp += input[i];
         }
         else {
           if(input[i] == '(') {
-            if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()){
-              parenthesis_index.push({parenthesis,false});
+            if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()) {
+              parenthesis_count.push({parenthesis, false});
             }
             parenthesis++;
           }
           else if(input[i] == ')') {
             parenthesis--;
             if(parenthesis < 0) {
-              this->err_log = "INVALID PARENTHESIS PLACEMENT.";
-              this->anamoly = true;
+              this -> err_log = "INVALID PARENTHESIS PLACEMENT.";
+              this -> anamoly = true;
               return;
             }
-            if(!parenthesis_index.empty() && parenthesis_index.top().first == parenthesis) {
-              if(!parenthesis_index.top().second) {
-                this->err_log = "NO COMMA IN A BINARY FUNCTION.";
-                this->anamoly = true;
+            if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
+              if(!parenthesis_count.top().second) {
+                this -> err_log = "NO COMMA IN A BINARY FUNCTION.";
+                this -> anamoly = true;
                 return;
               }
-              parenthesis_index.pop();
+              parenthesis_count.pop();
             }
           }
           else if(input[i] == ',') {
-            if(parenthesis_index.empty()){
-              this->err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
-              this->anamoly = true;
+            if(parenthesis_count.empty() || parenthesis_count.top().first != parenthesis - 1) {
+              this -> err_log = "USE OF COMMA IN A NON BINARY FUNCTION.";
+              this -> anamoly = true;
               return;
             }
-            if(parenthesis_index.top().second){
-              this->err_log = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
-              this->anamoly = true;
+            if(parenthesis_count.top().second) {
+              this -> err_log = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
+              this -> anamoly = true;
               return;
             }
-            if((i == 0)||invalid_precedence.find(input[i-1])!=invalid_precedence.end()) {
-              this->err_log = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
-              this->anamoly = true;
+            if((i == 0) || invalid_precedence.find(input[i - 1]) != invalid_precedence.end()) {
+              this -> err_log = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
+              this -> anamoly = true;
               return;
             }
-            if((i == input.size()-1) || invalid_subsidence.find(input[i + 1]) != invalid_subsidence.end()) {
-              this->err_log = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
-              this->anamoly = true;
+            if((i == input.size() - 1) || invalid_subsidence.find(input[i + 1]) != invalid_subsidence.end()) {
+              this -> err_log = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
+              this -> anamoly = true;
               return;
             }
-            parenthesis_index.top().second = true;
+            parenthesis_count.top().second = true;
           }
           temp.clear();
         }
@@ -864,68 +856,65 @@ class expression{
   
     }
 
-    void invalid_decimal(const std::string& input){
-  
-      //early empty string check
-      if(input.empty()){
-        this->err_log = "EMPTY STRING.";
-        this->anamoly = true;
-        return;
-      }
-  
-  
-      size_t t = input.find(".");
-      if(t==0){
-        this->err_log = "HANGING DECIMAL.";
-        this->anamoly = true;
-        return;
-      }
-  
-      while(t!=std::string::npos){
+    void invalid_decimal(const std::string &input) noexcept {
 
-        //check if decimal is preceded by a number
-        if(!std::isdigit(input[t-1])){
-          this->err_log = "DECIMAL NOT PRECEDED BY A NUMBER.";
-          this->anamoly = true;
+      // Early empty string check.
+      if(input.empty()) {
+        this -> err_log = "EMPTY STRING.";
+        this -> anamoly = true;
+        return;
+      }
+
+      size_t t = input.find(".");
+      if(t == 0) {
+        this -> err_log = "HANGING DECIMAL.";
+        this -> anamoly = true;
+        return;
+      }
+
+      while(t != std::string::npos) {
+
+        // Check if decimal is preceded by a number.
+        if(!std::isdigit(input[t - 1])) {
+          this -> err_log = "DECIMAL NOT PRECEDED BY A NUMBER.";
+          this -> anamoly = true;
           return;
         }
 
-        //if the position is less than the current string length
-        if(t<input.length()){
+        // If the position is less than the current string length.
+        if(t < input.length()) {
 
-          if(!std::isdigit(input[t+1])){
-            this->err_log = "DECIMAL NOT FOLLOWED BY A NUMBER.";
-            this->anamoly = true;
+          if(!std::isdigit(input[t + 1])) {
+            this -> err_log = "DECIMAL NOT FOLLOWED BY A NUMBER.";
+            this -> anamoly = true;
             return;
           }
 
-          else{
+          else {
             int j = 1;
 
-            //find the next non-digit character
-            while((t+j)<input.length()&&std::isdigit(input[t+j]))
-              j++;
+            // Find the next non-digit character.
+            while((t + j) < input.length() && std::isdigit(input[t + j])) j++;
 
-            //if the next non-digit is still within the string
-            if((t+j)<input.length()){
+            // If the next non-digit is still within the string.
+            if((t + j) < input.length()) {
 
-              //and it is another decimal, flag it
-              if(input[t+j]=='.'){
-                this->err_log = ((t+j==input.length()-1)?"TRAILING DECIMAL."
-                :"MULTIPLE DECIMALS IN ONE NUMBER.");
-                this->anamoly = true;
+              // And it is another decimal, flag it.
+              if(input[t + j] == '.') {
+                this -> err_log = ((t + j == input.length() - 1) ? "TRAILING DECIMAL."
+                : "MULTIPLE DECIMALS IN ONE NUMBER.");
+                this -> anamoly = true;
                 return;
               }
             }
 
-            //if the only thing present after decimal were digits
-            //this case would catch that and return because no
-            //further evaluation is needed
+            // If the only thing present after decimal were digits
+            // no further evaluation is needed.
             else return;
           }
         }
 
-        t = input.find(".", t+1);
+        t = input.find(".", t + 1);
       }
     }
 
