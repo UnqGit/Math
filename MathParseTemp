@@ -68,8 +68,18 @@ namespace {
   std::string err_invalid_parenthesis = "INVALID PARENTHESIS.";
   std::string done_modified = "SUCCESSFULLY MODIFIED.";
   std::string err_not_modified = "NOT MODIFIED.";
-  std::string open_paren = "(";
+  std::string open_paren = "(", close_paren = ")", hash = "#";
   std::string empty_string = "";
+  std::string x_str = "x";
+  std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
+  std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
+  std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
+  std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
+  std::string apostrophe_dot = "'.";
+  std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*";
+  std::string sqrt_func_str = "sqrt(", sub_0_func_str = "sub(0";
+  std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
+  std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
 }
 
 namespace parse {
@@ -161,7 +171,7 @@ class expression {
       if(this -> anamoly) return;
 
       // Change √('#') to sqrt() and remove empty parenthesis potentially created by it.
-      if(input.find("#") != std::string::npos) add_sqrt(input);
+      if(input.find(hash) != std::string::npos) add_sqrt(input);
       remove_empt(input, flag);
 
       // Flag malperfomed operations such as '+)'.
@@ -192,7 +202,7 @@ class expression {
       }
 
       // Checking if there are () for potential redundancy removal.
-      if(input.find("(") != std::string::npos) paren_cleaner(input);
+      if(input.find(open_paren) != std::string::npos) paren_cleaner(input);
       if(this -> anamoly) return;
       
       //final flag to check if string is empty(or was made empty using
@@ -396,10 +406,10 @@ class expression {
     bool is_function() const noexcept {
       if(this -> anamoly) return false;
       if(!this -> allow_variable) return false;
-      size_t t = this -> modified_expression.find("x");
+      size_t t = this -> modified_expression.find(x_str);
       while(t != std::string::npos) {
         if(t == 0 || (t > 0 && this -> modified_expression[t - 1] != 'e')) return true;
-        t = this -> modified_expression.find("x", t + 1);
+        t = this -> modified_expression.find(x_str, t + 1);
       }
       return false;
     }
@@ -418,7 +428,7 @@ class expression {
       }
       if(this -> allow_variable) {
         if(this -> is_function()) {
-          this -> err_log = "VARIABLE IN NON-FUNCTION EXPRESSION.";
+          this -> err_log = err_var_where_not_allowed;
           this -> anamoly = true;
         }
         this -> allow_variable = false;
@@ -444,8 +454,8 @@ class expression {
           if(to_check == 0) continue;
           if(to_check > 1) {
             if(input[i] != '(') {
-              if(flag) this -> err_log = "NO ARGUMENT FOR FUNCTION.";
-              else this -> err_log = "FUNCTION NOT FOLLOWED BY '('.";
+              if(flag) this -> err_log = err_no_arg_func;
+              else this -> err_log = err_func_not_called;
               this -> anamoly = true;
               return;
             }
@@ -454,8 +464,8 @@ class expression {
         }
       }
       if(to_check > 1) {
-        if(flag) this -> err_log = "NO ARGUMENT FOR FUNCTION.";
-        else this -> err_log = "FUNCTION NOT FOLLOWED BY '('.";
+        if(flag) this -> err_log = err_no_arg_func;
+        else this -> err_log = err_func_not_called;
         this -> anamoly = true;
         return;
       }
@@ -479,16 +489,16 @@ class expression {
           // present in the map, flag them otherwise reset and continue.
           else {
             if(allowed_functions.count(to_check)) {
-              if(to_check == "x" && (!this -> allow_variable)) {
-                this -> err_log = "VARIABLE IN NON-FUNCTION EXPRESSION.";
+              if(to_check == x_str && (!this -> allow_variable)) {
+                this -> err_log = err_var_where_not_allowed;
                 this -> anamoly = true;
                 return;
               }
-              to_check = "";
+              to_check.clear();
               continue;
             }
             else {
-              this -> err_log = "INVALID STRING OF LETTERS: '" + to_check + "'.";
+              this -> err_log = err_invalid_char_stream + to_check + apostrophe_dot;
               this -> anamoly = true;
               return;
             }
@@ -499,7 +509,7 @@ class expression {
       // If the temporary variable isn't empty then check it as a
       // necessary function or variable, if not, then flag.
       if(!to_check.empty() && !allowed_functions.count(to_check)) {
-        this -> err_log = "INVALID STRING OF LETTERS.";
+        this -> err_log = err_invalid_char_stream + to_check + apostrophe_dot;
         this -> anamoly = true;
         return;
       }
@@ -554,7 +564,7 @@ class expression {
 
           // Error check.
           if(holder.empty() || (!holder.empty() && (holder.top().first == i - 1))) {
-            this -> err_log = "INVALID PARENTHESIS ORDER/USE.";
+            this -> err_log = err_incorrect_paren_use;
             this -> anamoly = true;
             return;
           }
@@ -585,7 +595,7 @@ class expression {
         size_t t = input.find(temporary_conversion[i]);
         while(t != std::string::npos) {
           input.replace(t, temporary_conversion[i].length(), temporary_conversion[i + 1]);
-          t = input.find(temporary_conversion[i], t + temporary_conversion[i].length() - 1 - (temporary_conversion[i] == "√" ? 1 : 0));
+          t = input.find(temporary_conversion[i], t + temporary_conversion[i].length() - 1 - (temporary_conversion[i] == sqrt_str ? 1 : 0));
           // Subtraction by 1 is needed for √ because it is of multibyte natue (unicode).
         }
       }
@@ -596,13 +606,13 @@ class expression {
         while(t != std::string::npos){
           std::string substring = unicode_conversion[i];
           int update = 0;
-          if(t > 0 && (basic_cleanup_lookup.count(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? "^" : "*") + substring;
+          if(t > 0 && (basic_cleanup_lookup.count(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? carret_str : asterisk_str) + substring;
 
           // We can't check the immediate next character as
           // superscripts are unicode and not single byte ASCII.
           if((t + unicode_conversion[i].length() < input.size()) && ((std::islower(input[t + unicode_conversion[i].length()])) ||
           (basic_cleanup_lookup.count(input[t + unicode_conversion[i].length()]) && input[t + unicode_conversion[i].length()] != ')'))) {
-            substring += "*";
+            substring += asterisk_str;
             update++;
           }
           input.replace(t, unicode_conversion[i].size(), substring);
@@ -636,7 +646,7 @@ class expression {
             count += input[i + j] == '-';
             j++;
           }
-          if(j > 1) input.replace(i, j, (count & 1 ? "-" : "+"));
+          if(j > 1) input.replace(i, j, (count & 1 ? minus : plus));
         }
 
         // If a decimal is found, check if it follows a number, if not insert
@@ -648,7 +658,7 @@ class expression {
             i--;
           }
           if(i > -1 && (input[i] == '.') && (i == 0 || (i > 0 && !std::isdigit(input[i - 1])))) {
-            input.insert(i, "0");
+            input.insert(i, zero);
             i++;
             if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
               input.erase(i, 1);
@@ -679,7 +689,7 @@ class expression {
           if(input[h] == '#') {t = h; break;}
 
         // Replace the '#' with 'sqrt('.
-        input.replace(t, 1, "sqrt(");
+        input.replace(t, 1, sqrt_func_str);
 
         // Start from the newer index which is changed by
         // adding the 5 character wide "sqrt("
@@ -696,9 +706,9 @@ class expression {
           else if(input[j] == ')') parenthesis--;
         }
         if(j < input.size() - 1) {
-          input.insert(j, ")");
+          input.insert(j, close_paren);
         }
-        else input += ")";
+        else input += close_paren;
       }
     }
 
@@ -715,24 +725,24 @@ class expression {
       bool check_hang = true;
       switch(delimiter) {
         case'^':
-          function = "pow(";
+          function = pow_func_str;
           error_name = "EXPONENTIATION";
           break;
         case'/':
-          function = "div(";
+          function = div_func_str;
           error_name = "DIVISION";
           break;
         case'*':
-          function = "mul(";
+          function = mul_func_str;
           error_name = "MULTIPLICATION";
           break;
         case'-':
-          function = "sub(";
+          function = sub_func_str;
           error_name = "SUBTRACTION";
           check_hang = false;
           break;
         case'+':
-          function = "add(";
+          function = add_func_str;
           error_name = "ADDITION";
           check_hang = false;
           break;
@@ -763,9 +773,9 @@ class expression {
           // If the operator can't have no first argument
           // which are '*','/'&'^' log error and return.
           if(check_hang) {
-            this -> err_log = "HANGING ";
+            this -> err_log = err_hanging;
             this -> err_log += error_name;
-            this -> err_log += " OPERATOR.";
+            this -> err_log += err_operator;
             this -> anamoly = true;
             return;
           }
@@ -779,7 +789,7 @@ class expression {
 
           // If the standalone operator is '-' subtract from 0.
           else {
-            input.insert(index > 0 ? index : 0, "sub(0");
+            input.insert(index > 0 ? index : 0, sub_0_func_str);
             index += 5;
           }
         }
@@ -815,16 +825,16 @@ class expression {
         // If stopped index is right after index it is a trailing
         // operator and so flag it as error.
         if(j - index == 1 || index == input.length() - 1) {
-          this -> err_log = "TRAILING ";
+          this -> err_log = err_trailing;
           this -> err_log += error_name;
-          this -> err_log += " OPERATOR.";
+          this -> err_log += err_operator;
           this -> anamoly = true;
           return;
         }
 
         // Insert ')' at the position found.
-        else if(j < input.length() - 1) input.insert(j, ")");
-        else input += ")";
+        else if(j < input.length() - 1) input.insert(j, close_paren);
+        else input += close_paren;
 
         // Reset map to default.
         delimiter_map.erase(')');
