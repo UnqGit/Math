@@ -3,13 +3,6 @@
 namespace parse{
 
 class expression{
-  
-  private:
-    std::string entered_expression;
-    std::string modified_expression;
-    bool anamoly = true;
-    bool allow_variable = true;
-    std::string err_log = "NOT MODIFIED.";
 
     //checks if a string of lowercase letters more than a letter
     //long is followed by a '(' or not (to check if functions are followed
@@ -936,242 +929,299 @@ class expression{
       }
     }
 
+  // Public method to be used.
   public:
-    
-    expression(){}
-    
-    expression(bool allow_var): allow_variable(allow_var){}
-    
-    expression(const std::string& input, bool allow_var = true): entered_expression(input), allow_variable(allow_var){}
 
-    void clean(){
-      
-      if(!this->anamoly) return;
-      
-      this->anamoly = false;
-      
-      //initialization
-      std::string &unmodified = this->entered_expression;
-      std::string &input = this->modified_expression;
+    // Default constructor.
+    expression() {}
+
+    // Constructor with allowance of toggling variable allowance.
+    expression(bool allow_var): allow_variable(allow_var) {}
+
+    // Constructor with expression string input and variable toggling option.
+    expression(const std::string &input, bool allow_var = true): entered_expression(input), allow_variable(allow_var) {}
+
+    // Copy constructor.
+    expression(const expression &other): entered_expression(other.entered_expression), modified_expression(other.modified_expression),
+    anamoly(other.anamoly), allow_variable(other.allow_variable), err_log(other.err_log) {}
+
+    // Main function to be used.
+    void clean() {
+
+      if(!this -> anamoly) return;
+
+      this -> anamoly = false;
+
+      // Initialization.
+      std::string &unmodified = this -> entered_expression;
+      std::string &input = this -> modified_expression;
       input = unmodified;
-      if(input.empty()){
-        this->anamoly = true;
-        this->err_log = "EMPTY STRING.";
+      if(input.empty()) {
+        this -> anamoly = true;
+        this -> err_log = "EMPTY STRING.";
         return;
       }
       bool flag = false;
-      
-      //early formatting for consistency
+
+      // Early formatting for consistency.
       std::string temp;
       for(int i = 0; i < input.length(); i++){
         unsigned char c = input[i];
         if(std::isspace(c)) continue;
-        else temp+=std::isupper(c)?std::tolower(c):c;
+        else temp += std::isupper(c) ? std::tolower(c) : c;
       }
       input = temp;
-      
-      //capture analomy, a superscript followed by a normal decimal
-      if(pow_dec_wrong(input)){
-        this->err_log = "POWER FOLLOWED BY NORMAL DECIMAL.";
-        this->anamoly = true;
+
+      // Check if superscript is directly followed by a decimal which is likely to be mistake.
+      if(pow_dec_wrong(input)) {
+        this -> err_log = "POWER FOLLOWED BY NORMAL DECIMAL.";
+        this -> anamoly = true;
         return;
       }
-  
-      //initial check for early return of invalid function
-      if(invalid_char(input)){
-        this->err_log = "INVALID CHARACTERS.";
-        this->anamoly = true;
+
+      // Check for any character which isn't in the allowed character set.
+      if(invalid_char(input)) {
+        this -> err_log = "INVALID CHARACTERS.";
+        this -> anamoly = true;
         return;
       }
-    
-      //alias to norm function names
+
+      // Convert common aliases to a unified function name.
       func_name_norm(input);
-    
-      //clean some potential decimal mistakes and
-      //flag it if not corrected
+
+      // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
       basic_cleanup(input);
-  
-      //check if even after cleanup decimal issue persist
+
+      // Check for invalid decimal usage.
       invalid_decimal(input);
-      if(this->anamoly) return;
-      
-      //get appropriate parenthesis
+      if(this -> anamoly) return;
+
+      // Make parenthesis even.
       app_paren(input, flag);
-      
+
+      // Remove empty parenthesis.
       remove_empt(input, flag);
-      
+
+      // Convert implict multiplication to explicit.
       implicit_mult(input);
-      if(this->anamoly) return;
-      
+      if(this -> anamoly) return;
+
+      // Check if use of commas is appropriate.
       valid_commas(input);
-      if(this->anamoly) return;
-      
+      if(this -> anamoly) return;
+
+      // Convert '!' to the function call "ftrl()".
       factorial_convert(input);
-      if(this->anamoly) return;
-      
-      //change from √ to sqrt() and
-      //remove empty parenthesis "()"
-      if(input.find("#")!=std::string::npos)add_sqrt(input);
+      if(this -> anamoly) return;
+
+      // Change √('#') to sqrt() and remove empty parenthesis potentially created by it.
+      if(input.find("#") != std::string::npos) add_sqrt(input);
       remove_empt(input, flag);
-    
-      //remove malperfomed operations such as '+)' (implicit addition)
+
+      // Flag malperfomed operations such as '+)'.
       malform_ops(input);
-      if(this->anamoly) return;
-        
-      //check for appropriate function calls
+      if(this -> anamoly) return;
+
+      // Check if functions are proceeded by a '('.
       app_func_call(input, flag);
-      if(this->anamoly) return;
-  
-      //check for appropriate functions/variables
+      if(this ->  anamoly) return;
+
+      // Check if only appropriate functions / variables are present.
       app_func_name(input);
-      if(this->anamoly) return;
-  
-      //even if after correcting inconsistent parenthesis persist
-      //flag it and log the error
-      int opening_parenthesis = std::count(input.begin(),input.end(),'(');
-      int closing_parenthesis = std::count(input.begin(),input.end(),')');
-      if(opening_parenthesis!=closing_parenthesis){
-        this->err_log = "INCORRECT PARENTHESIS.";
-        this->anamoly = true;
+      if(this -> anamoly) return;
+
+      // Flag if number of opening and closing parenthesis is uneven.
+      int opening_parenthesis = std::count(input.begin(), input.end(), '(');
+      int closing_parenthesis = std::count(input.begin(), input.end(), ')');
+      if(opening_parenthesis != closing_parenthesis) {
+        this -> err_log = "INCORRECT PARENTHESIS.";
+        this -> anamoly = true;
         return;
       }
- 
-      //convert ^+/-* into function-like format
+
+      // Convert (^ + / - *) into function-like format in bodmas order.
       std::string call = "^/*-+";
-      for(auto ch: call){
-        binary_ops(input, ch);
-        if(this->anamoly) return;
+      for(int i = 0; i < 5; i++) {
+        binary_ops(input, call[i]);
+        if(this -> anamoly) return;
       }
-  
-      //checking if there are () for potential redundancy removal
-      if(input.find("(")!=std::string::npos)paren_cleaner(input);
-      if(this->anamoly)return;
+
+      // Checking if there are () for potential redundancy removal.
+      if(input.find("(") != std::string::npos) paren_cleaner(input);
+      if(this -> anamoly) return;
       
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
-      if(input.empty()){
-        this->err_log = flag?"INVALID PARENTHESIS.":"EMPTY STRING.";
-        this->anamoly = true;
+      if(input.empty()) {
+        this -> err_log = flag ? "INVALID PARENTHESIS." : "EMPTY STRING.";
+        this -> anamoly = true;
         return;
       }
-      
-      //update log if successfully updated
-      this->err_log = "SUCCESSFULLY MODIFIED.";
-      
-      //should take less than 50μs for most inputs and should scale
-      //well and probably won't exceed 400μs easily
+
+      // Log if successfully updated.
+      this -> err_log = "SUCCESSFULLY MODIFIED.";
+
+      // Should be able to parse in 40-70 µs for most input strings.
     }
-    
-    std::string result() const noexcept{
-      return this->anamoly?this->err_log:this->modified_expression;
+
+    // Provide the input stirng.
+    std::string original() const noexcept {
+      return this -> entered_expression;
     }
-    
-    bool is_safe() const noexcept{
-      return !this->anamoly;
+
+    // Resturn the error message or the modified expression depending on if it was parsed correctly.
+    std::string result() const noexcept {
+      return this -> anamoly ? this -> err_log : this -> modified_expression;
     }
-    
-    expression& operator=(const std::string& new_expr) noexcept{
-      this->entered_expression = new_expr;
-      this->modified_expression.clear();
-      this->anamoly = true;
-      this->err_log = "NOT MODIFIED.";
+
+    // Check for if the parsing was done successfully.
+    bool is_safe() const noexcept {
+      return !this -> anamoly;
+    }
+
+    // For exchanging with another expression string, does NOT modify on change.
+    expression &operator=(const std::string &new_expr) noexcept {
+      this -> entered_expression = new_expr;
+      this -> modified_expression.clear();
+      this -> anamoly = true;
+      this -> err_log = "NOT MODIFIED.";
       return *this;
     }
-    
-    expression& clear() noexcept{
-      this->entered_expression.clear();
-      this->modified_expression.clear();
-      this->anamoly = true;
-      this->allow_variable = true;
-      this->err_log = "NOT MODIFIED.";
+
+    // Provide the inner expression as string if present.
+    std::string inner_function() const noexcept {
+      size_t t = this -> modified_expression.find("(");
+      if(t == std::string::npos || this -> anamoly) return this -> modified_expression;
+      size_t length = this -> modified_expression.length();
+      return this -> modified_expression.substr(t + 1, length - t - 2);
+    }
+
+    // Provide inner expression as a new expression object if present.
+    expression inner_expression() const noexcept {
+      expression result;
+      std::string inner = this -> inner_function();
+      result.entered_expression = inner;
+      if(this -> err_log == "SUCCESSFULLY MODIFIED.") result.modified_expression = inner;
+      result.err_log = this -> err_log;
+      result.anamoly = this -> anamoly;
+    }
+
+    // Reset the class back to default.
+    expression &clear() noexcept {
+      this -> entered_expression.clear();
+      this -> modified_expression.clear();
+      this -> anamoly = true;
+      this -> allow_variable = true;
+      this -> err_log = "NOT MODIFIED.";
       return *this;
     }
-    
-    expression& update(const std::string& new_expr, const bool& cleanse = false){
-      this->entered_expression = new_expr;
-      this->modified_expression.clear();
-      this->anamoly = true;
-      this->err_log = "NOT MODIFIED.";
-      if(cleanse) this->clean();
+
+    // Update the input string with a new string and optionally cleanse it.
+    expression &update(const std::string &new_expr, const bool &cleanse = false) noexcept {
+      this -> entered_expression = new_expr;
+      this -> modified_expression.clear();
+      this -> anamoly = true;
+      this -> err_log = "NOT MODIFIED.";
+      if(cleanse) this -> clean();
       return *this;
     }
-    
-    bool is_function() const noexcept{
-      if(this->anamoly) return false;
-      if(!this->allow_variable) return false;
-      size_t t = this->modified_expression.find("x");
-      while(t!=std::string::npos){
-        if(t==0||(t>0&&this->modified_expression[t-1]!='e')) return true;
-        t=this->modified_expression.find("x", t+1);
+
+    // Direct and no variable_check_shenanigan function checker. 
+    bool is_set_function() const noexcept {
+      return this -> allow_variable;
+    }
+
+    // Check if variable is present in the expression.
+    bool is_function() const noexcept {
+      if(this -> anamoly) return false;
+      if(!this -> allow_variable) return false;
+      size_t t = this -> modified_expression.find("x");
+      while(t != std::string::npos) {
+        if(t == 0 || (t > 0 && this -> modified_expression[t - 1] != 'e')) return true;
+        t = this -> modified_expression.find("x", t + 1);
       }
       return false;
     }
-    
-    bool is_constant() const noexcept{
-      if(this->anamoly) return false;
-      return !this->is_function();
+
+    // Check if any variable is present in the expression.
+    bool is_constant() const noexcept {
+      if(this -> anamoly) return false;
+      return !this -> is_function();
     }
-    
-    void make_function() noexcept{
-      this->allow_variable = true;
-    }
-    
-    void make_constant() noexcept{
-      if(this->anamoly){
-        this->allow_variable = false;
+
+    // Turn variable allowing variable off and log if a variable is present.
+    void make_constant() noexcept {
+      if(this -> anamoly) {
+        this -> allow_variable = false;
         return;
       }
-      if(this->allow_variable){
-        if(this->is_function()){
-          this->err_log = "VARIABLE IN NON-FUNCTION EXPRESSION.";
-          this->anamoly = true;
+      if(this -> allow_variable) {
+        if(this -> is_function()) {
+          this -> err_log = "VARIABLE IN NON-FUNCTION EXPRESSION.";
+          this -> anamoly = true;
         }
-        this->allow_variable = false;
+        this -> allow_variable = false;
       }
     }
-    
-  //printing and entrance logic for convinience sake  
+
+    // No need to check anything in here, just turn the flag on.
+    void make_function() noexcept {
+      this -> allow_variable = true;
+    }
+
+  // Friend operators.
   protected:
     
-    void print(std::ostream& os) const{
-      os << "\nOriginal: " << this->entered_expression;
+    // Printing function for ease_of_use.
+    void print(std::ostream &os) const {
+      os << "\nOriginal: " << this -> entered_expression;
       os << "\nModified: ";
-      if(!anamoly&&this->modified_expression.find("(")!=std::string::npos){
+      if(!anamoly && this -> modified_expression.find("(") != std::string::npos) {
         os << '\n';
         int parenthesis = 0;
-        std::string string = this->modified_expression;
-        for(int i = 0; i < string.size(); i++){
-          if(string[i]=='('){
+        std::string string = this -> modified_expression;
+        for(int i = 0; i < string.size(); i++) {
+          if(string[i] == '(') {
             os << string[i] << "\n";
             parenthesis++;
-            os << std::string(2*parenthesis, ' ');
+            os << std::string(2 * parenthesis, ' ');
           }
-          else if(string[i]==')'){
+          else if(string[i] == ')') {
             parenthesis--;
-            if(parenthesis<0) std::cerr << "unexpected error, didn't parse correctly.";
-            os << "\n" << std::string(2*parenthesis, ' ') << string[i];
+            if(parenthesis < 0) throw std::runtime_error("Unexpected error: parenthesis parsing didn't occur correctly.");
+            os << "\n" << std::string(2 * parenthesis, ' ') << string[i];
           }
-          else if(string[i]==','){
-            os << string[i] << "\n" << std::string(2*parenthesis, ' ');
+          else if(string[i] == ',') {
+            os << string[i] << "\n" << std::string(2 * parenthesis, ' ');
           }
           else os << string[i];
         }
       }
-      else os << this->modified_expression;
-      os << "\nStatus: " << ((anamoly&&this->err_log!="NOT MODIFIED.")?"":"No ") << "Anamoly Detected.";
-      os << "\nLog: " << this->err_log << "\n";
+      else os << this -> modified_expression;
+      os << "\nStatus: " << ((anamoly && this -> err_log != "NOT MODIFIED.") ? "" : "No ") << "Anamoly Detected.";
+      os << "\nLog: " << this -> err_log << "\n";
     }
-    
+
+    // Output stream operator to print all the useful information.
     friend std::ostream& operator<<(std::ostream& os, const expression& obj){
       obj.print(os);
       return os;
     }
-    friend std::istream& operator>>(std::istream& is, expression& obj){
+
+    // To parse a input directly from input stream.
+    friend std::istream &operator>>(std::istream &is, expression &obj) {
       std::string line;
       std::getline(is, line);
       obj.update(line, true);
       return is;
     }
-};
 
+  // Private data members.
+  private:
+    std::string entered_expression;
+    std::string modified_expression;
+    bool anamoly = true;
+    bool allow_variable = true;
+    std::string err_log = "NOT MODIFIED.";
+};
 }
