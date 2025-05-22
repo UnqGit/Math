@@ -111,21 +111,21 @@ class expression {
 
     // Copy constructor.
     expression(const expression &other): entered_expression(other.entered_expression), modified_expression(other.modified_expression),
-    anamoly(other.anamoly), allow_variable(other.allow_variable), err_log(other.err_log) {}
+    anomaly(other.anomaly), allow_variable(other.allow_variable), err_log(other.err_log) {}
 
     // Main function to be used.
     void clean() noexcept {
 
-      if(!this -> anamoly) return;
+      if(!this -> anomaly) return;
 
-      this -> anamoly = false;
+      this -> anomaly = false;
 
       // Initialization.
       std::string &unmodified = this -> entered_expression;
       std::string &input = this -> modified_expression;
       input = unmodified;
       if(input.empty()) {
-        this -> anamoly = true;
+        this -> anomaly = true;
         this -> err_log = err_empty_string;
         return;
       }
@@ -143,14 +143,14 @@ class expression {
       // Check if superscript is directly followed by a decimal which is likely to be mistake.
       if(pow_dec_wrong(input)) {
         this -> err_log = err_decimal_after_superscript;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
 
       // Check for any character which isn't in the allowed character set.
       if(invalid_char(input)) {
         this -> err_log = err_invalid_characters;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
 
@@ -162,7 +162,7 @@ class expression {
 
       // Check for invalid decimal usage.
       invalid_decimal(input);
-      if(this -> anamoly) return;
+      if(this -> anomaly) return;
 
       // Make parenthesis even.
       app_paren(input, flag);
@@ -172,15 +172,15 @@ class expression {
 
       // Convert implict multiplication to explicit.
       implicit_mult(input);
-      if(this -> anamoly) return;
+      if(this -> anomaly) return;
 
       // Check if use of commas is appropriate.
       valid_commas(input);
-      if(this -> anamoly) return;
+      if(this -> anomaly) return;
 
       // Convert '!' to the function call "ftrl()".
       factorial_convert(input);
-      if(this -> anamoly) return;
+      if(this -> anomaly) return;
 
       // Change √('#') to sqrt() and remove empty parenthesis potentially created by it.
       if(input.find(hash) != std::string::npos) add_sqrt(input);
@@ -188,40 +188,40 @@ class expression {
 
       // Flag malperfomed operations such as '+)'.
       malform_ops(input);
-      if(this -> anamoly) return;
+      if(this -> anomaly) return;
 
       // Check if functions are proceeded by a '('.
       app_func_call(input, flag);
-      if(this ->  anamoly) return;
+      if(this ->  anomaly) return;
 
       // Check if only appropriate functions / variables are present.
       app_func_name(input);
-      if(this -> anamoly) return;
+      if(this -> anomaly) return;
 
       // Flag if number of opening and closing parenthesis is uneven.
       int opening_parenthesis = std::count(input.begin(), input.end(), '(');
       int closing_parenthesis = std::count(input.begin(), input.end(), ')');
       if(opening_parenthesis != closing_parenthesis) {
         this -> err_log = err_incorrect_paren_use;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
 
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
         binary_ops(input, call[i]);
-        if(this -> anamoly) return;
+        if(this -> anomaly) return;
       }
 
       // Checking if there are () for potential redundancy removal.
       if(input.find(open_paren) != std::string::npos) paren_cleaner(input);
-      if(this -> anamoly) return;
+      if(this -> anomaly) return;
       
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
       if(input.empty()) {
         this -> err_log = flag ? err_invalid_parenthesis : err_empty_string;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
 
@@ -238,26 +238,26 @@ class expression {
 
     // Resturn the error message or the modified expression depending on if it was parsed correctly.
     std::string result() const noexcept {
-      return this -> anamoly ? this -> err_log : this -> modified_expression;
+      return this -> anomaly ? this -> err_log : this -> modified_expression;
     }
 
     // Check for if the parsing was done successfully.
     bool is_safe() const noexcept {
-      return !this -> anamoly;
+      return !this -> anomaly;
     }
 
     // For exchanging with another expression string, does NOT modify on change.
     expression &operator=(const std::string &new_expr) noexcept {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
-      this -> anamoly = true;
+      this -> anomaly = true;
       this -> err_log = err_not_modified;
       return *this;
     }
 
     // Return the outermost function name or the entire expression if there isn't a function.
     std::string om_function() const noexcept {
-      if(this -> anamoly) return empty_string;
+      if(this -> anomaly) return empty_string;
       size_t t = this -> modified_expression.find(open_paren);
       if(t == std::string::npos) return empty_string;
       return this -> modified_expression.substr(0, t);
@@ -266,13 +266,13 @@ class expression {
     // Check if the outermost function is a binary function.
     bool is_om_binary() const noexcept {
       size_t t = modified_expression.find(open_paren);
-      if(this -> anamoly || t == std::string::npos) return false;
+      if(this -> anomaly || t == std::string::npos) return false;
       return binary_funcs.find(this -> modified_expression.substr(0, t)) != binary_funcs.end();
     }
 
     // Check for unary functions.
     bool is_om_unary() const noexcept {
-      if(this -> anamoly) return false;
+      if(this -> anomaly) return false;
       size_t t = modified_expression.find(open_paren);
       return (t == std::string::npos) || binary_funcs.find(this -> modified_expression.substr(0, t)) == binary_funcs.end();
     }
@@ -280,7 +280,7 @@ class expression {
     // Provide the first inner string inside the parenthesis.
     std::string inner_string() const noexcept {
       size_t t  = this -> modified_expression.find(open_paren);
-      if(this -> anamoly || t == std::string::npos) return empty_string;
+      if(this -> anomaly || t == std::string::npos) return empty_string;
       int len = this -> modified_expression.length();
       return this -> modified_expression.substr(t + 1, len - (t + 2));
     }
@@ -288,7 +288,7 @@ class expression {
     // Provide the first inner expression (enire expression if unary or first expression from binary functions)
     // as string if present.
     std::string first_expression_str() const noexcept {
-      if(this -> anamoly) return empty_string;
+      if(this -> anomaly) return empty_string;
       size_t t = this -> modified_expression.find(open_paren);
       if(t == std::string::npos) return this -> modified_expression;
       size_t len = this -> modified_expression.length();
@@ -307,7 +307,7 @@ class expression {
     // Provide the second inner expression (no expression if unary or second expression from binary functions)
     // as string if present.
     std::string second_expression_str() const noexcept {
-      if(this -> anamoly || this -> is_om_unary()) return empty_string;
+      if(this -> anomaly || this -> is_om_unary()) return empty_string;
       size_t t = this -> modified_expression.find(open_paren);
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
@@ -324,7 +324,7 @@ class expression {
     // Provide the first inner expression (enire expression if unary or first expression from binary functions)
     // as expression if present.
     expression first_expression() const noexcept {
-      if(this -> anamoly) return expression();
+      if(this -> anomaly) return expression();
       size_t t = this -> modified_expression.find(open_paren);
       if(t == std::string::npos) return *this;
       size_t len = this -> modified_expression.length();
@@ -333,7 +333,7 @@ class expression {
         expression inner;
         inner.entered_expression = inner_expr;
         inner.modified_expression = inner_expr;
-        inner.anamoly = false;
+        inner.anomaly = false;
         inner.allow_variable = this -> allow_variable;
         inner.err_log = this -> err_log;
         return inner;
@@ -349,7 +349,7 @@ class expression {
       expression result;
       result.entered_expression = new_expr;
       result.modified_expression = new_expr;
-      result.anamoly = false;
+      result.anomaly = false;
       result.allow_variable = this -> allow_variable;
       result.err_log = this -> err_log;
       return result;
@@ -358,7 +358,7 @@ class expression {
     // Provide the second inner expression (no expression if unary or second expression from binary functions)
     // as expression if present.
     expression second_expression() const noexcept {
-      if(this -> anamoly || this -> is_om_unary()) return expression();
+      if(this -> anomaly || this -> is_om_unary()) return expression();
       size_t t = this -> modified_expression.find(open_paren);
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
@@ -373,7 +373,7 @@ class expression {
       expression result;
       result.entered_expression = new_expr;
       result.modified_expression = new_expr;
-      result.anamoly = false;
+      result.anomaly = false;
       result.allow_variable = this -> allow_variable;
       result.err_log = this -> err_log;
       return result;
@@ -385,7 +385,7 @@ class expression {
       std::swap(this -> modified_expression, other.modified_expression);
       std::swap(this -> allow_variable, other.allow_variable);
       std::swap(this -> err_log, other.err_log);
-      std::swap(this -> anamoly, other.anamoly);
+      std::swap(this -> anomaly, other.anomaly);
       return *this;
     }
 
@@ -393,7 +393,7 @@ class expression {
     expression &clear() noexcept {
       this -> entered_expression.clear();
       this -> modified_expression.clear();
-      this -> anamoly = true;
+      this -> anomaly = true;
       this -> allow_variable = true;
       this -> err_log = err_not_modified;
       return *this;
@@ -403,7 +403,7 @@ class expression {
     expression &update(const std::string &new_expr, const bool &cleanse = false) noexcept {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
-      this -> anamoly = true;
+      this -> anomaly = true;
       this -> err_log = err_not_modified;
       if(cleanse) this -> clean();
       return *this;
@@ -416,7 +416,7 @@ class expression {
 
     // Check if variable is present in the expression.
     bool is_function() const noexcept {
-      if(this -> anamoly) return false;
+      if(this -> anomaly) return false;
       if(!this -> allow_variable) return false;
       size_t t = this -> modified_expression.find(x_str);
       while(t != std::string::npos) {
@@ -428,20 +428,20 @@ class expression {
 
     // Check if any variable is present in the expression.
     bool is_constant() const noexcept {
-      if(this -> anamoly) return false;
+      if(this -> anomaly) return false;
       return !this -> is_function();
     }
 
     // Turn variable allowing variable off and log if a variable is present.
     void make_constant() noexcept {
-      if(this -> anamoly) {
+      if(this -> anomaly) {
         this -> allow_variable = false;
         return;
       }
       if(this -> allow_variable) {
         if(this -> is_function()) {
           this -> err_log = err_var_where_not_allowed;
-          this -> anamoly = true;
+          this -> anomaly = true;
         }
         this -> allow_variable = false;
       }
@@ -468,7 +468,7 @@ class expression {
             if(input[i] != '(') {
               if(flag) this -> err_log = err_no_arg_func;
               else this -> err_log = err_func_not_called;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
           }
@@ -478,7 +478,7 @@ class expression {
       if(to_check > 1) {
         if(flag) this -> err_log = err_no_arg_func;
         else this -> err_log = err_func_not_called;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
     }
@@ -503,7 +503,7 @@ class expression {
             if(allowed_functions.count(to_check)) {
               if(to_check == x_str && (!this -> allow_variable)) {
                 this -> err_log = err_var_where_not_allowed;
-                this -> anamoly = true;
+                this -> anomaly = true;
                 return;
               }
               to_check.clear();
@@ -511,7 +511,7 @@ class expression {
             }
             else {
               this -> err_log = err_invalid_char_stream + to_check + apostrophe_dot;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
           }
@@ -522,7 +522,7 @@ class expression {
       // necessary function or variable, if not, then flag.
       if(!to_check.empty() && !allowed_functions.count(to_check)) {
         this -> err_log = err_invalid_char_stream + to_check + apostrophe_dot;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
     }
@@ -577,7 +577,7 @@ class expression {
           // Error check.
           if(holder.empty() || (!holder.empty() && (holder.top().first == i - 1))) {
             this -> err_log = err_incorrect_paren_use;
-            this -> anamoly = true;
+            this -> anomaly = true;
             return;
           }
 
@@ -788,7 +788,7 @@ class expression {
             this -> err_log = err_hanging;
             this -> err_log += error_name;
             this -> err_log += err_operator;
-            this -> anamoly = true;
+            this -> anomaly = true;
             return;
           }
 
@@ -840,7 +840,7 @@ class expression {
           this -> err_log = err_trailing;
           this -> err_log += error_name;
           this -> err_log += err_operator;
-          this -> anamoly = true;
+          this -> anomaly = true;
           return;
         }
 
@@ -899,7 +899,7 @@ class expression {
           // Error check.
           if((i + 1) < input.size() && input[i + 1] == ')') {
             this -> err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
-            this -> anamoly = true;
+            this -> anomaly = true;
             return;
           } 
 
@@ -943,7 +943,7 @@ class expression {
           // Error check.
           if((i + 1) < input.size() && input[i + 1] == ')') {
             this -> err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
-            this -> anamoly = true;
+            this -> anomaly = true;
             return;
           } 
 
@@ -1008,14 +1008,14 @@ class expression {
       // Flag early if encountering an empty string.
       if(input.empty()) {
         this -> err_log = "NO EXPRESSION.";
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
 
       // Flag lone signs.
       if(input.size() == 1 && primary_ops.count(input.front())) {
         this -> err_log = "NO FUNCTIONALITY TO OPERATOR.";
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
 
@@ -1024,7 +1024,7 @@ class expression {
         // Handled in other functions too but flag for safety.
         if(input[i] == '(' && (i + 1) < input.length() && input[i + 1] == ')') {
           this -> err_log = "EMPTY PARENTHESIS, NO ARGUMENT.";
-          this -> anamoly = true;
+          this -> anomaly = true;
           return;
         }
 
@@ -1039,7 +1039,7 @@ class expression {
             }
             else {
               this -> err_log = "NO FUNCTIONALITY TO OPERATOR.";
-              this -> anamoly = true;
+              this -> anomaly = true;
             }
           }
 
@@ -1052,13 +1052,13 @@ class expression {
                 continue;
               }
               this -> err_log = "HANGING OPERATOR AFTER PARENTHESIS.";
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
             if((i + 1) < input.size()) {
               if(input[i + 1] == ')') {
                 this -> err_log = "TRAILING OPERATOR BEFORE PARENTHESIS.";
-                this -> anamoly = true;
+                this -> anomaly = true;
                 return;
               }
               else if(primary_ops.count(input[i + 1])) {
@@ -1070,20 +1070,20 @@ class expression {
                 else if(!sign.count(input[i]) && input[i + 1] == '-') continue;
                 else {
                   this -> err_log = "MALFORMED OPERATORS.";
-                  this -> anamoly = true;
+                  this -> anomaly = true;
                   return;
                 }
               }
             }
             else {
               this -> err_log = "TRAILING OPERATOR.";
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
           }
           else if(!sign.count(input[i]) || ((i + 1) < input.length() && sign.count(input[i + 1]))) {
             this -> err_log = "HANGING OPERATOR.";
-            this -> anamoly = true;
+            this -> anomaly = true;
             return;
           }
         }
@@ -1095,14 +1095,14 @@ class expression {
       size_t t = input.find(exclaimation);
       if(t == 0) {
         this -> err_log = invalid_fact_place;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
       while(t != std::string::npos) {
         int parenthesis = 0, i = t - 1;
         if(ops.find(input[t - 1]) != ops.end() || input[t - 1] == '(') {
           this -> err_log = err_no_arg_fact;
-          this -> anamoly = true;
+          this -> anomaly = true;
           return;
         }
         input.replace(t, 1, close_paren);
@@ -1113,7 +1113,7 @@ class expression {
             parenthesis--;
             if(parenthesis < 0) {
               this -> err_log = err_incorrect_paren_use;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
           }
@@ -1124,7 +1124,7 @@ class expression {
             }
             else {
               this -> err_log = invalid_fact_place;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
           }
@@ -1163,13 +1163,13 @@ class expression {
             parenthesis--;
             if(parenthesis < 0) {
               this -> err_log = err_incorrect_paren_use;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
             if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
               if(!parenthesis_count.top().second) {
                 this -> err_log = err_no_comma;
-                this -> anamoly = true;
+                this -> anomaly = true;
                 return;
               }
               parenthesis_count.pop();
@@ -1178,22 +1178,22 @@ class expression {
           else if(input[i] == ',') {
             if(parenthesis_count.empty() || parenthesis_count.top().first != parenthesis - 1) {
               this -> err_log = err_used_comma;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
             if(parenthesis_count.top().second) {
               this -> err_log = err_mul_comma;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
             if((i == 0) || invalid_precedence.find(input[i - 1]) != invalid_precedence.end()) {
               this -> err_log = err_no_first_arg;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
             if((i == input.size() - 1) || invalid_subsidence.find(input[i + 1]) != invalid_subsidence.end()) {
               this -> err_log = err_no_second_arg;
-              this -> anamoly = true;
+              this -> anomaly = true;
               return;
             }
             parenthesis_count.top().second = true;
@@ -1210,13 +1210,13 @@ class expression {
       // Early empty string check.
       if(input.empty()) {
         this -> err_log = err_empty_string;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
       size_t t = input.find(dot);
       if(t == 0) {
         this -> err_log = err_hanging_dec;
-        this -> anamoly = true;
+        this -> anomaly = true;
         return;
       }
 
@@ -1225,7 +1225,7 @@ class expression {
         // Check if decimal is preceded by a number.
         if(!std::isdigit(input[t - 1])) {
           this -> err_log = err_dec_not_follows;
-          this -> anamoly = true;
+          this -> anomaly = true;
           return;
         }
 
@@ -1234,7 +1234,7 @@ class expression {
 
           if(!std::isdigit(input[t + 1])) {
             this -> err_log = err_dec_not_followed;
-            this -> anamoly = true;
+            this -> anomaly = true;
             return;
           }
 
@@ -1251,7 +1251,7 @@ class expression {
               if(input[t + j] == '.') {
                 this -> err_log = ((t + j == input.length() - 1) ? err_trailing_dec
                 : err_mul_dec);
-                this -> anamoly = true;
+                this -> anomaly = true;
                 return;
               }
             }
@@ -1273,7 +1273,7 @@ class expression {
     void print(std::ostream &os) const {
       os << fp_org_str << this -> entered_expression;
       os << fp_mod_str;
-      if(!anamoly && this -> modified_expression.find(open_paren) != std::string::npos) {
+      if(!anomaly && this -> modified_expression.find(open_paren) != std::string::npos) {
         os << '\n';
         int parenthesis = 0;
         std::string string = this -> modified_expression;
@@ -1295,7 +1295,7 @@ class expression {
         }
       }
       else os << this -> modified_expression;
-      os << fp_status_str << ((anamoly && this -> err_log != err_not_modified) ? empty_string : fp_no_str) << fp_anamoly_detected;
+      os << fp_status_str << ((anomaly && this -> err_log != err_not_modified) ? empty_string : fp_no_str) << fp_anamoly_detected;
       os << fr_log_str << this -> err_log << '\n';
     }
 
@@ -1317,7 +1317,7 @@ class expression {
   private:
     std::string entered_expression;
     std::string modified_expression;
-    bool anamoly = true;
+    bool anomaly = true;
     bool allow_variable = true;
     std::string err_log = err_not_modified;
 };
