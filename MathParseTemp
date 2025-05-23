@@ -28,6 +28,7 @@ namespace {
     "cosec", "csc",
     "ar", "a"
   };
+  const std::string arc_str = "arc";
 
   // This array will be used to replace the odd indices with the consecutive even indices either temporarily(mainly) or permanently.
   const std::string temporary_conversion[30] {
@@ -1040,7 +1041,7 @@ class expression {
 
         // Find the first '#' from back(right associative)
         // starting from previous index of '#' found.
-        for(h = t+1; h >= 0; h--)
+        for(h = t + 1; h >= 0; h--)
           if(input[h] == '#') {t = h; break;}
 
         // Replace the '#' with 'sqrt('.
@@ -1180,7 +1181,7 @@ class expression {
         for(;j < input.length(); j++) {
           // if(delimiter_map.count(input[j]) && parenthesis == 0) {
           if(delimiter_map(input[j]) && parenthesis == 0) {
-            if((delimiter != '+' && delimiter != '-') && (input[j] == '+' || input[j] == '-') && j == index + 1) continue;
+            if(!is_sign(delimiter) && is_sign(input[j]) && j == index + 1) continue;
               break;
           }
           if(input[j] == ')') parenthesis--;
@@ -1224,7 +1225,7 @@ class expression {
         while(t != std::string::npos) {
           // A separate check for "arc" to remove incorrectly flagging
           // arcot, which would've become aot without separation.
-          if(alias_conversion[i] == "arc") {
+          if(alias_conversion[i] == arc_str) {
             if((t + alias_conversion[i].length()) < input.length() &&
             !(input[t + alias_conversion[i].length()] == 'o'))
             input.replace(t, alias_conversion[i].length(), alias_conversion[i + 1]);
@@ -1515,7 +1516,7 @@ class expression {
     void valid_commas(const std::string &input) noexcept {
 
       std::string temp;
-      int functions = 0, parenthesis = 0;
+      int parenthesis = 0;
 
       // A stack to hold the amount of indices present before encountering a binary function,
       // and a bool containing the data if we've encountered a comma in the function.
