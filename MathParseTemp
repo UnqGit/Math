@@ -1,7 +1,7 @@
 #pragma once
 
+// Constant strings for replacement.
 namespace {
-  // Constant strings for replacement.
   const std::string op_str = "^/*-+";
   const std::string super[10] {"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
 
@@ -35,14 +35,16 @@ namespace {
     "=", "3.14159265358979323846264338327950288419",
     "@", "2.71828182845904523536028747135266249775"
   };
-  
-  // Constant maps for fast lookups.
+}
+
+// Constant maps for fast lookups.
+namespace {
   const std::unordered_set<char> sign {'+','-'};
   const std::unordered_set<char> primary_ops {'+','-','*','/','^'};
   const std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
   const std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
   const std::unordered_set<char> &ops = invalid_precedence;
-  const std::unordered_set<char> implicit_mult_valid_chars {'x','0','1','2','3','4','5','6','7','8','9',')','(','#','!'};
+  const std::unordered_set<char> implicit_mult_valid_chars {'0','1','2','3','4','5','6','7','8','9','(',')','x','#','!'};
   const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
   const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk"};
   const std::unordered_set<std::string> valid_characters {
@@ -68,8 +70,10 @@ namespace {
     "ceil", "ftrl", "pow",
     "neg", "logk", "cbrt"
   };
+}
 
-  // Pre-compile strings so it doesn't cost time.
+// Pre-compile strings so it doesn't cost time.
+namespace {
   const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
   const std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
   const std::string err_invalid_characters = "INVALID CHARACTERS.";
