@@ -4,6 +4,8 @@ namespace {
   // Constant strings for replacement.
   const std::string op_str = "^/*-+";
   const std::string super[10] {"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
+
+  // Had to change the aliases too often so made a variable for number of members.
   constexpr int lalias = 28;
   const std::string alias_conversion[lalias] {
     "logk", "LOGK",
@@ -35,12 +37,14 @@ namespace {
   };
   
   // Constant maps for fast lookups.
-  const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk"};
-  const std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
-  const std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
-  const std::unordered_set<char> &ops = invalid_precedence;
-  const std::unordered_set<char> primary_ops {'+','-','*','/','^'};
   const std::unordered_set<char> sign {'+','-'};
+  const std::unordered_set<char> primary_ops {'+','-','*','/','^'};
+  const std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
+  const std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
+  const std::unordered_set<char> &ops = invalid_precedence;
+  const std::unordered_set<char> implicit_mult_valid_chars {'x','0','1','2','3','4','5','6','7','8','9',')','(','#','!'};
+  const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
+  const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk"};
   const std::unordered_set<std::string> valid_characters {
     "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹",
     "0","1","2","3","4","5","6","7","8","9",
@@ -49,8 +53,6 @@ namespace {
     "f","g","h","i","k","l","m","n","o","p",
     "q","r","s","t","u","v","w","x"
   };
-  const std::unordered_set<char> implicit_mult_valid_chars {'x','0','1','2','3','4','5','6','7','8','9',')','(','#','!'};
-  const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
   const std::unordered_set<std::string> allowed_functions {
     "x", "exp", "ln",
     "sqrt", "sin", "cos",
@@ -110,6 +112,7 @@ namespace {
 namespace parse {
 
 class expression {
+
   // Public method to be used.
   public:
 
@@ -683,6 +686,7 @@ class expression {
         // a 0 before it, and if it isn't followed by a number, remove it.
 
         // Also correct potential oversight of multiple decimals following each other.
+        // Like 2...2 forgive it.
 
         else if(input[i] == '.') {
           if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
@@ -1290,7 +1294,7 @@ class expression {
 
   // Friend operators / convinience functions.
   protected:
-    
+
     // Printing function for ease_of_use.
     void print(std::ostream &os) const {
       os << fp_org_str << this -> entered_expression;
