@@ -1453,7 +1453,7 @@ class expression {
   protected:
 
     // Printing function for ease_of_use.
-    void print(std::ostream &os) const {
+    void print(std::ostream &os) const noexcept {
       os << fp_org_str << this -> entered_expression;
       os << fp_mod_str;
       if(!anomaly && this -> modified_expression.find(open_paren) != std::string::npos) {
