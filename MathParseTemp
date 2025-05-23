@@ -38,38 +38,161 @@ namespace {
 }
 
 // Constant maps for fast lookups.
+// namespace {
+//   const std::unordered_set<char> sign {'+','-'};
+//   const std::unordered_set<char> primary_ops {'+','-','*','/','^'};
+//   const std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
+//   const std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
+//   const std::unordered_set<char> &ops = invalid_precedence;
+//   const std::unordered_set<char> implicit_mult_valid_chars {'0','1','2','3','4','5','6','7','8','9','(',')','x','#','!'};
+//   const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
+//   const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk"};
+//   const std::unordered_set<std::string> valid_characters {
+//     "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹",
+//     "0","1","2","3","4","5","6","7","8","9",
+//     "^","+","-","/","*","÷","×","·","√","π",
+//     ".","(",")",",","!","a","b","c","d","e",
+//     "f","g","h","i","k","l","m","n","o","p",
+//     "q","r","s","t","u","v","w","x"
+//   };
+//   const std::unordered_set<std::string> allowed_functions {
+//     "x", "exp", "ln",
+//     "sqrt", "sin", "cos",
+//     "csc", "sec", "tan",
+//     "cot", "asin", "acos",
+//     "acsc", "asec", "atan",
+//     "acot", "sinh", "cosh",
+//     "csch", "sech", "tanh",
+//     "coth", "abs", "gcd",
+//     "ncr", "npr", "add",
+//     "sub", "mul", "div",
+//     "mod", "flr", "rnd",
+//     "ceil", "ftrl", "pow",
+//     "neg", "logk", "cbrt"
+//   };
+// }
+
+// These are the same as the unordered_set but faster and specific.
+// If more functions are neended calculate the hashes as per your ADDITION
+// or comment this scope and uncomment the above namespace and all the commented out
+// usage of the above scope's unordered sets.
 namespace {
-  const std::unordered_set<char> sign {'+','-'};
-  const std::unordered_set<char> primary_ops {'+','-','*','/','^'};
-  const std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
-  const std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
-  const std::unordered_set<char> &ops = invalid_precedence;
-  const std::unordered_set<char> implicit_mult_valid_chars {'0','1','2','3','4','5','6','7','8','9','(',')','x','#','!'};
-  const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
-  const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk"};
-  const std::unordered_set<std::string> valid_characters {
-    "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹",
-    "0","1","2","3","4","5","6","7","8","9",
-    "^","+","-","/","*","÷","×","·","√","π",
-    ".","(",")",",","!","a","b","c","d","e",
-    "f","g","h","i","k","l","m","n","o","p",
-    "q","r","s","t","u","v","w","x"
+  constexpr char i_prec[8] {'(','\0','*','+',',','-','^','/'};
+  constexpr bool is_invalid_precedence(const unsigned char &input) {
+    return input == i_prec[input % 8];
+  }
+
+  constexpr bool (*is_op)(const unsigned char&) = &is_invalid_precedence;
+
+  constexpr char i_subs[7] {'*','\0',',','^','\0','/',')'};
+  constexpr bool is_invalid_subsidence(const unsigned char &input) {
+    return input == i_subs[input % 7];
+  }
+
+  constexpr char p_ops[6] {'*','+','\0','-','^','/'};
+  constexpr bool is_primary_ops(const unsigned char &input) {
+    return input == p_ops[input % 6];
+  }
+
+  constexpr bool is_sign(const unsigned char &input) {
+    return input == 43 || input == 45;
+  }
+
+  constexpr char imv_ch[25] {
+    '2','3','4','5','6','7','8','9',
+    '!','\0','#','\0','\0','\0','\0','(',
+    ')','\0','\0','\0','x','\0','\0','0',
+    '1'
   };
-  const std::unordered_set<std::string> allowed_functions {
-    "x", "exp", "ln",
-    "sqrt", "sin", "cos",
-    "csc", "sec", "tan",
-    "cot", "asin", "acos",
-    "acsc", "asec", "atan",
-    "acot", "sinh", "cosh",
-    "csch", "sech", "tanh",
-    "coth", "abs", "gcd",
-    "ncr", "npr", "add",
-    "sub", "mul", "div",
-    "mod", "flr", "rnd",
-    "ceil", "ftrl", "pow",
-    "neg", "logk", "cbrt"
+  constexpr bool implicit_mult_valid_char_find(const unsigned char &input) {
+    return input == imv_ch[input % 25];
+  }
+
+  constexpr char bc_lch[17] {
+    '3','4','5','6','7','8','9',')',
+    '\0','\0','=','\0','.','@','0','1',
+    '2'
   };
+  constexpr bool basic_cleanup_char_lookup(const unsigned char &input) {
+    return input == bc_lch[input % 17];
+  }
+
+  constexpr char vc_sch[52] {
+    '^','\0','\0','a','b','c','d','e','f','g','h','i','\0','k','l','m',
+    'n','o','p','q','r','s','t','u','v','w','x','!','\0','\0','\0','\0',
+    '\0','\0','(',')','*','+',',','-','.','/','0','1','2','3','4','5',
+    '6','7','8','9'
+  };
+  constexpr std::array<const char*, 65> vc_mch {
+    "÷","·","","","","¹","","","⁶","⁵","⁸","⁷","","⁹","","",
+    "","","","","","","","","","","","","","","","",
+    "","","⁰","","","","⁴","","","","","","π","","","",
+    "","³","","","","²","","√","","","","","","","","",
+    "×"
+  };
+  bool is_valid_character(const std::string &input) {
+    const size_t &length = input.length();
+    unsigned int index;
+    switch(length) {
+      case 1:
+        index = -6 + (input[0] % 88);
+        return index < 52 && input[0] == vc_sch[index];
+      case 2:
+      case 3:
+        index = -168 + ((unsigned char)input[0]^1 + (unsigned char)input[1]^11 + (unsigned char)input.back()^17);
+        return index < 65 && std::memcmp(vc_mch[index], &input[0], length) == 0;
+      default:
+        return false;
+    }
+  }
+
+  constexpr std::array<const char*, 19> b_flt {
+    "mod","","mul","","logk","div","","","pow","","","","","ncr","sub","",
+    "npr","add","gcd"
+  };
+  bool is_binary_func(const std::string &input) {
+    const size_t &length = input.length();
+    unsigned int index;
+    switch(length) {
+      case 3:
+      case 4:
+        index = -2 + (input[0]^37 + input[1]^31 + input[2]^120);
+        return index < 19 && std::memcmp(b_flt[index], &input[0], length) == 0;
+      default:
+        return false;
+    }
+  }
+
+  constexpr const char* p_x = "x";
+  constexpr const char* p_ln = "ln";
+  constexpr std::array<const char*, 49> p_3lf {
+    "sin","","","","","","","sec","","","flr","","cot","cos","","div",
+    "mul","","pow","add","gcd","","npr","exp","","","","ncr","","","","",
+    "abs","csc","mod","","","","neg","","","","","","","","rnd","tan",
+    "sub"
+  };
+  constexpr std::array<const char*, 28> p_4lf {
+    "sech","","ceil","acos","cbrt","sinh","acot","logk","","","ftrl","","","tanh","","acsc",
+    "","asec","asin","","","sqrt","csch","","","coth","cosh","atan"
+  };
+  bool is_allowed_function(const std::string &input) {
+    const size_t &length = input.length();
+    unsigned int index;
+    switch(length) {
+      case 1:
+        return std::memcmp(p_x, &input[0], 1);
+      case 2:
+        return std::memcmp(p_ln, &input[0], 2);
+      case 3:
+        index = -104 + (input[0]^23 + input[1]^25 + input[2]^28);
+        return index < 49 && std::memcmp(p_3lf[index], &input[0], 3);
+      case 4:
+        index = -129 + (input[1]^1 + input[2]^30 + input[3]^6);
+        return index < 28 && std::memcmp(p_4lf[index], &input[0], 4);
+      default:
+        return false;
+    }
+  }
 }
 
 // Pre-compile strings so it doesn't cost time.
@@ -248,7 +371,7 @@ class expression {
       // Log if successfully updated.
       this -> err_log = done_modified;
 
-      // Should be able to parse in 40-70 µs for most input strings.
+      // Should be able to parse in less than 10µs for most input strings.
     }
 
     // Provide the input stirng.
@@ -292,14 +415,16 @@ class expression {
     bool is_om_binary() const noexcept {
       size_t t = modified_expression.find(open_paren);
       if(this -> anomaly || t == std::string::npos) return false;
-      return binary_funcs.find(this -> modified_expression.substr(0, t)) != binary_funcs.end();
+      // return binary_funcs.find(this -> modified_expression.substr(0, t)) != binary_funcs.end();
+      return is_binary_func(this -> modified_expression.substr(0, t));
     }
 
     // Check for unary functions.
     bool is_om_unary() const noexcept {
       if(this -> anomaly) return false;
       size_t t = modified_expression.find(open_paren);
-      return (t == std::string::npos) || binary_funcs.find(this -> modified_expression.substr(0, t)) == binary_funcs.end();
+      // return (t == std::string::npos) || binary_funcs.find(this -> modified_expression.substr(0, t)) == binary_funcs.end();
+      return (t == std::string::npos) || !is_binary_func(this -> modified_expression.substr(0, t));
     }
 
     // Provide the first inner string inside the parenthesis.
@@ -525,7 +650,7 @@ class expression {
           // If the string stored as potential functions aren't
           // present in the map, flag them otherwise reset and continue.
           else {
-            if(allowed_functions.count(to_check)) {
+            if(is_allowed_function(to_check)) {
               if(to_check == x_str && (!this -> allow_variable)) {
                 this -> err_log = err_var_where_not_allowed;
                 this -> anomaly = true;
@@ -545,7 +670,8 @@ class expression {
 
       // If the temporary variable isn't empty then check it as a
       // necessary function or variable, if not, then flag.
-      if(!to_check.empty() && !allowed_functions.count(to_check)) {
+      // if(!to_check.empty() && !allowed_functions.count(to_check)) {
+      if(!to_check.empty() && !is_allowed_function(to_check)) {
         this -> err_log = err_invalid_char_stream + to_check + apostrophe_dot;
         this -> anomaly = true;
         return;
@@ -643,12 +769,15 @@ class expression {
         while(t != std::string::npos){
           std::string substring = unicode_conversion[i];
           int update = 0;
-          if(t > 0 && (basic_cleanup_lookup.count(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? carret_str : asterisk_str) + substring;
+          // if(t > 0 && (basic_cleanup_lookup.count(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? carret_str : asterisk_str) + substring;
+          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? carret_str : asterisk_str) + substring;
 
           // We can't check the immediate next character as
           // superscripts are unicode and not single byte ASCII.
+          // if((t + unicode_conversion[i].length() < input.size()) && ((std::islower(input[t + unicode_conversion[i].length()])) ||
+          // (basic_cleanup_lookup.count(input[t + unicode_conversion[i].length()]) && input[t + unicode_conversion[i].length()] != ')'))) {
           if((t + unicode_conversion[i].length() < input.size()) && ((std::islower(input[t + unicode_conversion[i].length()])) ||
-          (basic_cleanup_lookup.count(input[t + unicode_conversion[i].length()]) && input[t + unicode_conversion[i].length()] != ')'))) {
+          (basic_cleanup_char_lookup(input[t + unicode_conversion[i].length()]) && input[t + unicode_conversion[i].length()] != ')'))) {
             substring += asterisk_str;
             update++;
           }
@@ -920,7 +1049,9 @@ class expression {
 
         // Sqrt rule.
         if(input[i] == '#') {
-          if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
+          // if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
+          // !(input[i - 1]=='(' || input[i - 1] == '#')) {
+          if(i > 0 && implicit_mult_valid_char_find(input[i - 1]) &&
           !(input[i - 1]=='(' || input[i - 1] == '#')) {
             input.insert(i, asterisk_str);
             i++;
@@ -938,13 +1069,17 @@ class expression {
         // Variable rule.
         else if(input[i] == 'x') {
           if(i > 0 && input[i - 1] == 'e') continue;
-          if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
+          // if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
+          // !(input[i - 1] == '(' || input[i - 1] == '#')) {
+          if(i > 0 && implicit_mult_valid_char_find(input[i - 1]) &&
           !(input[i - 1] == '(' || input[i - 1] == '#')) {
             input.insert(i, asterisk_str);
             i++;
           }
+          // if((i + 1) < input.length() && (std::islower(input[i + 1]) || (
+          // (implicit_mult_valid_chars.count(input[i + 1]) && input[i + 1] != ')')))) {
           if((i + 1) < input.length() && (std::islower(input[i + 1]) || (
-          (implicit_mult_valid_chars.count(input[i + 1]) && input[i + 1] != ')')))) {
+          (implicit_mult_valid_char_find(input[i + 1]) && input[i + 1] != ')')))) {
             input.insert(i + 1, asterisk_str);
           }
         }
@@ -964,7 +1099,9 @@ class expression {
 
         // Opening parenthesis rule.
         else if(input[i] == '(') {
-          if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
+          // if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
+          // !(input[i - 1] == '(' || input[i - 1] == '#')) {
+          if(i > 0 && implicit_mult_valid_char_find(input[i - 1]) &&
           !(input[i - 1] == '(' || input[i - 1] == '#')) {
             input.insert(i, asterisk_str);
             i++;
@@ -981,7 +1118,9 @@ class expression {
 
         // Closing parenthesis rule.
         else if(input[i] == ')') {
-          if((i + 1) < input.length() && implicit_mult_valid_chars.count(input[i + 1]) &&
+          // if((i + 1) < input.length() && implicit_mult_valid_chars.count(input[i + 1]) &&
+          // !(input[i + 1] == ')' || input[i + 1] == '!')) {
+          if((i + 1) < input.length() && implicit_mult_valid_char_find(input[i + 1]) &&
           !(input[i + 1] == ')' || input[i + 1] == '!')) {
             input.insert(i + 1, asterisk_str);
           }
@@ -1014,7 +1153,8 @@ class expression {
         else if ((c & 0xF8) == 0xF0) len = 4;
         else return true;
         if((i + len) > input.size()) return true;
-        if (!valid_characters.count(input.substr(i, len))) return true;
+        // if (!valid_characters.count(input.substr(i, len))) return true;
+        if (!is_valid_character(input.substr(i, len))) return true;
         i += len;
       }
       return false;
@@ -1043,7 +1183,8 @@ class expression {
       }
 
       // Flag lone signs.
-      if(input.size() == 1 && primary_ops.count(input.front())) {
+      // if(input.size() == 1 && primary_ops.count(input.front())) {
+      if(input.size() == 1 && is_primary_ops(input.front())) {
         this -> err_log = err_no_func_op;
         this -> anomaly = true;
         return;
@@ -1058,8 +1199,9 @@ class expression {
           return;
         }
 
-        if(primary_ops.count(input[i])) {
-      
+        // if(primary_ops.count(input[i])) {
+        if(is_primary_ops(input[i])) {
+
           // If a unary plus sign at the start and input size is not greater than 1, flag it.
           if(i == 0 && input[i] == '+') {
             if(input.size() != 1) {
@@ -1091,13 +1233,15 @@ class expression {
                 this -> anomaly = true;
                 return;
               }
-              else if(primary_ops.count(input[i + 1])) {
+              // else if(primary_ops.count(input[i + 1])) {
+              else if(is_primary_ops(input[i + 1])) {
                 if(input[i + 1] == '+') {
                   input.erase(i + 1, 1);
                   i--;
                   continue;
                 }
-                else if(!sign.count(input[i]) && input[i + 1] == '-') continue;
+                // else if(!sign.count(input[i]) && input[i + 1] == '-') continue;
+                else if(!is_sign(input[i]) && input[i + 1] == '-') continue;
                 else {
                   this -> err_log = err_mal_op;
                   this -> anomaly = true;
@@ -1111,7 +1255,8 @@ class expression {
               return;
             }
           }
-          else if(!sign.count(input[i]) || ((i + 1) < input.length() && sign.count(input[i + 1]))) {
+          // else if(!sign.count(input[i]) || ((i + 1) < input.length() && sign.count(input[i + 1]))) {
+          else if(!is_sign(input[i]) || ((i + 1) < input.length() && is_sign(input[i + 1]))) {
             this -> err_log = err_han_op;
             this -> anomaly = true;
             return;
@@ -1130,7 +1275,8 @@ class expression {
       }
       while(t != std::string::npos) {
         int parenthesis = 0, i = t - 1;
-        if(ops.find(input[t - 1]) != ops.end() || input[t - 1] == '(') {
+        // if(ops.find(input[t - 1]) != ops.end() || input[t - 1] == '(') {
+        if(is_op(input[t - 1]) || input[t - 1] == '(') {
           this -> err_log = err_no_arg_fact;
           this -> anomaly = true;
           return;
@@ -1148,7 +1294,8 @@ class expression {
             }
           }
 
-          else if((i == 0 || ops.find(input[i]) != ops.end())) {
+          // else if((i == 0 || ops.find(input[i]) != ops.end())) {
+          else if((i == 0 || is_op(input[i]))) {
             if(parenthesis == 0) {
               break;
             }
@@ -1184,7 +1331,8 @@ class expression {
         }
         else {
           if(input[i] == '(') {
-            if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()) {
+            // if(!temp.empty() && binary_funcs.find(temp) != binary_funcs.end()) {
+            if(!temp.empty() && is_binary_func(temp)) {
               parenthesis_count.push({parenthesis, false});
             }
             parenthesis++;
@@ -1216,12 +1364,14 @@ class expression {
               this -> anomaly = true;
               return;
             }
-            if((i == 0) || invalid_precedence.find(input[i - 1]) != invalid_precedence.end()) {
+            // if((i == 0) || invalid_precedence.find(input[i - 1]) != invalid_precedence.end()) {
+            if((i == 0) || is_invalid_precedence(input[i - 1])) {
               this -> err_log = err_no_first_arg;
               this -> anomaly = true;
               return;
             }
-            if((i == input.size() - 1) || invalid_subsidence.find(input[i + 1]) != invalid_subsidence.end()) {
+            // if((i == input.size() - 1) || invalid_subsidence.find(input[i + 1]) != invalid_subsidence.end()) {
+            if((i == input.size() - 1) || is_invalid_subsidence(input[i + 1])) {
               this -> err_log = err_no_second_arg;
               this -> anomaly = true;
               return;
