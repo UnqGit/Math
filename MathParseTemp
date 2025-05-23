@@ -2,11 +2,16 @@
 
 // Constant strings for replacement.
 namespace {
+
+  // Used to replace the operators in order for BODMAS / PEMDAS presedence.
   const std::string op_str = "^/*-+";
+  // Used to detect error for "pow_dec_wrong()".
   const std::string super[10] {"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
 
   // Had to change the aliases too often so made a variable for number of members.
   constexpr int lalias = 28;
+
+  // Array used to find alaises and standardize them.
   const std::string alias_conversion[lalias] {
     "logk", "LOGK",
     "floor", "flr",
@@ -23,12 +28,15 @@ namespace {
     "cosec", "csc",
     "ar", "a"
   };
+
+  // This array will be used to replace the odd indices with the consecutive even indices either temporarily(mainly) or permanently.
   const std::string temporary_conversion[30] {
     "·", "*", "×", "*", "÷", "/", "√", "#",
     "pi", "=", "π", "=", "exp", "EXP", "sec", "SEC",
     "ceil", "CEIL", "neg", "NEG", "e", "@", "EXP", "exp", "SEC", "sec",
     "CEIL", "ceil", "NEG", "neg"
   };
+  // This array will be used to change unicode characters to their equivalent in ASCII.
   const std::string unicode_conversion[24] {
     "⁰", "0", "¹", "1", "²", "2", "³", "3", "⁴", "4",
     "⁵", "5", "⁶", "6", "⁷", "7", "⁸", "8", "⁹", "9",
@@ -80,13 +88,16 @@ namespace {
 
   // These were found by brute force to get the best results, no need to look in here.
 
+  // Used in valid_commas function to check if the preceding character is invalid.
   constexpr char i_prec[8] {'(','\0','*','+',',','-','^','/'};
   constexpr bool is_invalid_precedence(const unsigned char &input) {
     return input == i_prec[input % 8];
   }
 
+  // Same table as above is used in factorial_convert function.
   constexpr bool (*is_op)(const unsigned char&) = &is_invalid_precedence;
 
+  // Check if the character following comma is invalid.
   constexpr char i_subs[7] {'*','\0',',','^','\0','/',')'};
   constexpr bool is_invalid_subsidence(const unsigned char &input) {
     return input == i_subs[input % 7];
@@ -118,6 +129,20 @@ namespace {
   };
   constexpr bool basic_cleanup_char_lookup(const unsigned char &input) {
     return input == bc_lch[input % 17];
+  }
+
+  constexpr char p_op_fd[8] {
+    '(','\0','*','+',',','-','^','/'
+  };
+  constexpr bool primary_op_first_delimiter(const unsigned char &input) {
+    return input == p_op_fd[input % 8];
+  }
+
+  constexpr char p_op_sd[8] {
+    '\0',')','*','+',',','-','^','/'
+  };
+  constexpr bool primary_op_second_delimiter(const unsigned char &input) {
+    return input == p_op_sd[input % 8];
   }
 
   constexpr char vc_sch[52] {
@@ -802,7 +827,7 @@ class expression {
 
       // Normalize signs and decimals.
       for(int i = 0; i < input.size(); i++) {
-        if(input[i] == '+' || input[i] == '-') {
+        if(is_sign(input[i])) {
           int count = (input[i] == '-'), j = 1;
 
           // If the current character (we can check characters safely
@@ -811,7 +836,7 @@ class expression {
           // which isn't one of them and replace the entire substring
           // with equivalent sign.
 
-         while((i + j) < input.size() && (input[i + j] == '+' || input[i + j] == '-')) {
+         while((i + j) < input.size() && is_sign(input[i + j])) {
             count += input[i + j] == '-';
             j++;
           }
@@ -845,8 +870,11 @@ class expression {
     void add_sqrt(std::string &input) noexcept {
 
       // Sets of delimiters to check from.
-      std::unordered_set<char> delimiter_map {'+','-','*','/','^',',',')'};
+      // std::unordered_set<char> delimiter_map {'+','-','*','/','^',',',')'};
       // Cannot save this in the constant section as we are updating the map.
+
+      // Has the same delimiters as in primary operations' second half, so we'll use that.
+      bool (*delimiter_map)(const unsigned char&) = &primary_op_second_delimiter;
 
       // Count the number of #, which we have to change.
 
@@ -870,9 +898,10 @@ class expression {
         t += 5;
         int j = t;
         for(; j < input.length(); j++) {
-          if((delimiter_map.count(input[j])) && parenthesis == 0) {
-            if(j == t && (input[j] == '+' || input[j] == '-')) continue;
-            if(!(j == t + 1 && ((input[j] == '(') && (input[j - 1] == '+' || input[j - 1] == '-')))) break;
+          // if((delimiter_map.count(input[j])) && parenthesis == 0) {
+          if((delimiter_map(input[j])) && parenthesis == 0) {
+            if(j == t && is_sign(input[j])) continue;
+            if(!(j == t + 1 && ((input[j] == '(') && is_sign(input[j - 1])))) break;
           }
           if(input[j] == '(') parenthesis++;
           else if(input[j] == ')') parenthesis--;
@@ -888,8 +917,10 @@ class expression {
     void binary_ops(std::string &input, char delimiter) noexcept {
 
       // Delimiters to make sure we insert at correct position.
-      std::unordered_set<char> delimiter_map {'+','-','*','/','^','(',','};
+      // std::unordered_set<char> delimiter_map {'+','-','*','/','^','(',','};
       // Cannot save this in the constant section as we are updating the map.
+
+      bool (*delimiter_map)(const unsigned char&) = &primary_op_first_delimiter;
 
       // Initialize function name to be added and the potential
       // error message using a switch and based on input delimiter
@@ -940,7 +971,8 @@ class expression {
         }
 
         input[index] = ',';
-        if(index == 0 || (index > 0 && delimiter_map.count(input[index - 1]))) {
+        // if(index == 0 || (index > 0 && delimiter_map.count(input[index - 1]))) {
+        if(index == 0 || (index > 0 && delimiter_map(input[index - 1]))) {
 
           // If the operator can't have no first argument
           // which are '*','/'&'^' log error and return.
@@ -973,7 +1005,8 @@ class expression {
         else {
           int parenthesis = 0, j = index - 1;
           for(; j > 0; j--) {
-            if(delimiter_map.count(input[j]) && parenthesis == 0) break;
+            // if(delimiter_map.count(input[j]) && parenthesis == 0) break;
+            if(delimiter_map(input[j]) && parenthesis == 0) break;
             if(input[j] == ')') parenthesis++;
             else if(input[j] == '(') parenthesis--;
           }
@@ -983,12 +1016,15 @@ class expression {
 
         // Erase '(' from map as to make sure we don't stop
         // anywhere prematurely and add ')' as a new delimiter.
-        delimiter_map.erase('(');
-        delimiter_map.insert(')');
+        // delimiter_map.erase('(');
+        // delimiter_map.insert(')');
+
+        delimiter_map = &primary_op_second_delimiter;
 
         int j = index + 1, parenthesis=0;
         for(;j < input.length(); j++) {
-          if(delimiter_map.count(input[j]) && parenthesis == 0) {
+          // if(delimiter_map.count(input[j]) && parenthesis == 0) {
+          if(delimiter_map(input[j]) && parenthesis == 0) {
             if((delimiter != '+' && delimiter != '-') && (input[j] == '+' || input[j] == '-') && j == index + 1) continue;
               break;
           }
@@ -1011,8 +1047,9 @@ class expression {
         else input += close_paren;
 
         // Reset map to default.
-        delimiter_map.erase(')');
-        delimiter_map.insert('(');
+        // delimiter_map.erase(')');
+        // delimiter_map.insert('(');
+        delimiter_map = &primary_op_first_delimiter;
       }
     }
 
@@ -1097,7 +1134,7 @@ class expression {
 
         // Factorial symbol rule.
         else if(input[i] == '!') {
-          if((i + 1) < input.size() && (std::isalnum(input[i + 1]))) input.insert(i + 1, "*");
+          if((i + 1) < input.size() && (std::isalnum(input[i + 1]))) input.insert(i + 1, asterisk_str);
         }
 
         // Opening parenthesis rule.
