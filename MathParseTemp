@@ -344,25 +344,25 @@ class expression {
       basic_cleanup(input);
 
       // Check for invalid decimal usage.
-      invalid_decimal(input);
+      if(input.find(dot) != std::string::npos) invalid_decimal(input);
       if(this -> anomaly) return *this;
 
       // Make parenthesis even.
       app_paren(input, flag);
 
       // Remove empty parenthesis.
-      remove_empt(input, flag);
+      if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
 
       // Convert implict multiplication to explicit.
       implicit_mult(input);
       if(this -> anomaly) return *this;
 
       // Check if use of commas is appropriate.
-      valid_commas(input);
+      if(input.find(comma_str) != std::string::npos) valid_commas(input);
       if(this -> anomaly) return *this;
 
       // Convert '!' to the function call "ftrl()".
-      factorial_convert(input);
+      if(input.find(exclaimation) != std::string::npos) factorial_convert(input);
       if(this -> anomaly) return *this;
 
       // Change √('#') to sqrt() and remove empty parenthesis potentially created by it.
