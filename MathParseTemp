@@ -706,14 +706,14 @@ class expression {
     }
 
     // Embed in a mathematical function.
-    expression embed_in(const std::string &function, expression other()) const noexcept {
+    expression embed_in(const std::string &function, const expression &other = expression()) const noexcept {
       if(this -> anomaly) return *this;
       if(!is_allowed_function(function) || function == x_str) return *this;
-      if(is_binary_func(function) && other.anomaly) return *this;
       expression result(*this);
       result.make_function();
       std::string &this_str = result.modified_expression;
       if(is_binary_func(function)) {
+        if(other.anomaly) return *this;
         this_str = function + open_paren + this_str + comma_str + other.modified_expression + close_paren;
       }
       else this_str = function + open_paren + this_str + close_paren;
@@ -784,8 +784,6 @@ class expression {
       this -> allow_variable = true;
       return *this;
     }
-
-    
 
   // Helper functions.
   private:
