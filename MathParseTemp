@@ -226,6 +226,14 @@ namespace {
 
 // Pre-compile strings so it doesn't cost time (error messages or often used strings).
 namespace {
+  const std::string apostrophe_dot = "'.", dot = ".", comma_str = ",", new_line = "\n";
+  const std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
+  const std::string sqrt_func_str = "sqrt(", neg_func_str = "neg(", ftrl_func_str = "ftrl(";
+  const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
+  const std::string open_paren = "(", close_paren = ")", hash = "#";
+  const std::string empty_string = "", empty_paren = "()";
+  const std::string x_str = "x";
+
   const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
   const std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
   const std::string err_invalid_characters = "INVALID CHARACTERS.";
@@ -234,17 +242,10 @@ namespace {
   const std::string err_paren_no_arg = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
   const std::string done_modified = "SUCCESSFULLY MODIFIED.";
   const std::string err_not_modified = "NOT MODIFIED.";
-  const std::string open_paren = "(", close_paren = ")", hash = "#";
-  const std::string empty_string = "", empty_paren = "()";
-  const std::string x_str = "x";
   const std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
   const std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
   const std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
   const std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
-  const std::string apostrophe_dot = "'.", dot = ".", comma_str = ",";
-  const std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
-  const std::string sqrt_func_str = "sqrt(", neg_func_str = "neg(", ftrl_func_str = "ftrl(";
-  const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
   const std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
   const std::string err_full_exp = "EXPONENTIATION", err_full_div = "DIVISION", err_full_mul = "MULTIPLICATION", err_full_sub = "SUBTRACTION";
   const std::string err_full_add = "ADDITION";
@@ -260,7 +261,9 @@ namespace {
   const std::string err_han_op_paren = "HANGING OPERATOR AFTER PARENTHESIS.", err_trl_op_paren = "TRAILING OPERATOR AFTER PARENTHESIS.";
 
   const std::string fp_org_str = "\nOriginal: ", fp_mod_str = "\nModified: ", fp_status_str = "\nStatus: ";
-  const std::string fr_log_str = "\nLog: ", fp_no_str = "No ", fp_anamoly_detected = "Anamoly Detected.";
+  const std::string fp_log_str = "\nLog: ", fp_no_str = "No ", fp_anamoly_detected = "Anamoly Detected.";
+
+  const std::string dt_no_str = "No.", dt_yes_str = "Yes.", dt_var_allow = "Variable allowed: ";
 
   const std::string unexpected_error = "An unexpected error occured during parsing.";
 }
@@ -425,6 +428,17 @@ class expression {
     // Resturn the error message or the modified expression depending on if it was parsed correctly.
     std::string result() const noexcept {
       return this -> anomaly ? this -> err_log : this -> modified_expression;
+    }
+
+    // Provide all the details of the class.
+    std::string details() const noexcept {
+      std::string result;
+      result += fp_org_str + this -> entered_expression + new_line;
+      result += fp_mod_str + this -> modified_expression + new_line;
+      result += fp_status_str + (this -> anomaly ? empty_string : fp_no_str) + fp_anamoly_detected + new_line;
+      result += fp_log_str + this -> err_log + new_line;
+      result += dt_var_allow + (this -> allow_variable ? dt_yes_str : dt_no_str);
+      return result;
     }
 
     // Check for if the parsing was done successfully.
@@ -1675,7 +1689,7 @@ class expression {
       }
       else os << this -> modified_expression;
       os << fp_status_str << ((anomaly && this -> err_log != err_not_modified) ? empty_string : fp_no_str) << fp_anamoly_detected;
-      os << fr_log_str << this -> err_log << '\n';
+      os << fp_log_str << this -> err_log << '\n';
     }
 
     // Output stream operator to print all the useful information.
