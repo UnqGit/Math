@@ -81,7 +81,7 @@ namespace {
 // }
 
 // These are the same as the unordered_set but faster and specific.
-// If more functions are neended calculate the hashes as per your ADDITION
+// If more functions are neended calculate the hashes as per YOUR addition
 // or comment this scope and uncomment the above namespace and all the commented out
 // usage of the above scope's unordered sets.
 namespace {
@@ -223,7 +223,7 @@ namespace {
   }
 }
 
-// Pre-compile strings so it doesn't cost time.
+// Pre-compile strings so it doesn't cost time (error messages or often used strings).
 namespace {
   const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
   const std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
@@ -264,8 +264,10 @@ namespace {
   const std::string unexpected_error = "An unexpected error occured during parsing.";
 }
 
+// <-------- Main part of the entire file. -------->
 namespace parse {
 
+// The class that does all the magic.
 class expression {
 
   // Public method to be used.
@@ -280,14 +282,19 @@ class expression {
     // Constructor with expression string input and variable toggling option.
     expression(const std::string &input, bool allow_var = true): entered_expression(input), allow_variable(allow_var) {}
 
+    // Constructor with expression string input and variable toggling option.
+    constexpr expression(const char* &input, bool allow_var = true):allow_variable(allow_var) {
+      entered_expression = input;
+    }
+
     // Copy constructor.
     expression(const expression &other): entered_expression(other.entered_expression), modified_expression(other.modified_expression),
     anomaly(other.anomaly), allow_variable(other.allow_variable), err_log(other.err_log) {}
 
     // Main function to be used.
-    void clean() noexcept {
+    expression &clean() noexcept {
 
-      if(!this -> anomaly) return;
+      if(!this -> anomaly) return *this;
 
       this -> anomaly = false;
 
@@ -295,10 +302,10 @@ class expression {
       std::string &unmodified = this -> entered_expression;
       std::string &input = this -> modified_expression;
       input = unmodified;
-      if(input.empty()) {
+      if(unmodified.empty()) {
         this -> anomaly = true;
         this -> err_log = err_empty_string;
-        return;
+        return *this;
       }
       bool flag = false;
 
@@ -315,14 +322,14 @@ class expression {
       if(pow_dec_wrong(input)) {
         this -> err_log = err_decimal_after_superscript;
         this -> anomaly = true;
-        return;
+        return *this;
       }
 
       // Check for any character which isn't in the allowed character set.
       if(invalid_char(input)) {
         this -> err_log = err_invalid_characters;
         this -> anomaly = true;
-        return;
+        return *this;
       }
 
       // Convert common aliases to a unified function name.
@@ -333,7 +340,7 @@ class expression {
 
       // Check for invalid decimal usage.
       invalid_decimal(input);
-      if(this -> anomaly) return;
+      if(this -> anomaly) return *this;
 
       // Make parenthesis even.
       app_paren(input, flag);
@@ -343,15 +350,15 @@ class expression {
 
       // Convert implict multiplication to explicit.
       implicit_mult(input);
-      if(this -> anomaly) return;
+      if(this -> anomaly) return *this;
 
       // Check if use of commas is appropriate.
       valid_commas(input);
-      if(this -> anomaly) return;
+      if(this -> anomaly) return *this;
 
       // Convert '!' to the function call "ftrl()".
       factorial_convert(input);
-      if(this -> anomaly) return;
+      if(this -> anomaly) return *this;
 
       // Change √('#') to sqrt() and remove empty parenthesis potentially created by it.
       if(input.find(hash) != std::string::npos) add_sqrt(input);
@@ -359,15 +366,15 @@ class expression {
 
       // Flag malperfomed operations such as '+)'.
       malform_ops(input);
-      if(this -> anomaly) return;
+      if(this -> anomaly) return *this;
 
       // Check if functions are proceeded by a '('.
       app_func_call(input, flag);
-      if(this ->  anomaly) return;
+      if(this ->  anomaly) return *this;
 
       // Check if only appropriate functions / variables are present.
       app_func_name(input);
-      if(this -> anomaly) return;
+      if(this -> anomaly) return *this;
 
       // Flag if number of opening and closing parenthesis is uneven.
       int opening_parenthesis = std::count(input.begin(), input.end(), '(');
@@ -375,31 +382,32 @@ class expression {
       if(opening_parenthesis != closing_parenthesis) {
         this -> err_log = err_incorrect_paren_use;
         this -> anomaly = true;
-        return;
+        return *this;
       }
 
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
         binary_ops(input, op_str[i]);
-        if(this -> anomaly) return;
+        if(this -> anomaly) return *this;
       }
 
       // Checking if there are () for potential redundancy removal.
       if(input.find(open_paren) != std::string::npos) paren_cleaner(input);
-      if(this -> anomaly) return;
+      if(this -> anomaly) return *this;
       
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
       if(input.empty()) {
         this -> err_log = flag ? err_invalid_parenthesis : err_empty_string;
         this -> anomaly = true;
-        return;
+        return *this;
       }
 
       // Log if successfully updated.
       this -> err_log = done_modified;
 
       // Should be able to parse in less than 10µs for most input strings.
+      return *this;
     }
 
     // Provide the input stirng.
@@ -558,13 +566,40 @@ class expression {
     }
 
     // Swaping mechanism with another expression.
-    expression &swap(expression &other) {
+    expression &swap(expression &other) noexcept {
       std::swap(this -> entered_expression, other.entered_expression);
       std::swap(this -> modified_expression, other.modified_expression);
       std::swap(this -> allow_variable, other.allow_variable);
       std::swap(this -> err_log, other.err_log);
       std::swap(this -> anomaly, other.anomaly);
       return *this;
+    }
+
+    // Cast another expression on top of this class depending on the allow variable flag of the current expression.
+    expression cast(const expression &other) {
+      expression result(this -> allow_variable);
+      bool flag = other.anomaly;
+      if(flag) result.update(other.entered_expression, true);
+      else result.update(other.modified_expression, true);
+      return result;
+    }
+
+    // Compose another function into the current function.
+    expression compose(const expression &other) const noexcept {
+      if(this -> anomaly || other.anomaly) return *this;
+      const std::string &other_str = other.modified_expression;
+      int len = other_str.length();
+      expression result(*this);
+      std::string &alias = result.modified_expression;
+      size_t t = alias.find(x_str);
+      while(t != std::string::npos) {
+        if(!(t > 0 && alias[t - 1] == 'e')) {
+          alias.replace(t, 1, other_str);
+          t = alias.find(x_str, t + len);
+        }
+        t = alias.find(x_str, t + 1);
+      }
+      return result;
     }
 
     // Reset the class back to default.
@@ -611,10 +646,10 @@ class expression {
     }
 
     // Turn variable allowing variable off and log if a variable is present.
-    void make_constant() noexcept {
+    expression &make_constant() noexcept {
       if(this -> anomaly) {
         this -> allow_variable = false;
-        return;
+        return *this;
       }
       if(this -> allow_variable) {
         if(this -> is_function()) {
@@ -623,13 +658,17 @@ class expression {
         }
         this -> allow_variable = false;
       }
+      return *this;
     }
 
     // No need to check anything in here, just turn the flag on.
-    void make_function() noexcept {
+    expression &make_function() noexcept {
       this -> allow_variable = true;
+      return *this;
     }
-  
+
+    
+
   // Helper functions.
   private:
 
@@ -1562,8 +1601,8 @@ class expression {
 
   // Private data members.
   private:
-    std::string entered_expression;
-    std::string modified_expression;
+    std::string entered_expression = empty_string;
+    std::string modified_expression = empty_string;
     bool anomaly = true;
     bool allow_variable = true;
     std::string err_log = err_not_modified;
