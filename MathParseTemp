@@ -1,10 +1,12 @@
 #pragma once
 
 namespace {
-  // Constants and maps for fast lookups.
-  std::string call = "^/*-+";
-  std::string super[10] {"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
-  std::string alias_conversion[24] {
+  // Constant strings for replacement.
+  const std::string op_str = "^/*-+";
+  const std::string super[10] {"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
+  constexpr int lalias = 28;
+  const std::string alias_conversion[lalias] {
+    "logk", "LOGK",
     "floor", "flr",
     "factorial","ftrl",
     "round","rnd",
@@ -14,39 +16,42 @@ namespace {
     "secant", "sec",
     "cotan", "cot",
     "log", "ln",
+    "LOGK", "logk",
     "arc", "a",
     "cosec", "csc",
     "ar", "a"
   };
-  std::string temporary_conversion[30] {
+  const std::string temporary_conversion[30] {
     "·", "*", "×", "*", "÷", "/", "√", "#",
     "pi", "=", "π", "=", "exp", "EXP", "sec", "SEC",
     "ceil", "CEIL", "neg", "NEG", "e", "@", "EXP", "exp", "SEC", "sec",
     "CEIL", "ceil", "NEG", "neg"
   };
-  std::string unicode_conversion[24] {
+  const std::string unicode_conversion[24] {
     "⁰", "0", "¹", "1", "²", "2", "³", "3", "⁴", "4",
     "⁵", "5", "⁶", "6", "⁷", "7", "⁸", "8", "⁹", "9",
     "=", "3.14159265358979323846264338327950288419",
     "@", "2.71828182845904523536028747135266249775"
   };
-  std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod"};
-  std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
-  std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
-  std::unordered_set<char> &ops = invalid_precedence;
-  std::unordered_set<char> primary_ops {'+','-','*','/','^'};
-  std::unordered_set<char> sign {'+','-'};
-  std::unordered_set<std::string> valid_characters {
+  
+  // Constant maps for fast lookups.
+  const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk"};
+  const std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
+  const std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
+  const std::unordered_set<char> &ops = invalid_precedence;
+  const std::unordered_set<char> primary_ops {'+','-','*','/','^'};
+  const std::unordered_set<char> sign {'+','-'};
+  const std::unordered_set<std::string> valid_characters {
     "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹",
     "0","1","2","3","4","5","6","7","8","9",
     "^","+","-","/","*","÷","×","·","√","π",
     ".","(",")",",","!","a","b","c","d","e",
-    "f","g","h","i","l","m","n","o","p","q",
-    "r","s","t","u","v","w","x"
+    "f","g","h","i","k","l","m","n","o","p",
+    "q","r","s","t","u","v","w","x"
   };
-  std::unordered_set<char> implicit_mult_valid_chars {'x','0','1','2','3','4','5','6','7','8','9',')','(','#','!'};
-  std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
-  std::unordered_set<std::string> allowed_functions {
+  const std::unordered_set<char> implicit_mult_valid_chars {'x','0','1','2','3','4','5','6','7','8','9',')','(','#','!'};
+  const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
+  const std::unordered_set<std::string> allowed_functions {
     "x", "exp", "ln",
     "sqrt", "sin", "cos",
     "csc", "sec", "tan",
@@ -59,19 +64,20 @@ namespace {
     "sub", "mul", "div",
     "mod", "flr", "rnd",
     "ceil", "ftrl", "pow",
-    "neg"
+    "neg", "logk", "cbrt"
   };
 
   // Pre-compile strings so it doesn't cost time.
-  const std::string err_empty_string = "EMPTY STRING.";
+  const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
   const std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
   const std::string err_invalid_characters = "INVALID CHARACTERS.";
   const std::string err_incorrect_paren_use = "INCORRCET USE OF PARENTHESIS.";
   const std::string err_invalid_parenthesis = "INVALID PARENTHESIS.";
+  const std::string err_paren_no_arg = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
   const std::string done_modified = "SUCCESSFULLY MODIFIED.";
   const std::string err_not_modified = "NOT MODIFIED.";
   const std::string open_paren = "(", close_paren = ")", hash = "#";
-  const std::string empty_string = "";
+  const std::string empty_string = "", empty_paren = "()";
   const std::string x_str = "x";
   const std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
   const std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
@@ -91,8 +97,14 @@ namespace {
   const std::string err_hanging_dec = "HANGING DECIMAL.", err_dec_not_followed = "DECIMAL NOT FOLLOWED BY A NUMBER.";
   const std::string err_dec_not_follows = "DECIMAL NOT PRECEDED BY A NUMBER.", err_trailing_dec = "TRAILING DECIMAL.";
   const std::string err_mul_dec = "MULTIPLE DECIMALS IN ONE NUMBER.";
+  const std::string err_no_func_op = "NO FUNCTIONALITY TO OPERATOR.";
+  const std::string err_mal_op = "MALFORMED OPERATORS.", err_tr_op = "TRAILING OPERATORS.", err_han_op = "HANGING OPERATORS.";
+  const std::string err_han_op_paren = "HANGING OPERATOR AFTER PARENTHESIS.", err_trl_op_paren = "TRAILING OPERATOR AFTER PARENTHESIS.";
+
   const std::string fp_org_str = "\nOriginal: ", fp_mod_str = "\nModified: ", fp_status_str = "\nStatus: ";
   const std::string fr_log_str = "\nLog: ", fp_no_str = "No ", fp_anamoly_detected = "Anamoly Detected.";
+
+  const std::string unexpected_error = "An unexpected error occured during parsing.";
 }
 
 namespace parse {
@@ -210,7 +222,7 @@ class expression {
 
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
-        binary_ops(input, call[i]);
+        binary_ops(input, op_str[i]);
         if(this -> anomaly) return;
       }
 
@@ -235,6 +247,11 @@ class expression {
     // Provide the input stirng.
     std::string original() const noexcept {
       return this -> entered_expression;
+    }
+
+    // Return the error log member.
+    std::string log() const noexcept {
+      return this -> err_log;
     }
 
     // Resturn the error message or the modified expression depending on if it was parsed correctly.
@@ -538,7 +555,7 @@ class expression {
         }
         else if(input[i] == ')') {
           if(parenthesis == 0) {
-            input = "(" + input;
+            input = open_paren + input;
             flag = true;
             i++;
           }
@@ -868,7 +885,7 @@ class expression {
       // of loops needed.
       // eg, cosine->co-sine->co-sin->cosin->cos.
 
-      for(int i = 0; i < 24; i+=2) {
+      for(int i = 0; i < lalias; i+=2) {
 
         size_t t = input.find(alias_conversion[i]);
 
@@ -897,13 +914,13 @@ class expression {
         if(input[i] == '#') {
           if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
           !(input[i - 1]=='(' || input[i - 1] == '#')) {
-            input.insert(i, "*");
+            input.insert(i, asterisk_str);
             i++;
           }
 
           // Error check.
           if((i + 1) < input.size() && input[i + 1] == ')') {
-            this -> err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
+            this -> err_log = err_paren_no_arg;
             this -> anomaly = true;
             return;
           } 
@@ -915,19 +932,19 @@ class expression {
           if(i > 0 && input[i - 1] == 'e') continue;
           if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
           !(input[i - 1] == '(' || input[i - 1] == '#')) {
-            input.insert(i, "*");
+            input.insert(i, asterisk_str);
             i++;
           }
           if((i + 1) < input.length() && (std::islower(input[i + 1]) || (
           (implicit_mult_valid_chars.count(input[i + 1]) && input[i + 1] != ')')))) {
-            input.insert(i + 1, "*");
+            input.insert(i + 1, asterisk_str);
           }
         }
 
         // Function rule.
         else if(std::islower(input[i])) {
           if(i > 0 && (std::isdigit(input[i - 1]) || input[i - 1] == ')')) {
-            input.insert(i, "*");
+            input.insert(i, asterisk_str);
             i++;
           }
         }
@@ -941,13 +958,13 @@ class expression {
         else if(input[i] == '(') {
           if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
           !(input[i - 1] == '(' || input[i - 1] == '#')) {
-            input.insert(i, "*");
+            input.insert(i, asterisk_str);
             i++;
           }
 
           // Error check.
           if((i + 1) < input.size() && input[i + 1] == ')') {
-            this -> err_log = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
+            this -> err_log = err_paren_no_arg;
             this -> anomaly = true;
             return;
           } 
@@ -958,7 +975,7 @@ class expression {
         else if(input[i] == ')') {
           if((i + 1) < input.length() && implicit_mult_valid_chars.count(input[i + 1]) &&
           !(input[i + 1] == ')' || input[i + 1] == '!')) {
-            input.insert(i + 1, "*");
+            input.insert(i + 1, asterisk_str);
           }
         }
       }
@@ -999,11 +1016,11 @@ class expression {
     void remove_empt(std::string &input, bool &flag) const noexcept {
        // Remove any empty parenthesis and turn flag boollean
        // to true for further correct error_message.
-       size_t t = input.find("()");
+       size_t t = input.find(empty_paren);
        while(t != std::string::npos) {
          flag = true;
-         input.replace(t, 2, "");
-         t = input.find("()", t == 0 ? 0 : t - 1);
+         input.replace(t, 2, empty_string);
+         t = input.find(empty_paren, t == 0 ? 0 : t - 1);
        }
      }
 
@@ -1012,14 +1029,14 @@ class expression {
 
       // Flag early if encountering an empty string.
       if(input.empty()) {
-        this -> err_log = "NO EXPRESSION.";
+        this -> err_log = err_no_expression;
         this -> anomaly = true;
         return;
       }
 
       // Flag lone signs.
       if(input.size() == 1 && primary_ops.count(input.front())) {
-        this -> err_log = "NO FUNCTIONALITY TO OPERATOR.";
+        this -> err_log = err_no_func_op;
         this -> anomaly = true;
         return;
       }
@@ -1028,7 +1045,7 @@ class expression {
 
         // Handled in other functions too but flag for safety.
         if(input[i] == '(' && (i + 1) < input.length() && input[i + 1] == ')') {
-          this -> err_log = "EMPTY PARENTHESIS, NO ARGUMENT.";
+          this -> err_log = err_paren_no_arg;
           this -> anomaly = true;
           return;
         }
@@ -1043,7 +1060,7 @@ class expression {
               continue;
             }
             else {
-              this -> err_log = "NO FUNCTIONALITY TO OPERATOR.";
+              this -> err_log = err_no_func_op;
               this -> anomaly = true;
             }
           }
@@ -1056,13 +1073,13 @@ class expression {
                 i--;
                 continue;
               }
-              this -> err_log = "HANGING OPERATOR AFTER PARENTHESIS.";
+              this -> err_log = err_han_op_paren;
               this -> anomaly = true;
               return;
             }
             if((i + 1) < input.size()) {
               if(input[i + 1] == ')') {
-                this -> err_log = "TRAILING OPERATOR BEFORE PARENTHESIS.";
+                this -> err_log = err_trl_op_paren;
                 this -> anomaly = true;
                 return;
               }
@@ -1074,20 +1091,20 @@ class expression {
                 }
                 else if(!sign.count(input[i]) && input[i + 1] == '-') continue;
                 else {
-                  this -> err_log = "MALFORMED OPERATORS.";
+                  this -> err_log = err_mal_op;
                   this -> anomaly = true;
                   return;
                 }
               }
             }
             else {
-              this -> err_log = "TRAILING OPERATOR.";
+              this -> err_log = err_tr_op;
               this -> anomaly = true;
               return;
             }
           }
           else if(!sign.count(input[i]) || ((i + 1) < input.length() && sign.count(input[i + 1]))) {
-            this -> err_log = "HANGING OPERATOR.";
+            this -> err_log = err_han_op;
             this -> anomaly = true;
             return;
           }
@@ -1290,7 +1307,10 @@ class expression {
           }
           else if(string[i] == ')') {
             parenthesis--;
-            if(parenthesis < 0) throw std::runtime_error("Unexpected error: parenthesis parsing didn't occur correctly.");
+            if(parenthesis < 0) {
+              os << '\n' << unexpected_error << '\n';
+              break;
+            }
             os << '\n' << std::string(2 * parenthesis, ' ') << string[i];
           }
           else if(string[i] == ',') {
