@@ -473,9 +473,9 @@ class expression {
   // Helper functions.
   private:
 
-    //Checks if a string of lowercase letters more than a letter
-    //long is followed by a '(' or not (to check if functions are followed
-    //by a '(').
+    // Checks if a string of lowercase letters more than a letter
+    // long is followed by a '(' or not (to check if functions are followed
+    // by a '(').
     void app_func_call(const std::string &input, bool flag) noexcept {
       int to_check = 0;
       for(int i = 0; i < input.size(); i++) {
@@ -613,13 +613,13 @@ class expression {
       }
     }
 
+    // Convert unicode operators and constants into
+    // normal operators and placeholders respectfully
+    // reason why exp and sec are chaned temporarily is
+    // so that exp doesn't become 2.718*xp
+    // and pi should be converted before exp for the cases
+    // such as expi where it should be '2.718*x*3.141'.
     void basic_cleanup(std::string &input) noexcept {
-      // Convert unicode operators and constants into
-      // normal operators and placeholders respectfully
-      // reason why exp and sec are chaned temporarily is
-      // so that exp doesn't become 2.718*xp
-      // and pi should be converted before exp for the cases
-      // such as expi where it should be '2.718*x*3.141'.
 
       for(int i = 0; i < 30; i += 2) {
         size_t t = input.find(temporary_conversion[i]);
@@ -1288,7 +1288,7 @@ class expression {
       }
     }
 
-  // Friend operators.
+  // Friend operators / convinience functions.
   protected:
     
     // Printing function for ease_of_use.
@@ -1325,9 +1325,21 @@ class expression {
     }
 
     // Output stream operator to print all the useful information.
-    friend std::ostream &operator<<(std::ostream &os, const expression &obj){
+    friend std::ostream &operator<<(std::ostream &os, const expression &obj) {
       obj.print(os);
       return os;
+    }
+
+    // Provide the result string of result of the object.
+    friend const std::string &operator<<(std::string &str, const expression &obj) {
+      str = obj.result();
+      return str;
+    }
+
+    // Provide the parsed expression in a object.
+    friend const expression &operator<<(expression &obj, const std::string &str) {
+      obj.update(str, true);
+      return obj;
     }
 
     // To parse a input directly from input stream.
@@ -1336,6 +1348,18 @@ class expression {
       std::getline(is, line);
       obj.update(line, true);
       return is;
+    }
+
+    // Provide the string of what the result of the object is.
+    friend const expression &operator>>(const expression &obj, std::string &str) {
+      str = obj.result();
+      return obj;
+    }
+
+    // Parse a string and extract in the object.
+    friend const std::string &operator>>(const std::string &str, expression &obj) {
+      obj.update(str, true);
+      return str;
     }
 
   // Private data members.
