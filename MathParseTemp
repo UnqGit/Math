@@ -55,7 +55,7 @@ namespace {
 //   const std::unordered_set<char> &ops = invalid_precedence;
 //   const std::unordered_set<char> implicit_mult_valid_chars {'0','1','2','3','4','5','6','7','8','9','(',')','x','#','!'};
 //   const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
-//   const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk"};
+//   const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk","lcm","min","max"};
 //   const std::unordered_set<std::string> valid_characters {
 //     "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹",
 //     "0","1","2","3","4","5","6","7","8","9",
@@ -77,7 +77,8 @@ namespace {
 //     "sub", "mul", "div",
 //     "mod", "flr", "rnd",
 //     "ceil", "ftrl", "pow",
-//     "neg", "logk", "cbrt"
+//     "neg", "logk", "cbrt",
+//     "lcm", "min", "max"
 //   };
 // }
 
@@ -97,6 +98,11 @@ namespace {
 
   // Same table as above is used in factorial_convert function.
   constexpr bool (*is_op)(const unsigned char&) = &is_invalid_precedence;
+
+  // This will be used to see if a "x" is a variable or is it part of a function (exp or max).
+  constexpr bool invalid_precede_x(const unsigned char &input) {
+    return input == 'a' || input == 'e';
+  }
 
   // Check if the character following comma is invalid.
   constexpr char i_subs[7] {'*','\0',',','^','\0','/',')'};
@@ -175,9 +181,9 @@ namespace {
     }
   }
 
-  constexpr std::array<const char*, 19> b_flt {
-    "mod","","mul","","logk","div","","","pow","","","","","ncr","sub","",
-    "npr","add","gcd"
+  constexpr std::array<const char*, 22> b_flt {
+    "mul","","npr","","gcd","add","","","sub","div","min","","logk","","mod","",
+    "max","","lcm","","pow","ncr"
   };
   bool is_binary_func(const std::string &input) {
     const size_t &length = input.length();
@@ -185,8 +191,8 @@ namespace {
     switch(length) {
       case 3:
       case 4:
-        index = -2 + (input[0]^37 + input[1]^31 + input[2]^120);
-        return index < 19 && std::memcmp(b_flt[index], &input[0], length) == 0;
+        index = -103 + (input[0]^3 + input[1]^4 + input.back()^2);
+        return index < 22 && std::memcmp(b_flt[index], &input[0], length) == 0;
       default:
         return false;
     }
@@ -194,11 +200,11 @@ namespace {
 
   constexpr const char* p_x = "x";
   constexpr const char* p_ln = "ln";
-  constexpr std::array<const char*, 49> p_3lf {
-    "sin","","","","","","","sec","","","flr","","cot","cos","","div",
-    "mul","","pow","add","gcd","","npr","exp","","","","ncr","","","","",
-    "abs","csc","mod","","","","neg","","","","","","","","rnd","tan",
-    "sub"
+  constexpr std::array<const char*, 53> p_3lf {
+    "neg","csc","","","pow","","mod","","sub","exp","min","","","cos","","",
+    "sin","","rnd","","cot","","flr","sec","mul","div","npr","","","","","",
+    "max","","abs","","","ncr","","","","tan","","","","add","","",
+    "","","lcm","","gcd"
   };
   constexpr std::array<const char*, 28> p_4lf {
     "sech","","ceil","acos","cbrt","sinh","acot","logk","","","ftrl","","","tanh","","acsc",
@@ -213,7 +219,7 @@ namespace {
       case 2:
         return std::memcmp(p_ln, &input[0], 2) == 0;
       case 3:
-        index = -104 + (input[0]^23 + input[1]^25 + input[2]^28);
+        index = -99 + (input[0]^27 + input[1]^32 + input[2]^10);
         return index < 49 && std::memcmp(p_3lf[index], &input[0], 3) == 0;
       case 4:
         index = -129 + (input[1]^1 + input[2]^30 + input[3]^6);
@@ -610,7 +616,7 @@ class expression {
       size_t t = alias.find(x_str);
       while(t != std::string::npos) {
         // Check for 'e' so it doesn't take exp as an example.
-        if(t == 0 || (t > 0 && alias[t - 1] != 'e')) {
+        if(t == 0 || (t > 0 && !invalid_precede_x(alias[t - 1]))) {
           alias.replace(t, 1, other_str);
           t = alias.find(x_str, t + len);
         }
@@ -766,7 +772,7 @@ class expression {
       if(!this -> allow_variable) return false;
       size_t t = this -> modified_expression.find(x_str);
       while(t != std::string::npos) {
-        if(t == 0 || (t > 0 && this -> modified_expression[t - 1] != 'e')) return true;
+        if(t == 0 || (t > 0 && !invalid_precede_x(this -> modified_expression[t - 1]))) return true;
         t = this -> modified_expression.find(x_str, t + 1);
       }
       return false;
