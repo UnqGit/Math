@@ -994,7 +994,7 @@ class expression {
       input += std::string(parenthesis, ')');
     }
 
-    // Call at last of the cleaner function to ensure this works properly.
+    // Call at last of the cleaner function to ensure this works properly (Because it only checks for function names not + -, etc.).
     void paren_cleaner(std::string &input) noexcept {
       // Parenthesis count check is done before calling
       // this function.
@@ -1042,13 +1042,8 @@ class expression {
       }
     }
 
-    // Convert unicode operators and constants into
-    // normal operators and placeholders respectfully
-    // reason why exp and sec are chaned temporarily is
-    // so that exp doesn't become 2.718*xp
-    // and pi should be converted before exp for the cases
-    // such as expi where it should be '2.718*x*3.141'.
-    void basic_cleanup(std::string &input) noexcept {
+    // Helper function for basic cleanup.
+    void unicode_cleanup(std::string &input) noexcept {
 
       for(int i = 0; i < 30; i += 2) {
         size_t t = input.find(temporary_conversion[i]);
@@ -1092,6 +1087,17 @@ class expression {
           // Due to multibyte nature of superscripts we have to subtract 1.
         }
       }
+    }
+
+    // Convert unicode operators and constants into
+    // normal operators and placeholders respectfully
+    // reason why exp and sec are chaned temporarily is
+    // so that exp doesn't become 2.718*xp
+    // and pi should be converted before exp for the cases
+    // such as expi where it should be '2.718*x*3.141'.
+    void basic_cleanup(std::string &input) noexcept {
+
+      unicode_cleanup(input);
 
       // Normalize signs and decimals.
       for(int i = 0; i < input.size(); i++) {
@@ -1182,7 +1188,7 @@ class expression {
     }
 
     // Convert (^ / * + -) into function like-structure.
-    void binary_ops(std::string &input, char delimiter) noexcept {
+    void binary_ops(std::string &input, const unsigned char &delimiter) noexcept {
 
       // Delimiters to make sure we insert at correct position.
       // std::unordered_set<char> delimiter_map {'+','-','*','/','^','(',','};
@@ -1192,30 +1198,28 @@ class expression {
 
       // Initialize function name to be added and the potential
       // error message using a switch and based on input delimiter
-      std::string function, error_name;
-      bool check_hang = true;
+      const std::string *function, *error_name;
+      bool check_hang = !is_sign(delimiter);
       switch(delimiter) {
         case'^':
-          function = pow_func_str;
-          error_name = err_full_exp;
+          function = &pow_func_str;
+          error_name = &err_full_exp;
           break;
         case'/':
-          function = div_func_str;
-          error_name = err_full_div;
+          function = &div_func_str;
+          error_name = &err_full_div;
           break;
         case'*':
-          function = mul_func_str;
-          error_name = err_full_mul;
+          function = &mul_func_str;
+          error_name = &err_full_mul;
           break;
         case'-':
-          function = sub_func_str;
-          error_name = err_full_sub;
-          check_hang = false;
+          function = &sub_func_str;
+          error_name = &err_full_sub;
           break;
         case'+':
-          function = add_func_str;
-          error_name = err_full_add;
-          check_hang = false;
+          function = &add_func_str;
+          error_name = &err_full_add;
           break;
       }
 
@@ -1224,7 +1228,9 @@ class expression {
       int index = delimiter == '^' ? input.length() - 2 : 0, count = std::count(input.begin(), input.end(), delimiter);
 
       // Used stop as a lambda to account for update in string and indices.
-      auto stop = [&](){return delimiter == '^' ? 0 : input.length(); };
+      auto stop = [&]() -> size_t {
+        return delimiter == '^' ? 0 : input.length();
+      };
       // To find the next delimiter go back by 1 if delimiter is carret
       // otherwise go ahead for associativity.
       int update = delimiter == '^' ? -1 : 1, offset = delimiter == '^' ? 1 : 0;
@@ -1246,7 +1252,7 @@ class expression {
           // which are '*','/'&'^' log error and return.
           if(check_hang) {
             this -> err_log = err_hanging;
-            this -> err_log += error_name;
+            this -> err_log += *error_name;
             this -> err_log += err_operator;
             this -> anomaly = true;
             return;
@@ -1278,7 +1284,7 @@ class expression {
             if(input[j] == ')') parenthesis++;
             else if(input[j] == '(') parenthesis--;
           }
-          input.insert(j <= 0 ? 0 : j + 1, function);
+          input.insert(j <= 0 ? 0 : j + 1, *function);
           index += 4;
         }
 
@@ -1304,7 +1310,7 @@ class expression {
         // operator and so flag it as error.
         if(j - index == 1 || index == input.length() - 1) {
           this -> err_log = err_trailing;
-          this -> err_log += error_name;
+          this -> err_log += *error_name;
           this -> err_log += err_operator;
           this -> anomaly = true;
           return;
@@ -1755,7 +1761,7 @@ class expression {
     }
 
   // Friend operators / convinience functions.
-  protected:
+  public:
 
     // Printing function for ease_of_use.
     void print(std::ostream &os) const noexcept {
@@ -1829,7 +1835,7 @@ class expression {
     }
 
   // Private data members.
-  private:
+  protected:
     std::string entered_expression = empty_string;
     std::string modified_expression = empty_string;
     bool anomaly = true;
