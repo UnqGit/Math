@@ -232,6 +232,7 @@ namespace {
 
 // Pre-compile strings so it doesn't cost time (error messages or often used strings).
 namespace {
+  // Helper strings.
   const std::string apostrophe_dot = "'.", dot = ".", comma_str = ",", new_line = "\n";
   const std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
   const std::string sqrt_func_str = "sqrt(", neg_func_str = "neg(", ftrl_func_str = "ftrl(";
@@ -240,6 +241,7 @@ namespace {
   const std::string empty_string = "", empty_paren = "()";
   const std::string x_str = "x";
 
+  // Error messages.
   const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
   const std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
   const std::string err_invalid_characters = "INVALID CHARACTERS.";
@@ -266,11 +268,13 @@ namespace {
   const std::string err_mal_op = "MALFORMED OPERATORS.", err_tr_op = "TRAILING OPERATORS.", err_han_op = "HANGING OPERATORS.";
   const std::string err_han_op_paren = "HANGING OPERATOR AFTER PARENTHESIS.", err_trl_op_paren = "TRAILING OPERATOR AFTER PARENTHESIS.";
 
+  // Helper strings.
   const std::string fp_org_str = "\nOriginal: ", fp_mod_str = "\nModified: ", fp_status_str = "\nStatus: ";
-  const std::string fp_log_str = "\nLog: ", fp_no_str = "No ", fp_anamoly_detected = "Anamoly Detected.";
+  const std::string fp_log_str = "\nLog: ", fp_no_str = "No ", fp_anomaly_detected = "anomaly Detected.";
 
   const std::string dt_no_str = "No.", dt_yes_str = "Yes.", dt_var_allow = "Variable allowed: ";
 
+  // Unexpected error message.
   const std::string unexpected_error = "An unexpected error occured during parsing.";
 }
 
@@ -280,6 +284,9 @@ namespace {
 namespace parse {
 
 // The class that does all the magic.
+
+// Many things have a string literal version, this is because we have std::string& as the argument which would take
+// an address but it'll give no pointer for string literal version so we have to copy it as const char*.
 class expression {
 
   // Public method to be used.
@@ -292,15 +299,21 @@ class expression {
     expression(bool allow_var): allow_variable(allow_var) {}
 
     // Constructor with expression string input and variable toggling option.
-    expression(const std::string &input, bool allow_var = true): entered_expression(input), allow_variable(allow_var) {}
+    expression(const std::string &input, bool allow_var = true): entered_expression(input), allow_variable(allow_var) {
+      this -> clean();
+    }
 
     // Constructor with expression const string literals without refernce so it doesn't point to nothing
     // and gives a copy which is more suitable here, also a variable toggling option.
-    expression(const char* input, bool allow_var = true): allow_variable(allow_var), entered_expression(input) {}
+    expression(const char* input, bool allow_var = true): allow_variable(allow_var), entered_expression(input) {
+      this -> clean();
+    }
 
     // Copy constructor.
     expression(const expression &other): entered_expression(other.entered_expression), modified_expression(other.modified_expression),
-    anomaly(other.anomaly), allow_variable(other.allow_variable), err_log(other.err_log) {}
+    anomaly(other.anomaly), allow_variable(other.allow_variable), err_log(other.err_log) {
+      this -> clean();
+    }
 
     // Main function to be used.
     expression &clean() noexcept {
@@ -439,9 +452,9 @@ class expression {
     // Provide all the details of the class.
     std::string details() const noexcept {
       std::string result;
-      result += fp_org_str + this -> entered_expression + new_line;
-      result += fp_mod_str + this -> modified_expression + new_line;
-      result += fp_status_str + (this -> anomaly ? empty_string : fp_no_str) + fp_anamoly_detected + new_line;
+      result += fp_org_str + this -> entered_expression;
+      result += fp_mod_str + this -> modified_expression;
+      result += fp_status_str + (this -> anomaly ? empty_string : fp_no_str) + fp_anomaly_detected;
       result += fp_log_str + this -> err_log + new_line;
       result += dt_var_allow + (this -> allow_variable ? dt_yes_str : dt_no_str);
       return result;
@@ -458,6 +471,17 @@ class expression {
       this -> modified_expression.clear();
       this -> anomaly = true;
       this -> err_log = err_not_modified;
+      this -> clean();
+      return *this;
+    }
+
+    // For exchanging with another expression string, does NOT modify on change(string literal version).
+    expression &operator=(const char* new_expr) noexcept {
+      this -> entered_expression = new_expr;
+      this -> modified_expression.clear();
+      this -> anomaly = true;
+      this -> err_log = err_not_modified;
+      this -> clean();
       return *this;
     }
 
@@ -601,8 +625,8 @@ class expression {
     expression cast(const expression &other) {
       expression result(this -> allow_variable);
       bool flag = other.anomaly;
-      if(flag) result.update(other.entered_expression, true);
-      else result.update(other.modified_expression, true);
+      if(flag) result.update(other.entered_expression);
+      else result.update(other.modified_expression);
       return result;
     }
 
@@ -741,6 +765,21 @@ class expression {
       return result;
     }
 
+    // Embed in a mathematical function (string literal version).
+    expression embed_in(const char* function, const expression &other = expression()) const noexcept {
+      if(this -> anomaly) return *this;
+      if(!is_allowed_function(function) || function == x_str) return *this;
+      expression result(*this);
+      result.make_function();
+      std::string &this_str = result.modified_expression;
+      if(is_binary_func(function)) {
+        if(other.anomaly) return *this;
+        this_str = function + open_paren + this_str + comma_str + other.modified_expression + close_paren;
+      }
+      else this_str = function + open_paren + this_str + close_paren;
+      return result;
+    }
+
     // Reset the class back to default.
     expression &clear() noexcept {
       this -> entered_expression.clear();
@@ -752,12 +791,41 @@ class expression {
     }
 
     // Update the input string with a new string and optionally cleanse it.
-    expression &update(const std::string &new_expr, const bool &cleanse = false) noexcept {
+    expression &update(const std::string &new_expr) noexcept {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anomaly = true;
       this -> err_log = err_not_modified;
-      if(cleanse) this -> clean();
+      this -> clean();
+      return *this;
+    }
+
+    // Not sure why anybody would want this but okay (no clean).
+    expression &update_nc(const std::string &new_expr) noexcept {
+      this -> entered_expression = new_expr;
+      this -> modified_expression.clear();
+      this -> anomaly = true;
+      this -> err_log = err_not_modified;
+      return *this;
+    }
+
+    // String literal versions.
+    // Update the input string with a new string and optionally cleanse it.
+    expression &update(const char* new_expr) noexcept {
+      this -> entered_expression = new_expr;
+      this -> modified_expression.clear();
+      this -> anomaly = true;
+      this -> err_log = err_not_modified;
+      this -> clean();
+      return *this;
+    }
+
+    // Not sure why anybody would want this but okay (no clean).
+    expression &update_nc(const char* new_expr) noexcept {
+      this -> entered_expression = new_expr;
+      this -> modified_expression.clear();
+      this -> anomaly = true;
+      this -> err_log = err_not_modified;
       return *this;
     }
 
@@ -1694,7 +1762,7 @@ class expression {
         }
       }
       else os << this -> modified_expression;
-      os << fp_status_str << ((anomaly && this -> err_log != err_not_modified) ? empty_string : fp_no_str) << fp_anamoly_detected;
+      os << fp_status_str << ((anomaly && this -> err_log != err_not_modified) ? empty_string : fp_no_str) << fp_anomaly_detected;
       os << fp_log_str << this -> err_log << '\n';
     }
 
@@ -1712,7 +1780,7 @@ class expression {
 
     // Provide the parsed expression in a object.
     friend const expression &operator<<(expression &obj, const std::string &str) {
-      obj.update(str, true);
+      obj.update(str);
       return obj;
     }
 
@@ -1720,7 +1788,7 @@ class expression {
     friend std::istream &operator>>(std::istream &is, expression &obj) {
       std::string line;
       std::getline(is, line);
-      obj.update(line, true);
+      obj.update(line);
       return is;
     }
 
@@ -1732,7 +1800,7 @@ class expression {
 
     // Parse a string and extract in the object.
     friend const std::string &operator>>(const std::string &str, expression &obj) {
-      obj.update(str, true);
+      obj.update(str);
       return str;
     }
 
