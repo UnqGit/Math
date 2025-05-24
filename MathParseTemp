@@ -110,15 +110,18 @@ namespace {
     return input == i_subs[input % 7];
   }
 
+  // Primary mathematical operations.
   constexpr char p_ops[6] {'*','+','\0','-','^','/'};
   constexpr bool is_primary_ops(const unsigned char &input) {
     return input == p_ops[input % 6];
   }
 
+  // Check if a character is a sign character (+ or -).
   constexpr bool is_sign(const unsigned char &input) {
     return input == 43 || input == 45;
   }
 
+  // Character delimiter sets used in implicit_mult function.
   constexpr char imv_ch[25] {
     '2','3','4','5','6','7','8','9',
     '!','\0','#','\0','\0','\0','\0','(',
@@ -129,6 +132,7 @@ namespace {
     return input == imv_ch[input % 25];
   }
 
+  // Lookup characters for basic cleanup function.
   constexpr char bc_lch[17] {
     '3','4','5','6','7','8','9',')',
     '\0','\0','=','\0','.','@','0','1',
@@ -138,6 +142,7 @@ namespace {
     return input == bc_lch[input % 17];
   }
 
+  // Used as delimiter set in the first half of binary_ops function.
   constexpr char p_op_fd[8] {
     '(','\0','*','+',',','-','^','/'
   };
@@ -145,6 +150,7 @@ namespace {
     return input == p_op_fd[input % 8];
   }
 
+  // Used in the second half.
   constexpr char p_op_sd[8] {
     '\0',')','*','+',',','-','^','/'
   };
@@ -152,12 +158,14 @@ namespace {
     return input == p_op_sd[input % 8];
   }
 
+  // Check if a character is allowed (ASCII).
   constexpr char vc_sch[52] {
     '^','\0','\0','a','b','c','d','e','f','g','h','i','\0','k','l','m',
     'n','o','p','q','r','s','t','u','v','w','x','!','\0','\0','\0','\0',
     '\0','\0','(',')','*','+',',','-','.','/','0','1','2','3','4','5',
     '6','7','8','9'
   };
+  // Check if a character is allowed (unicode).
   constexpr std::array<const char*, 65> vc_mch {
     "÷","·","","","","¹","","","⁶","⁵","⁸","⁷","","⁹","","",
     "","","","","","","","","","","","","","","","",
@@ -181,6 +189,7 @@ namespace {
     }
   }
 
+  // Set for lookup to check if a string is a binary mathematical function.
   constexpr std::array<const char*, 22> b_flt {
     "mul","","npr","","gcd","add","","","sub","div","min","","logk","","mod","",
     "max","","lcm","","pow","ncr"
@@ -198,6 +207,7 @@ namespace {
     }
   }
 
+  // Allowed function set in the program.
   constexpr const char* p_x = "x";
   constexpr const char* p_ln = "ln";
   constexpr std::array<const char*, 53> p_3lf {
@@ -460,12 +470,12 @@ class expression {
       return result;
     }
 
-    // Check for if the parsing was done successfully.
+    // Check if the parsing was done successfully.
     bool is_safe() const noexcept {
       return !this -> anomaly;
     }
 
-    // For exchanging with another expression string, does NOT modify on change.
+    // For exchanging with another expression string.
     expression &operator=(const std::string &new_expr) noexcept {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
@@ -475,7 +485,7 @@ class expression {
       return *this;
     }
 
-    // For exchanging with another expression string, does NOT modify on change(string literal version).
+    // For exchanging with another expression string (string literal version).
     expression &operator=(const char* new_expr) noexcept {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
@@ -487,6 +497,7 @@ class expression {
 
     // Return the outermost function name or the entire expression if there isn't a function.
     std::string om_function() const noexcept {
+      // Get the string before the first opening parenthesis (if the expression is parsed properly).
       if(this -> anomaly) return empty_string;
       size_t t = this -> modified_expression.find(open_paren);
       if(t == std::string::npos) return empty_string;
@@ -509,7 +520,7 @@ class expression {
       return (t == std::string::npos) || !is_binary_func(this -> modified_expression.substr(0, t));
     }
 
-    // Provide the first inner string inside the parenthesis.
+    // Provide the first inner string inside the parenthesis (Does not separate the commas).
     std::string inner_string() const noexcept {
       size_t t  = this -> modified_expression.find(open_paren);
       if(this -> anomaly || t == std::string::npos) return empty_string;
@@ -520,9 +531,15 @@ class expression {
     // Provide the first inner expression (enire expression if unary or first expression from binary functions)
     // as string if present.
     std::string first_expression_str() const noexcept {
+
+      // If the expression isn't parsed properly return early.
       if(this -> anomaly) return empty_string;
+
+      // Check if there is function at all, if not provide the modified_expression which is likely to be a positive number or "x".
       size_t t = this -> modified_expression.find(open_paren);
       if(t == std::string::npos) return this -> modified_expression;
+
+      // Extract the inner string.
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
       if(this -> is_om_unary()) return inner_expr;
@@ -539,7 +556,10 @@ class expression {
     // Provide the second inner expression (no expression if unary or second expression from binary functions)
     // as string if present.
     std::string second_expression_str() const noexcept {
+      // Return early with an empty string if it has anomaly or is a unary expressio(no second expression to choose from).
       if(this -> anomaly || this -> is_om_unary()) return empty_string;
+
+      // Extract the second string from the modified_expression.
       size_t t = this -> modified_expression.find(open_paren);
       size_t len = this -> modified_expression.length();
       std::string inner_expr = this -> modified_expression.substr(t + 1, len - (t + 2));
@@ -611,7 +631,7 @@ class expression {
       return result;
     }
 
-    // Swaping mechanism with another expression.
+    // Swaping mechanism with another expression object.
     expression &swap(expression &other) noexcept {
       std::swap(this -> entered_expression, other.entered_expression);
       std::swap(this -> modified_expression, other.modified_expression);
@@ -632,7 +652,10 @@ class expression {
 
     // Compose another function into the current function.
     expression compose(const expression &other) const noexcept {
-      if(this -> anomaly || other.anomaly) return *this;
+      // If any of the two expressions is anomolous, return the current object unmodified or if the other expression is just "x".
+      if(this -> anomaly || other.anomaly || other.modified_expression == x_str) return *this;
+
+      // Replace all "x" in the current function with the other expression.
       const std::string &other_str = other.modified_expression;
       int len = other_str.length();
       expression result(*this);
@@ -753,6 +776,7 @@ class expression {
     // Embed in a mathematical function.
     expression embed_in(const std::string &function, const expression &other = expression()) const noexcept {
       if(this -> anomaly) return *this;
+      // If the entered string is not a allowed function, or if it is allowed but is "x"(which we can't embed in).
       if(!is_allowed_function(function) || function == x_str) return *this;
       expression result(*this);
       result.make_function();
