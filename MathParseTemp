@@ -5,15 +5,14 @@ namespace {
 
   // Used to replace the operators in order for BODMAS / PEMDAS presedence.
   const std::string op_str = "^/*-+";
-  // Used to detect error for "pow_dec_wrong()".
-  const std::string super[10] {"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
 
   // Had to change the aliases too often so made a variable for number of members.
-  constexpr int lalias = 28;
+  constexpr int lalias = 24;
 
   // Array used to find alaises and standardize them.
+  // Ofc i tried maps but those don't give as much advantage and are more error temporary_conversion
+  // and we have to add each new function every time with every alias we want to handle.
   const std::string alias_conversion[lalias] {
-    "logk", "LOGK",
     "floor", "flr",
     "factorial","ftrl",
     "round","rnd",
@@ -23,12 +22,12 @@ namespace {
     "secant", "sec",
     "cotan", "cot",
     "log", "ln",
-    "LOGK", "logk",
     "arc", "a",
     "cosec", "csc",
     "ar", "a"
   };
   const std::string arc_str = "arc";
+  const std::string log_str = "log";
 
   // This array will be used to replace the odd indices with the consecutive even indices either temporarily(mainly) or permanently.
   const std::string temporary_conversion[30] {
@@ -352,13 +351,6 @@ class expression {
       }
       input = temp;
 
-      // Check if superscript is directly followed by a decimal which is likely to be mistake.
-      if(pow_dec_wrong(input)) {
-        this -> err_log = err_decimal_after_superscript;
-        this -> anomaly = true;
-        return *this;
-      }
-
       // Check for any character which isn't in the allowed character set.
       if(invalid_char(input)) {
         this -> err_log = err_invalid_characters;
@@ -402,12 +394,7 @@ class expression {
       malform_ops(input);
       if(this -> anomaly) return *this;
 
-      // Check if functions are proceeded by a '('.
-      app_func_call(input, flag);
-      if(this ->  anomaly) return *this;
-
-      // Check if only appropriate functions / variables are present.
-      app_func_name(input);
+      app_func(input, flag);
       if(this -> anomaly) return *this;
 
       // Flag if number of opening and closing parenthesis is uneven.
@@ -901,76 +888,66 @@ class expression {
   // Helper functions.
   private:
 
-    // Checks if a string of lowercase letters more than a letter
-    // long is followed by a '(' or not (to check if functions are followed
-    // by a '(').
-    void app_func_call(const std::string &input, bool flag) noexcept {
-      int to_check = 0;
-      for(int i = 0; i < input.size(); i++) {
-        if(std::islower(input[i])) to_check++;
-        else {
-          if(to_check == 0) continue;
-          if(to_check > 1) {
-            if(input[i] != '(') {
-              if(flag) this -> err_log = err_no_arg_func;
-              else this -> err_log = err_func_not_called;
-              this -> anomaly = true;
-              return;
-            }
-          }
-          to_check = 0;
-        }
-      }
-      if(to_check > 1) {
-        if(flag) this -> err_log = err_no_arg_func;
-        else this -> err_log = err_func_not_called;
-        this -> anomaly = true;
-        return;
-      }
-    }
+    // Check if a string of letter is a valid function name and is called
+    // appropriately by a opening parenthesis following it.
+    void app_func(const std::string &input, bool flag) noexcept {
+      std::string temp;
+      temp.reserve(5);
 
-    // Checks if continuous set of strings in the modified string is
-    // an intended function via a map to check easily.
-    void app_func_name(const std::string &input) noexcept {
-
-      std::string to_check;
       for(int i = 0; i < input.size(); i++) {
 
-        // Store continuous set of lowercase letters into a temporary string.
-        if(std::islower(input[i])) to_check += input[i];
-        else {
-
-          // If the prevous letter also wasn't an alphabet.
-          if(to_check.empty()) continue;
-
-          // If the string stored as potential functions aren't
-          // present in the map, flag them otherwise reset and continue.
-          else {
-            if(is_allowed_function(to_check)) {
-              if(to_check == x_str && (!this -> allow_variable)) {
-                this -> err_log = err_var_where_not_allowed;
-                this -> anomaly = true;
-                return;
-              }
-              to_check.clear();
-              continue;
-            }
-            else {
-              this -> err_log = err_invalid_char_stream + to_check + apostrophe_dot;
-              this -> anomaly = true;
-              return;
-            }
+        // No function is more than 4 letter long so the check for 5 is fine as it also
+        // functions as a shortcut.
+        if(std::islower(input[i])) {
+          temp += input[i];
+          if(temp.size() == 5) {
+            this -> err_log = err_invalid_char_stream + temp + apostrophe_dot;
+            this -> anomaly = true;
+            return;
           }
         }
-      }
 
-      // If the temporary variable isn't empty then check it as a
-      // necessary function or variable, if not, then flag.
-      // if(!to_check.empty() && !allowed_functions.count(to_check)) {
-      if(!to_check.empty() && !is_allowed_function(to_check)) {
-        this -> err_log = err_invalid_char_stream + to_check + apostrophe_dot;
-        this -> anomaly = true;
-        return;
+        else {
+          if(temp.empty()) continue;
+          // Check if a string of letters is a allowed function.
+          if(!is_allowed_function(temp)) {
+            this -> err_log = err_invalid_char_stream + temp + apostrophe_dot;
+            this -> anomaly = true;
+            return;
+          }
+          // Check if the function is called appropriately with a '('.
+          if(temp.size() != 1 && input[i] != '(') {
+            if(flag) this -> err_log = err_no_arg_func;
+            else this -> err_log = err_func_not_called;
+            this -> anomaly = true;
+            return;
+          }
+          // Check if it is "x" and if variable is not allowed, then flag it.
+          if(temp == x_str && !this -> allow_variable) {
+            this -> err_log = err_var_where_not_allowed;
+            this -> anomaly = true;
+            return;
+          }
+          temp.clear();
+        }
+      }
+      // Final check if temp remained unclear.
+      if(!temp.empty()) {
+        if(!is_allowed_function(temp)) {
+          this -> err_log = err_invalid_char_stream + temp + apostrophe_dot;
+          this -> anomaly = true;
+          return;
+        }
+        if(temp == x_str && !this -> allow_variable) {
+          this -> err_log = err_var_where_not_allowed;
+          this -> anomaly = true;
+          return;
+        }
+        if(temp != x_str) {
+          this -> err_log = err_no_arg_func;
+          this -> anomaly = true;
+          return;
+        }
       }
     }
 
@@ -992,7 +969,7 @@ class expression {
         flag = true;
       }
       if(parenthesis != 0) input.append(parenthesis, ')');
-}
+    }
 
     // Call at last of the cleaner function to ensure this works properly (Because it only checks for function names not + -, etc.).
     void paren_cleaner(std::string &input) noexcept {
@@ -1344,11 +1321,15 @@ class expression {
           // A separate check for "arc" to remove incorrectly flagging
           // arcot, which would've become aot without separation.
           if(alias_conversion[i] == arc_str) {
-            if((t + alias_conversion[i].length()) < input.length() &&
-            !(input[t + alias_conversion[i].length()] == 'o'))
-            input.replace(t, alias_conversion[i].length(), alias_conversion[i + 1]);
+            if((t + 3) < input.length() &&
+            (input[t + 3] != 'o'))
+            input.replace(t, 3, alias_conversion[i + 1]);
           }
-
+          else if(alias_conversion[i] == log_str) {
+            if((t + 3 == input.length()) || ((t + 3) < input.length() &&
+            (input[t + 3] != 'k')))
+            input.replace(t, 3, alias_conversion[i + 1]);
+          }
           else input.replace(t, alias_conversion[i].length(), alias_conversion[i + 1]);
           t = input.find(alias_conversion[i], t + alias_conversion[i + 1].length());
 
@@ -1442,19 +1423,6 @@ class expression {
       }
     }
 
-    // Check if a superscript is directly followed by
-    // a decimal which is likely to be an error.
-    bool pow_dec_wrong(const std::string &input) const noexcept {
-      for(int i = 0; i < 10; i++) {
-        size_t t = input.find(super[i]);
-        while(t != std::string::npos) {
-          if((t + super[i].length() < input.length()) && input[t + super[i].length()] == '.') return true;
-          t = input.find(super[i], t + super[i].length());
-        }
-      }
-      return false;
-    }
-
     // Check for any invalid characters that aren't allowed.
     bool invalid_char(const std::string &input) const noexcept {
       for (int i = 0; i < input.size(); ) {
@@ -1475,7 +1443,7 @@ class expression {
     }
 
     // Remove empty parenthesis.
-    void remove_empt(std::string &input, bool &flag) const noexcept {
+    void remove_empt(std::string &input, bool &flag) noexcept {
        // Remove any empty parenthesis and turn flag boollean
        // to true for further correct error_message.
        size_t t = input.find(empty_paren);
