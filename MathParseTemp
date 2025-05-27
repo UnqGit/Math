@@ -1047,13 +1047,13 @@ class expression {
           while(t != std::string::npos) {
             std::string substring = superscript[i];
             int update = 0;
-            if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring.insert(0, '^');
+            if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring.insert(substring.begin(), '^');
   
             // We can't check the immediate next character as
             // superscripts are unicode and not single byte ASCII.
             if((t + superscript[i].length() < input.size()) && ((std::islower(input[t + superscript[i].length()])) ||
             (basic_cleanup_char_lookup(input[t + superscript[i].length()]) && input[t + superscript[i].length()] != ')'))) {
-              substring.append('*');
+              substring.append('*', 1);
               update = 1;
             }
             if(substring.length() != superscript[i].length()) input.replace(t, superscript[i].size(), substring);
@@ -1066,10 +1066,10 @@ class expression {
         while(t != std::string::npos) {
           std::string substring = to_check;
           int update = 0;
-          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring.insert(0, '*');
+          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring.insert(substring.begin(), '*');
           if((t + to_check.length() < input.size()) && ((std::islower(input[t + to_check.length()])) ||
           (basic_cleanup_char_lookup(input[t + to_check.length()]) && input[t + to_check.length()] != ')'))) {
-            substring.append('*');
+            substring.append('*', 1);
             update = 1;
           }
           if(substring.length() != 1) input.replace(t, 1, substring);
@@ -1400,7 +1400,7 @@ class expression {
           // if((i + 1) < input.length() && (std::islower(input[i + 1]) || (
           // (implicit_mult_valid_chars.count(input[i + 1]) && input[i + 1] != ')')))) {
           if((i + 1) < input.length() && (std::islower(input[i + 1]) || (
-          (implicit_mult_valid_char_find(input[i + 1]) && input[i + 1] != ')')))) {
+          (implicit_mult_valid_char_find(input[i + 1]) && (input[i + 1] != ')' && input[i + 1] != '!'))))) {
             input.insert(i + 1, asterisk_str);
           }
         }
@@ -1590,7 +1590,7 @@ class expression {
           this -> anomaly = true;
           return;
         }
-        input.replace(t, 1, close_paren);
+        input[t] = ')';
         for(; i >= 0; i--) {
 
           if(input[i] == '(') {
@@ -1619,7 +1619,7 @@ class expression {
 
         }
 
-        input.insert(i == 0 ? i : i + 1, ftrl_func_str);
+        input.insert(i == 0 ? 0 : i + 1, ftrl_func_str);
         t = input.find(exclaimation, t + 4);
       }
 
