@@ -29,20 +29,23 @@ namespace {
   const std::string arc_str = "arc";
   const std::string log_str = "log";
 
-  // This array will be used to replace the odd indices with the consecutive even indices either temporarily(mainly) or permanently.
-  const std::string temporary_conversion[30] {
-    "·", "*", "×", "*", "÷", "/", "√", "#",
-    "pi", "=", "π", "=", "exp", "EXP", "sec", "SEC",
-    "ceil", "CEIL", "neg", "NEG", "e", "@", "EXP", "exp", "SEC", "sec",
-    "CEIL", "ceil", "NEG", "neg"
+  static constexpr int u_sym_c_size = 10;
+  static constexpr int num_super = 10;
+  static constexpr int two_x_num_super = 2 * num_super;
+  static constexpr int a_c_size = 24;
+  const std::string unicode_symbol_conversion[u_sym_c_size] {
+    "·", "*", "×", "*", "÷", "/", "π", "=", "√", "#"
   };
-  // This array will be used to change unicode characters to their equivalent in ASCII.
-  const std::string unicode_conversion[24] {
+  const std::string superscript[num_super] {
+    "⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"
+  };
+  const std::string ascii_cast[a_c_size] {
     "⁰", "0", "¹", "1", "²", "2", "³", "3", "⁴", "4",
     "⁵", "5", "⁶", "6", "⁷", "7", "⁸", "8", "⁹", "9",
     "=", "3.14159265358979323846264338327950288419",
     "@", "2.71828182845904523536028747135266249775"
   };
+  const std::string pi_str = "pi", equal_str = "=", e_str = "e", at_str = "@";
 }
 
 // Constant maps for fast lookups.
@@ -344,15 +347,13 @@ class expression {
 
       // Early formatting for consistency.
       std::string temp;
-      for(int i = 0; i < input.length(); i++) {
-        unsigned char c = input[i];
-        if(std::isspace(c)) continue;
-        else temp += std::isupper(c) ? std::tolower(c) : c;
-      }
-      input = temp;
+      temp.reserve(input.size());
+      for(const unsigned char c : input) if(!std::isspace(c)) temp += std::isupper(c) ? std::tolower(c) : c;
+      input.swap(temp);
 
+      bool is_unicode_present = false;
       // Check for any character which isn't in the allowed character set.
-      if(invalid_char(input)) {
+      if(invalid_char(input, is_unicode_present)) {
         this -> err_log = err_invalid_characters;
         this -> anomaly = true;
         return *this;
@@ -362,7 +363,7 @@ class expression {
       func_name_norm(input);
 
       // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
-      basic_cleanup(input);
+      basic_cleanup(input, is_unicode_present);
 
       // Check for invalid decimal usage.
       if(input.find(dot) != std::string::npos) invalid_decimal(input);
@@ -386,7 +387,7 @@ class expression {
       if(input.find(exclaimation) != std::string::npos) factorial_convert(input);
       if(this -> anomaly) return *this;
 
-      // Change √('#') to sqrt() and remove empty parenthesis potentially created by it.
+      // Change √('#') to sqrt() and remove empty parenthesis potentially created by it or above few functions.
       if(input.find(hash) != std::string::npos) add_sqrt(input);
       remove_empt(input, flag);
 
@@ -394,6 +395,7 @@ class expression {
       malform_ops(input);
       if(this -> anomaly) return *this;
 
+      // Check if corrcet functions are called and it is appropriately called using a '('.
       app_func(input, flag);
       if(this -> anomaly) return *this;
 
@@ -626,15 +628,6 @@ class expression {
       std::swap(this -> err_log, other.err_log);
       std::swap(this -> anomaly, other.anomaly);
       return *this;
-    }
-
-    // Cast another expression on top of this class depending on the allow variable flag of the current expression.
-    expression cast(const expression &other) {
-      expression result(this -> allow_variable);
-      bool flag = other.anomaly;
-      if(flag) result.update(other.entered_expression);
-      else result.update(other.modified_expression);
-      return result;
     }
 
     // Compose another function into the current function.
@@ -1020,47 +1013,80 @@ class expression {
     }
 
     // Helper function for basic cleanup.
-    void unicode_cleanup(std::string &input) noexcept {
-
-      for(int i = 0; i < 30; i += 2) {
-        size_t t = input.find(temporary_conversion[i]);
-        while(t != std::string::npos) {
-          input.replace(t, temporary_conversion[i].length(), temporary_conversion[i + 1]);
-          t = input.find(temporary_conversion[i], t + temporary_conversion[i].length() - 1 - (temporary_conversion[i] == sqrt_str ? 1 : 0));
-          // Subtraction by 1 is needed for √ because it is of multibyte natue (unicode).
-        }
-      }
-
-      // Add approapriate operators where needed.
-      for(int i = 0; i < 24; i += 2) {
-        size_t t = input.find(unicode_conversion[i]);
-        while(t != std::string::npos){
-          std::string substring = unicode_conversion[i];
-          int update = 0;
-          // if(t > 0 && (basic_cleanup_lookup.count(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? carret_str : asterisk_str) + substring;
-          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring = (i < 20 ? carret_str : asterisk_str) + substring;
-
-          // We can't check the immediate next character as
-          // superscripts are unicode and not single byte ASCII.
-          // if((t + unicode_conversion[i].length() < input.size()) && ((std::islower(input[t + unicode_conversion[i].length()])) ||
-          // (basic_cleanup_lookup.count(input[t + unicode_conversion[i].length()]) && input[t + unicode_conversion[i].length()] != ')'))) {
-          if((t + unicode_conversion[i].length() < input.size()) && ((std::islower(input[t + unicode_conversion[i].length()])) ||
-          (basic_cleanup_char_lookup(input[t + unicode_conversion[i].length()]) && input[t + unicode_conversion[i].length()] != ')'))) {
-            substring += asterisk_str;
-            update++;
+    void unicode_constant_cleanup(std::string &input, const bool is_unicode_present) noexcept {
+    
+      if(is_unicode_present) {
+        for(int i = 0; i < u_sym_c_size; i += 2) {
+          size_t t = input.find(unicode_symbol_conversion[i]);
+          while(t != std::string::npos) {
+            input.replace(t, unicode_symbol_conversion[i].length(), unicode_symbol_conversion[i + 1]);
+            t = input.find(unicode_symbol_conversion[i], t + unicode_symbol_conversion[i].length() - 1 - (i == 8 ? 1 : 0));
+            // An additional Subtraction by 1 is needed for √ because it is of multibyte natue (unicode, found by testing).
           }
-          input.replace(t, unicode_conversion[i].size(), substring);
-          t = input.find(unicode_conversion[i], t + substring.length() - update);
         }
       }
+      {
+        size_t t = input.find(pi_str);
+        while(t != std::string::npos) {
+          input.replace(t, 2, equal_str);
+          t = input.find(pi_str, t + 1);
+        }
+      }
+      {
+        size_t t = input.find(e_str);
+        while(t != std::string::npos) {
+          if(!((t + 1 < input.size() && input[t + 1] == 'x' && t + 2 < input.size() && input[t + 2] == 'p') || 
+          (t > 0 && (input[t - 1] == 'c' || input[t - 1] == 'n' || input[t - 1] == 's'))))
+          input.replace(t, 1, at_str);
+          t = input.find(e_str, t + 1);
+        }
+      }
+      if(is_unicode_present) {
+        for(int i = 0; i < num_super; i++) {
+          size_t t = input.find(superscript[i]);
+          while(t != std::string::npos) {
+            std::string substring = superscript[i];
+            int update = 0;
+            if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring.insert(0, '^');
+  
+            // We can't check the immediate next character as
+            // superscripts are unicode and not single byte ASCII.
+            if((t + superscript[i].length() < input.size()) && ((std::islower(input[t + superscript[i].length()])) ||
+            (basic_cleanup_char_lookup(input[t + superscript[i].length()]) && input[t + superscript[i].length()] != ')'))) {
+              substring.append('*');
+              update = 1;
+            }
+            if(substring.length() != superscript[i].length()) input.replace(t, superscript[i].size(), substring);
+            t = input.find(superscript[i], t + substring.length() - update);
+          }
+        }
+      }
+      auto pi_and_euler = [&](const std::string &to_check) -> void {
+        size_t t = input.find(to_check);
+        while(t != std::string::npos) {
+          std::string substring = to_check;
+          int update = 0;
+          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1]))) substring.insert(0, '*');
+          if((t + to_check.length() < input.size()) && ((std::islower(input[t + to_check.length()])) ||
+          (basic_cleanup_char_lookup(input[t + to_check.length()]) && input[t + to_check.length()] != ')'))) {
+            substring.append('*');
+            update = 1;
+          }
+          if(substring.length() != 1) input.replace(t, 1, substring);
+          t = input.find(to_check, t + substring.length() - update);
+        }
+      };
+      pi_and_euler(equal_str);
+      pi_and_euler(at_str);
 
       // Reason why this couldn't be done in the first loop itself
       // is that something like 2³⁴ would become 2^3^4.
-      for(int i = 0; i < 24; i += 2) {
-        size_t t = input.find(unicode_conversion[i]);
+      int i = is_unicode_present ? 0 : two_x_num_super;
+      for(; i < a_c_size; i += 2) {
+        size_t t = input.find(ascii_cast[i]);
         while(t != std::string::npos) {
-          input.replace(t, unicode_conversion[i].length(), unicode_conversion[i + 1]);
-          t = input.find(unicode_conversion[i], t + unicode_conversion[i].length() - 1 - (i < 20 ? 1 : 0));
+          input.replace(t, ascii_cast[i].length(), ascii_cast[i + 1]);
+          t = input.find(ascii_cast[i], t + ascii_cast[i].length() - 1 - (i < two_x_num_super ? 1 : 0));
           // Due to multibyte nature of superscripts we have to subtract 1.
         }
       }
@@ -1072,9 +1098,9 @@ class expression {
     // so that exp doesn't become 2.718*xp
     // and pi should be converted before exp for the cases
     // such as expi where it should be '2.718*x*3.141'.
-    void basic_cleanup(std::string &input) noexcept {
+    void basic_cleanup(std::string &input, const bool is_unicode_present) noexcept {
 
-      unicode_cleanup(input);
+      unicode_constant_cleanup(input, is_unicode_present);
 
       // Normalize signs and decimals.
       for(int i = 0; i < input.size(); i++) {
@@ -1098,7 +1124,7 @@ class expression {
         // a 0 before it, and if it isn't followed by a number, remove it.
 
         // Also correct potential oversight of multiple decimals following each other.
-        // Like 2...2 forgive it.
+        // Like 2...2 forgive it (convert to 2.3).
 
         else if(input[i] == '.') {
           if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
@@ -1304,7 +1330,7 @@ class expression {
       }
     }
 
-    // Convert aliases to normal function names.
+    // Convert aliases to normal function names(uses cascading rhythm).
     void func_name_norm(std::string &input) noexcept {
 
       // Converts several aliases to a consistent set of functions
@@ -1363,7 +1389,7 @@ class expression {
 
         // Variable rule.
         else if(input[i] == 'x') {
-          if(i > 0 && input[i - 1] == 'e') continue;
+          if(i > 0 && invalid_precede_x(input[i - 1])) continue;
           // if(i > 0 && implicit_mult_valid_chars.count(input[i - 1]) &&
           // !(input[i - 1] == '(' || input[i - 1] == '#')) {
           if(i > 0 && implicit_mult_valid_char_find(input[i - 1]) &&
@@ -1424,7 +1450,7 @@ class expression {
     }
 
     // Check for any invalid characters that aren't allowed.
-    bool invalid_char(const std::string &input) const noexcept {
+    bool invalid_char(const std::string &input, bool &is_unicode_present) const noexcept {
       for (int i = 0; i < input.size(); ) {
         unsigned char c = input[i];
         int len = 1;
@@ -1436,6 +1462,7 @@ class expression {
         else return true;
         if((i + len) > input.size()) return true;
         // if (!valid_characters.count(input.substr(i, len))) return true;
+        if(len > 1) is_unicode_present = true;
         if (!is_valid_character(input.substr(i, len))) return true;
         i += len;
       }
