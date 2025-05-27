@@ -447,7 +447,8 @@ class expression {
       app_paren(input, flag);
 
       // Remove empty parenthesis.
-      if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
+      remove_empt(input, flag);
+      if(this -> anomaly) return *this;
 
       // Convert implict multiplication to explicit.
       implicit_mult(input);
@@ -464,6 +465,7 @@ class expression {
       // Change √('#') to sqrt() and remove empty parenthesis potentially created by it or above few functions.
       if(input.find(hash) != std::string::npos) add_sqrt(input);
       remove_empt(input, flag);
+      if(this -> anomaly) return *this;
 
       // Flag malperfomed operations such as '+)'.
       malform_ops(input);
@@ -503,7 +505,7 @@ class expression {
       // Log if successfully updated.
       this -> err_log = done_modified;
 
-      // Should be able to parse in less than 10µs for most input strings.
+      // Should be able to parse in less than 20µs for most input strings.
       return *this;
     }
 
@@ -1741,6 +1743,11 @@ class expression {
       // to true for further correct error_message.
       size_t t = input.find(empty_paren);
       while(t != std::string::npos) {
+        if(t > 0 && std::islower(input[t - 1])) {
+          this -> err_log = err_no_arg_func;
+          this -> anomaly = true;
+          return;
+        }
         flag = true;
         input.replace(t, 2, empty_string);
         t = input.find(empty_paren, t == 0 ? 0 : t - 1);
