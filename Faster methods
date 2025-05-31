@@ -1,3 +1,37 @@
+bool is_lower(const unsigned char &c) noexcept {
+  return c > 96 && c < 123;
+}
+void paren_cleaner(std::string &input) noexcept {
+  std::string result;
+  result.resize(input.size());
+  char *k = &result[0], *t = k;
+  const char *it = &input[0], *end = &input[input.size()], *it_o = it;
+  int parenthesis = 0, result_parenthesis = 0;
+  while(it != end) {
+    switch(*it) {
+      case'(':
+        if(it != it_o && is_lower(*(it - 1))) {
+          result_parenthesis++;
+          *(k++) = '(';
+        }
+        parenthesis++;
+        break;
+      case')':
+        if(parenthesis == result_parenthesis) {
+          result_parenthesis--;
+          *(k++) = ')';
+        }
+        parenthesis--;
+        break;
+      default:
+        *(k++) = *it;
+    }
+    it++;
+  }
+  result.resize(k - t);
+  input.swap(result);
+}
+
 // goal is to balance parenthesis as fast as possible, faster than insert(0, num, c) and append(num, c).
 void app_paren(std::string &input, bool &flag) noexcept {
   int parenthesis = 0, front_paren = 0; // stack like counters.
