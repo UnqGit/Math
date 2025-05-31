@@ -51,6 +51,7 @@ bool input_validation_normalisation(std::string &input, bool &is_unicode_present
       else return true;
     }
     else if(((*it) & 0xE0) == 0xC0) {
+      if(it + 2 >= end) return true;
       if(is_valid_character(it, 2)) {
         is_unicode_present = true;
         *(k++) = *(it++);
@@ -59,6 +60,7 @@ bool input_validation_normalisation(std::string &input, bool &is_unicode_present
       else return true;
     }
     else if(((*it) & 0xF0) == 0xE0) {
+      if(it + 3 >= end) return true;
       if(is_valid_character(it, 3)) {
         is_unicode_present = true;
         *(k++) = *(it++);
