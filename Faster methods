@@ -31,7 +31,7 @@ void remove_empt(std::string &input, bool &flag) noexcept { // flag is to signal
         // set it_ to the closest pointer.
         if(it_1 == NULL && it_2 == NULL) it_ = end;
         else if(it_1 == NULL) it_ = it_2;
-        else if(it_1 == NULL) it_ = it_1;
+        else if(it_2 == NULL) it_ = it_1;
         else it_ = (it_1 < it_2 ? it_1 : it_2);
         std::memmove(k, it, it_ - it); // move everything before the next parenthesis.
         k += it_ - it; // update the output buffer.
