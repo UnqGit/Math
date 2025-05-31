@@ -1,3 +1,79 @@
+// Valid single-byte characters (ASCII only).
+constexpr char vc_sch[52] {
+  '^','\0','\0','a','b','c','d','e','f','g','h','i','\0','k','l','m',
+  'n','o','p','q','r','s','t','u','v','w','x','!','\0','\0','\0','\0',
+  '\0','\0','(',')','*','+',',','-','.','/','0','1','2','3','4','5',
+  '6','7','8','9'
+};
+
+// Valid multibyte (Unicode) characters (as UTF-8 strings).
+const std::string vc_mch[65] {
+  "÷","·","","","","¹","","","⁶","⁵","⁸","⁷","","⁹","","",
+  "","","","","","","","","","","","","","","","",
+  "","","⁰","","","","⁴","","","","","","π","","","",
+  "","³","","","","²","","√","","","","","","","","",
+  "×"
+};
+
+unsigned char to_lower(const unsigned char &c) {
+  return (c > 64 && c < 91) ? c + 32 : c;
+}
+
+bool is_space(const unsigned char &c) {
+  return c == 32 || c == 9 || c == 10;
+}
+
+bool is_valid_character(const char *ptr, int size) noexcept {
+  unsigned int index;
+  switch(size) {
+    case 1:
+      index = -6 + (*ptr % 88);
+      return index < 52 && *ptr == vc_sch[index];
+    case 2:
+    case 3:
+      // Custom hash based on byte values to avoid full UTF-8 parsing.
+      index = -168 + ((unsigned char)(*ptr)^1 + (unsigned char)(*(ptr + 1))^11 + (unsigned char)(*(ptr + size - 1))^17);
+      return index < 65 && !vc_mch[index].empty() && std::memcmp(&vc_mch[index][0], ptr, size) == 0;
+    default:
+      return false;
+  }
+}
+
+bool input_validation_normalisation(std::string &input, bool &is_unicode_present) noexcept {
+  std::string result;
+  result.resize(input.size());
+  char *k = &result[0], *t = k;
+  const char *it = &input[0], *end = &input[input.size()];
+  while(it != end) {
+    if(((*it) & 0x80) == 0) {
+      if(is_space(*it)) it++;
+      else if(is_valid_character(it, 1)) *(k++) = to_lower(*(it++));
+      else return true;
+    }
+    else if(((*it) & 0xE0) == 0xC0) {
+      if(is_valid_character(it, 2)) {
+        is_unicode_present = true;
+        *(k++) = *(it++);
+        *(k++) = *(it++);
+      }
+      else return true;
+    }
+    else if(((*it) & 0xF0) == 0xE0) {
+      if(is_valid_character(it, 3)) {
+        is_unicode_present = true;
+        *(k++) = *(it++);
+        *(k++) = *(it++);
+        *(k++) = *(it++);
+      }
+      else return true;
+    }
+    else return true;
+  }
+  result.resize(k - t);
+  input.swap(result);
+  return false;
+}
+
 bool is_lower(const char &c) noexcept {
   return c > 96 && c < 123;
 }
