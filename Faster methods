@@ -1,3 +1,30 @@
+// goal is to balance parenthesis as fast as possible, faster than insert(0, num, c) and append(num, c).
+void app_paren(std::string &input, bool &flag) noexcept {
+  int parenthesis = 0, front_paren = 0; // stack like counters.
+  const char *it = &input[0], *end = &input[input.size()];
+  while(it != end) {
+    switch(*(it++)) {
+      case '(':
+        parenthesis++; break;
+      case ')':
+        switch(parenthesis) {
+          case 0: // if no matching parnethesis we have to add at the start.
+            front_paren++; break;
+          default:
+            parenthesis--;
+        }
+    }
+  }
+  if(front_paren == 0 && parenthesis == 0) return;
+  flag = true; // signal changes.
+  std::string result;
+  result.resize(front_paren + input.size() + parenthesis);
+  std::memset(&result[0], '(', front_paren);
+  std::memcpy(&result[front_paren], &input[0], input.size());
+  std::memset(&result[front_paren + input.size()], ')', parenthesis);
+  input.swap(result);
+}
+
 // parenthesis would be balanced before calling this function so the only focus is to make it as fast as possible(upgrade to c baby).
 // call  by checking if "()" exist first to not do redundant work.
 // remove (), ()()(), (()()()), ((())) in a single pass(O(n), don't use abstraction methods like find & erase coz O(n*k)).
