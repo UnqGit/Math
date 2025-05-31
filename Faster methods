@@ -1,4 +1,4 @@
-bool is_lower(const unsigned char &c) noexcept {
+bool is_lower(const char &c) noexcept {
   return c > 96 && c < 123;
 }
 void paren_cleaner(std::string &input) noexcept {
@@ -84,7 +84,6 @@ void remove_empt(std::string &input, bool &flag) noexcept { // flag is to signal
         break;
       default:
         int difference = parenthesis - result_parenthesis;
-        difference = difference >= 0 ? difference : - difference + 1; // don't ask me why but this was necessary for producing correct results.
         std::memset(k, '(', difference);
         result_parenthesis = parenthesis; // update to sync.
         k += difference;
