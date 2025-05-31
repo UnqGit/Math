@@ -103,3 +103,143 @@ void remove_empt(std::string &input, bool &flag) noexcept { // flag is to signal
   flag = true;
   input.swap(result);
 } // basically black magic.
+
+
+bool is_lower(const char &c) noexcept {
+  return c > 96 && c < 123;
+}
+
+const std::string norm_lookup[20] {
+  "cos", "csc", "tan", "sec", "cot", "rnd", 
+  "flr", "cosh", "sinh", "asec", "acot", "ftrl", "acsc", "atan", 
+  "asin", "acos", "coth", "csch", "sech", "tanh"
+};
+
+const std::string alias_ln = "log";
+const std::string alias_sin = "sine";
+const std::string alias_acot = "arccotangent";
+
+const std::string norm_ln = "ln";
+const std::string norm_sin = "sin";
+const std::string norm_acot = "acot";
+
+const std::string alias_5lf[16] {
+  "arcsc","cosec","cosin","","asine","floor","","",
+  "","","cotan","","arcos","arcot","sineh","round"
+};
+constexpr const size_t lookup_arr_5lf[16] {
+  12,1,0,-1,14,6,-1,-1,-1,-1,4,-1,15,10,8,5
+};
+const std::string alias_6lf[43] {
+  "cotanh","","","","","","","",
+  "","arccot","arccos","","","","","",
+  "","","","","","acotan","","",
+  "acosin","acosec","arccsc","","","","","",
+  "","","secant","","cosech","cosine","arctan","arcsin",
+  "cosinh","","arcsec"
+};
+constexpr const size_t lookup_arr_6lf[43] {
+  16,-1,-1,-1,-1,-1,-1,-1,-1,10,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+  -1,10,-1,-1,15,12,12,-1,-1,-1,-1,-1,-1,-1,3,-1,17,0,13,14,
+  7,-1,9
+};
+const std::string alias_7lf[17] {
+  "arcosec","acosine","tangent","","arcotan","arcsine","","",
+  "","","","asecant","arcosin","","","secanth",
+  "cosineh"
+};
+constexpr const size_t lookup_arr_7lf[17] {
+  12,15,2,-1,10,14,-1,-1,-1,-1,-1,9,15,-1,-1,18,7
+};
+const std::string alias_8lf[13] {
+  "arccotan","","arcosine","arccosin","","","arccosec","atangent",
+  "","","","cosecant","tangenth"
+};
+constexpr const size_t lookup_arr_8lf[13] {
+  10,-1,15,15,-1,-1,12,13,-1,-1,-1,1,19
+};
+const std::string alias_9lf[17] {
+  "arcsecant","","","","","","","",
+  "","","","","acosecant","cotangent","cosecanth","factorial",
+  "arccosine"
+};
+constexpr const size_t lookup_arr_9lf[17] {
+  9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,12,4,17,11,15
+};
+const std::string alias_10lf[6] {
+  "arcosecant","arctangent","","cotangenth","","acotangent"
+};
+constexpr const size_t lookup_arr_10lf[6] {
+  12,13,-1,16,-1,10
+};
+const std::string  alias_11lf[2] {"arccosecant","arcotangent"};
+constexpr const size_t lookup_arr_11lf[2] {12,10};
+
+const std::string emp = "";
+const std::string *alias_normalisation(const char* &input, size_t size) noexcept {
+  size_t index;
+  switch(size) {
+    case 3:
+      return std::memcmp(input, &alias_ln[0], 3) == 0 ?
+      &norm_ln : &emp;
+    case 4:
+      return std::memcmp(input, &alias_sin[0], 4) == 0 ?
+      &norm_sin : &emp;
+    case 5:
+      index = ((*(input + 1))^9 + (*(input + 3))^8 + (*(input + 4))^2) - 103;
+      return index < 16 && !alias_5lf[index].empty() && std::memcmp(input, &alias_5lf[index][0], 5) == 0 ?
+      &norm_lookup[lookup_arr_5lf[index]] : &emp;
+    case 6:
+      index = ((*(input + 1))^30 + (*(input + 3))^15 + (*(input + 5))^8) - 111;
+      return index < 43 && !alias_6lf[index].empty() && std::memcmp(input, &alias_6lf[index][0], 6) == 0 ?
+      &norm_lookup[lookup_arr_6lf[index]] : &emp;
+    case 7:
+      index = ((*(input + 2))^0 + (*(input + 5))^5) - 3;
+      return index < 17 && !alias_7lf[index].empty() && std::memcmp(input, &alias_7lf[index][0], 7) == 0 ?
+      &norm_lookup[lookup_arr_7lf[index]] : &emp;
+    case 8:
+      index = ((*(input + 5))^8 + (*(input + 7))^8) - 10;
+      return index < 13 && !alias_8lf[index].empty() && std::memcmp(input, &alias_8lf[index][0], 8) == 0 ?
+      &norm_lookup[lookup_arr_8lf[index]] : &emp;
+    case 9:
+      index = ((*(input + 2))^0 + (*(input + 5))^3) - 3;
+      return index < 17 && !alias_9lf[index].empty() && std::memcmp(input, &alias_9lf[index][0], 9) == 0 ?
+      &norm_lookup[lookup_arr_9lf[index]] : &emp;
+    case 10:
+      index = ((*(input + 2))^2 + (*(input + 3))^1) - 19;
+      return index < 6 && !alias_10lf[index].empty() && std::memcmp(input, &alias_10lf[index][0], 10) == 0 ?
+      &norm_lookup[lookup_arr_10lf[index]] : &emp;
+    case 11:
+      index = ((*(input + 3)) % 11);
+      return index < 2 && std::memcmp(input, &alias_11lf[index][0], 11) == 0 ?
+      &norm_lookup[lookup_arr_11lf[index]] : &emp;
+    case 12:
+      return std::memcmp(input, &alias_acot[0], 12) == 0 ? 
+      &norm_acot : &emp;
+    default:
+      return &emp;
+  }
+}
+
+void func_name_norm(std::string &input) noexcept {
+  std::string result;
+  result.resize(input.size());
+  const char *it = &input[0], *end = &input[input.size()];
+  char *k = &result[0], *t = k;
+  while(it != end) {
+    if(is_lower(*it)) {
+      int j = 1;
+      while((it + j != end) && is_lower(*(it + j))) j++;
+      const std::string *sub = alias_normalisation(it, j);
+      if(sub == &emp) {
+        std::memcpy(k, it, j);
+        k += j;
+      }
+      else for(const char &c : *sub) *(k++) = c;
+      it += j;
+    }
+    else *(k++) = *(it++);
+  }
+  result.resize(k - t);
+  input.swap(result);
+}
