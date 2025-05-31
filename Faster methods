@@ -22,7 +22,7 @@ void remove_empt(std::string &input, bool &flag) noexcept { // flag is to signal
         parenthesis--;
         break;
       default:
-        int difference = parenthesis - result_parenthesis--;
+        int difference = parenthesis - result_parenthesis;
         difference = difference >= 0 ? difference : - difference + 1; // don't ask me why but this was necessary for producing correct results.
         std::memset(k, '(', difference);
         result_parenthesis = parenthesis; // update to sync.
