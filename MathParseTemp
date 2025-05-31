@@ -6,28 +6,28 @@ namespace {
   // Used to replace the operators in order for BODMAS / PEMDAS presedence.
   const std::string op_str = "^/*-+";
 
-  // Had to change the aliases too often so made a variable for number of members.
-  constexpr int lalias = 24;
+  // // Had to change the aliases too often so made a variable for number of members.
+  // constexpr int lalias = 24;
 
-  // Array used to find alaises and standardize them.
-  // Ofc i tried maps but those don't give as much advantage and are more error temporary_conversion
-  // and we have to add each new function every time with every alias we want to handle.
-  const std::string alias_conversion[lalias] {
-    "floor", "flr",
-    "factorial","ftrl",
-    "round","rnd",
-    "sine", "sin",
-    "cosin", "cos",
-    "tangent", "tan",
-    "secant", "sec",
-    "cotan", "cot",
-    "log", "ln",
-    "arc", "a",
-    "cosec", "csc",
-    "ar", "a"
-  };
-  const std::string arc_str = "arc";
-  const std::string log_str = "log";
+  // // Array used to find alaises and standardize them.
+  // // Ofc i tried maps but those don't give as much advantage and are more error temporary_conversion
+  // // and we have to add each new function every time with every alias we want to handle.
+  // const std::string alias_conversion[lalias] {
+  //   "floor", "flr",
+  //   "factorial","ftrl",
+  //   "round","rnd",
+  //   "sine", "sin",
+  //   "cosin", "cos",
+  //   "tangent", "tan",
+  //   "secant", "sec",
+  //   "cotan", "cot",
+  //   "log", "ln",
+  //   "arc", "a",
+  //   "cosec", "csc",
+  //   "ar", "a"
+  // };
+  // const std::string arc_str = "arc";
+  // const std::string log_str = "log";
 
   // Used in basic cleanup -> unicode_constant_cleanup function.
   static constexpr int u_sym_c_size = 10;
@@ -93,6 +93,18 @@ namespace {
 // or comment this scope and uncomment the above namespace and all the commented out
 // usage of the above scope's unordered sets.
 namespace {
+
+  unsigned char to_lower(const unsigned char &c) {
+    return (c > 64 && c < 91) ? c + 32 : c;
+  }
+  
+  bool is_space(const unsigned char &c) {
+    return c == 32 || c == 9 || c == 10;
+  }
+
+  bool is_lower(const char &c) noexcept {
+    return c > 96 && c < 123;
+  }
 
   // These were found by brute force to get the best results, no need to look in here.
 
@@ -177,9 +189,9 @@ namespace {
     '\0','\0','(',')','*','+',',','-','.','/','0','1','2','3','4','5',
     '6','7','8','9'
   };
-
+  
   // Valid multibyte (Unicode) characters (as UTF-8 strings).
-  constexpr std::array<const char*, 65> vc_mch {
+  const std::string vc_mch[65] {
     "÷","·","","","","¹","","","⁶","⁵","⁸","⁷","","⁹","","",
     "","","","","","","","","","","","","","","","",
     "","","⁰","","","","⁴","","","","","","π","","","",
@@ -188,18 +200,17 @@ namespace {
   };
 
   // Determines if a UTF-8 sequence (1–3 bytes) is a valid character.
-  bool is_valid_character(const std::string &input) {
-    const size_t &length = input.length();
+  bool is_valid_character(const char *ptr, int size) noexcept {
     unsigned int index;
-    switch(length) {
+    switch(size) {
       case 1:
-        index = -6 + (input[0] % 88);
-        return index < 52 && input[0] == vc_sch[index];
+        index = -6 + ((*ptr) % 88);
+        return index < 52 && (*ptr) == vc_sch[index];
       case 2:
       case 3:
         // Custom hash based on byte values to avoid full UTF-8 parsing.
-        index = -168 + ((unsigned char)input[0]^1 + (unsigned char)input[1]^11 + (unsigned char)input.back()^17);
-        return index < 65 && std::memcmp(vc_mch[index], &input[0], length) == 0;
+        index = -168 + ((unsigned char)(*ptr)^1 + (unsigned char)(*(ptr + 1))^11 + (unsigned char)(*(ptr + size - 1))^17);
+        return index < 65 && !vc_mch[index].empty() && std::memcmp(&vc_mch[index][0], ptr, size) == 0;
       default:
         return false;
     }
@@ -222,6 +233,118 @@ namespace {
         return index < 22 && std::memcmp(b_flt[index], &input[0], length) == 0;
       default:
         return false;
+    }
+  }
+
+  const std::string norm_lookup[20] {
+    "cos", "csc", "tan", "sec", "cot", "rnd", 
+    "flr", "cosh", "sinh", "asec", "acot", "ftrl", "acsc", "atan", 
+    "asin", "acos", "coth", "csch", "sech", "tanh"
+  };
+  
+  const std::string alias_ln = "log";
+  const std::string alias_sin = "sine";
+  const std::string alias_acot = "arccotangent";
+  
+  const std::string norm_ln = "ln";
+  const std::string norm_sin = "sin";
+  const std::string norm_acot = "acot";
+  
+  const std::string alias_5lf[16] {
+    "arcsc","cosec","cosin","","asine","floor","","",
+    "","","cotan","","arcos","arcot","sineh","round"
+  };
+  constexpr const size_t lookup_arr_5lf[16] {
+    12,1,0,1000,14,6,1000,1000,1000,1000,4,1000,15,10,8,5
+  };
+  const std::string alias_6lf[43] {
+    "cotanh","","","","","","","",
+    "","arccot","arccos","","","","","",
+    "","","","","","acotan","","",
+    "acosin","acosec","arccsc","","","","","",
+    "","","secant","","cosech","cosine","arctan","arcsin",
+    "cosinh","","arcsec"
+  };
+  constexpr const size_t lookup_arr_6lf[43] {
+    16,1000,1000,1000,1000,1000,1000,1000,1000,10,15,1000,1000,1000,1000,1000,1000,1000,1000,1000,
+    1000,10,1000,1000,15,12,12,1000,1000,1000,1000,1000,1000,1000,3,1000,17,0,13,14,
+    7,1000,9
+  };
+  const std::string alias_7lf[17] {
+    "arcosec","acosine","tangent","","arcotan","arcsine","","",
+    "","","","asecant","arcosin","","","secanth",
+    "cosineh"
+  };
+  constexpr const size_t lookup_arr_7lf[17] {
+    12,15,2,1000,10,14,1000,1000,1000,1000,1000,9,15,1000,1000,18,7
+  };
+  const std::string alias_8lf[13] {
+    "arccotan","","arcosine","arccosin","","","arccosec","atangent",
+    "","","","cosecant","tangenth"
+  };
+  constexpr const size_t lookup_arr_8lf[13] {
+    10,1000,15,15,1000,1000,12,13,1000,1000,1000,1,19
+  };
+  const std::string alias_9lf[17] {
+    "arcsecant","","","","","","","",
+    "","","","","acosecant","cotangent","cosecanth","factorial",
+    "arccosine"
+  };
+  constexpr const size_t lookup_arr_9lf[17] {
+    9,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,12,4,17,11,15
+  };
+  const std::string alias_10lf[6] {
+    "arcosecant","arctangent","","cotangenth","","acotangent"
+  };
+  constexpr const size_t lookup_arr_10lf[6] {
+    12,13,1000,16,1000,10
+  };
+  const std::string  alias_11lf[2] {"arccosecant","arcotangent"};
+  constexpr const size_t lookup_arr_11lf[2] {12,10};
+  
+  const std::string emp = "";
+  const std::string *alias_normalisation(const char* &input, size_t size) noexcept {
+    size_t index;
+    switch(size) {
+      case 3:
+        return std::memcmp(input, &alias_ln[0], 3) == 0 ?
+        &norm_ln : &emp;
+      case 4:
+        return std::memcmp(input, &alias_sin[0], 4) == 0 ?
+        &norm_sin : &emp;
+      case 5:
+        index = ((*(input + 1))^9 + (*(input + 3))^8 + (*(input + 4))^2) - 103;
+        return index < 16 && !alias_5lf[index].empty() && std::memcmp(input, &alias_5lf[index][0], 5) == 0 ?
+        &norm_lookup[lookup_arr_5lf[index]] : &emp;
+      case 6:
+        index = ((*(input + 1))^30 + (*(input + 3))^15 + (*(input + 5))^8) - 111;
+        return index < 43 && !alias_6lf[index].empty() && std::memcmp(input, &alias_6lf[index][0], 6) == 0 ?
+        &norm_lookup[lookup_arr_6lf[index]] : &emp;
+      case 7:
+        index = ((*(input + 2))^0 + (*(input + 5))^5) - 3;
+        return index < 17 && !alias_7lf[index].empty() && std::memcmp(input, &alias_7lf[index][0], 7) == 0 ?
+        &norm_lookup[lookup_arr_7lf[index]] : &emp;
+      case 8:
+        index = ((*(input + 5))^8 + (*(input + 7))^8) - 10;
+        return index < 13 && !alias_8lf[index].empty() && std::memcmp(input, &alias_8lf[index][0], 8) == 0 ?
+        &norm_lookup[lookup_arr_8lf[index]] : &emp;
+      case 9:
+        index = ((*(input + 2))^0 + (*(input + 5))^3) - 3;
+        return index < 17 && !alias_9lf[index].empty() && std::memcmp(input, &alias_9lf[index][0], 9) == 0 ?
+        &norm_lookup[lookup_arr_9lf[index]] : &emp;
+      case 10:
+        index = ((*(input + 2))^2 + (*(input + 3))^1) - 19;
+        return index < 6 && !alias_10lf[index].empty() && std::memcmp(input, &alias_10lf[index][0], 10) == 0 ?
+        &norm_lookup[lookup_arr_10lf[index]] : &emp;
+      case 11:
+        index = ((*(input + 3)) % 11);
+        return index < 2 && std::memcmp(input, &alias_11lf[index][0], 11) == 0 ?
+        &norm_lookup[lookup_arr_11lf[index]] : &emp;
+      case 12:
+        return std::memcmp(input, &alias_acot[0], 12) == 0 ? 
+        &norm_acot : &emp;
+      default:
+        return &emp;
     }
   }
 
@@ -279,7 +402,7 @@ namespace {
   const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
 
   // Parenthesis helpers for function construction or validation.
-  const std::string open_paren = "(", close_paren = ")", hash = "#";
+  const std::string open_paren = "(", close_paren = ")", hash = "#", double_open_paren = "((";
 
   // Used as default or to identify issues with empty parenthesis in many scenarios.
   const std::string empty_string = "", empty_paren = "()";
@@ -418,16 +541,9 @@ class expression {
         return *this;
       }
       bool flag = false;
-
-      // Early formatting for consistency.
-      std::string temp;
-      temp.reserve(input.size());
-      for(const unsigned char c : input) if(!std::isspace(c)) temp += std::isupper(c) ? std::tolower(c) : c;
-      input.swap(temp);
-
+      
       bool is_unicode_present = false;
-      // Check for any character which isn't in the allowed character set.
-      if(invalid_char(input, is_unicode_present)) {
+      if(input_validation_normalisation(input, is_unicode_present)) {
         this -> err_log = err_invalid_characters;
         this -> anomaly = true;
         return *this;
@@ -447,8 +563,7 @@ class expression {
       app_paren(input, flag);
 
       // Remove empty parenthesis.
-      remove_empt(input, flag);
-      if(this -> anomaly) return *this;
+      if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
 
       // Convert implict multiplication to explicit.
       implicit_mult(input);
@@ -464,8 +579,7 @@ class expression {
 
       // Change √('#') to sqrt() and remove empty parenthesis potentially created by it or above few functions.
       if(input.find(hash) != std::string::npos) add_sqrt(input);
-      remove_empt(input, flag);
-      if(this -> anomaly) return *this;
+      if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
 
       // Flag malperfomed operations such as '+)'.
       malform_ops(input);
@@ -491,9 +605,8 @@ class expression {
       }
 
       // Checking if there are () for potential redundancy removal.
-      if(input.find(open_paren) != std::string::npos) paren_cleaner(input);
-      if(this -> anomaly) return *this;
-      
+      if(input.find(double_open_paren) != std::string::npos) paren_cleaner(input);
+
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
       if(input.empty()) {
@@ -509,7 +622,7 @@ class expression {
       return *this;
     }
 
-    // Provide the input stirng.
+    // Provide the input string.
     std::string original() const noexcept {
       return this -> entered_expression;
     }
@@ -1031,7 +1144,7 @@ class expression {
     
         // Accumulate letters to form a potential function name.
         // If it grows beyond 4 letters, that’s invalid (quick shortcut).
-        if(std::islower(input[i])) {
+        if(is_lower(input[i])) {
           temp += input[i];
           if(temp.size() == 5) {
             this -> err_log = err_invalid_char_stream + temp + apostrophe_dot;
@@ -1096,26 +1209,29 @@ class expression {
     //   input - the string to check and fix parentheses in (modified in place).
     //   flag  - a boolean reference set to true if any opening parentheses are inserted at the front.
     void app_paren(std::string &input, bool &flag) noexcept {
-      int parenthesis = 0;  // Tracks unmatched '(' count.
-      int front_paren = 0;  // Counts how many '(' needed at the start for unmatched ')'.
-
-      for (int i = 0; i < input.size(); i++) {
-        if(input[i] == '(') parenthesis++;
-        else if(input[i] == ')') {
-          // If no unmatched '(' available, this ')' needs a '(' added at the front.
-          if(parenthesis == 0) front_paren++;
-          else parenthesis--;
+      int parenthesis = 0, front_paren = 0; // stack like counters.
+      const char *it = &input[0], *end = &input[input.size()];
+      while(it != end) {
+        switch(*(it++)) {
+          case '(':
+            parenthesis++; break;
+          case ')':
+            switch(parenthesis) {
+              case 0: // if no matching parnethesis we have to add at the start.
+                front_paren++; break;
+              default:
+                parenthesis--;
+            }
         }
       }
-
-      // Add all required '(' at the start, if any.
-      if(front_paren != 0) {
-        input.insert(0, front_paren, '(');
-        flag = true;  // Signal that we modified the input at front.
-      }
-
-      // Add all required ')' at the end to close unmatched '('.
-      if(parenthesis != 0) input.append(parenthesis, ')');
+      if(front_paren == 0 && parenthesis == 0) return;
+      if(front_paren != 0) flag = true; // signal changes at front.
+      std::string result;
+      result.resize(front_paren + input.size() + parenthesis);
+      std::memset(&result[0], '(', front_paren);
+      std::memcpy(&result[front_paren], &input[0], input.size());
+      std::memset(&result[front_paren + input.size()], ')', parenthesis);
+      input.swap(result);
     }
 
     // Cleans up unnecessary parentheses from a fully functionalized expression string.
@@ -1140,39 +1256,34 @@ class expression {
     //   - Modifies the input string in place by removing redundant parentheses.
     //   - Updates error log and anomaly flag if improper parenthesis usage is found.
     void paren_cleaner(std::string &input) noexcept {
-      // Stack to hold pairs: <index of '(', removable flag>.
-      std::stack<std::pair<size_t, bool>> holder;
-
-      for(int i = 0; i < input.length(); i++) {
-        if(input[i] == '(') {
-          // Check preceding character to decide if this '(' can be removed later.
-          if(i > 0) {
-            char ch = input[i - 1];
-            // If no lowercase letter before '(', assume no function name → removable.
-            if(!std::islower(ch)) holder.push({i, true});
-            else holder.push({i, false});
-          } 
-          else {
-            // '(' at the start — considered removable by default.
-            holder.push({i, true});
-          }
-        } 
-        else if(input[i] == ')') {
-          // Error if no matching '(' or empty parentheses ()
-          if(holder.empty() || (!holder.empty() && (holder.top().first == i - 1))) {
-            this -> err_log = err_incorrect_paren_use;
-            this -> anomaly = true;
-            return;
-          }
-          if(holder.top().second) {
-            // Remove the '(' and ')' if marked removable.
-            input.erase(i, 1);
-            input.erase(holder.top().first, 1);
-            i -= 2;  // Adjust index because of removals.
-          }
-          holder.pop();  // Remove matched '(' from stack.
+      std::string result;
+      result.resize(input.size());
+      char *k = &result[0], *t = k;
+      const char *it = &input[0], *end = &input[input.size()], *it_o = it;
+      int parenthesis = 0, result_parenthesis = 0;
+      while(it != end) {
+        switch(*it) {
+          case'(':
+            if(it != it_o && is_lower(*(it - 1))) {
+              result_parenthesis++;
+              *(k++) = '(';
+            }
+            parenthesis++;
+            break;
+          case')':
+            if(parenthesis == result_parenthesis) {
+              result_parenthesis--;
+              *(k++) = ')';
+            }
+            parenthesis--;
+            break;
+          default:
+            *(k++) = *it;
         }
+        it++;
       }
+      result.resize(k - t);
+      input.swap(result);
     }
 
     // Helper function to clean up Unicode constants and symbols inside the input string.
@@ -1233,11 +1344,11 @@ class expression {
             std::string substring = superscript[i];
             int update = 0;
             // Insert '^' before superscript if preceded by a number or letter (implicit exponentiation).
-            if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1])))
+            if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || is_lower(input[t - 1])))
               substring.insert(substring.begin(), '^');
 
             // Insert '*' after superscript if followed by a letter or valid symbol (implicit multiplication).
-            if((t + superscript[i].length() < input.size()) && ((std::islower(input[t + superscript[i].length()])) ||
+            if((t + superscript[i].length() < input.size()) && ((is_lower(input[t + superscript[i].length()])) ||
                (basic_cleanup_char_lookup(input[t + superscript[i].length()]) && input[t + superscript[i].length()] != ')'))) {
               substring.append(1, '*');
               update = 1;
@@ -1255,10 +1366,10 @@ class expression {
           std::string substring = to_check;
           int update = 0;
           // Insert '*' before placeholder if preceded by number/letter.
-          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || std::islower(input[t - 1])))
+          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || is_lower(input[t - 1])))
             substring.insert(substring.begin(), '*');
           // Insert '*' after placeholder if followed by letter or valid symbol.
-          if((t + to_check.length() < input.size()) && ((std::islower(input[t + to_check.length()])) ||
+          if((t + to_check.length() < input.size()) && ((is_lower(input[t + to_check.length()])) ||
              (basic_cleanup_char_lookup(input[t + to_check.length()]) && input[t + to_check.length()] != ')'))) {
             substring.append(1, '*');
             update = 1;
@@ -1552,53 +1663,76 @@ class expression {
       }
     }
 
-    // Converts various function aliases and common misspellings into a standardized,
-    // concise function name format. This process uses a "cascading rhythm" of
-    // string replacements, where longer aliases are progressively shortened
-    // to their canonical forms (e.g., "cosine" -> "cosin" -> "cos").
-    // This strategy minimizes the number of string searches and replacements required.
+    // // Converts various function aliases and common misspellings into a standardized,
+    // // concise function name format. This process uses a "cascading rhythm" of
+    // // string replacements, where longer aliases are progressively shortened
+    // // to their canonical forms (e.g., "cosine" -> "cosin" -> "cos").
+    // // This strategy minimizes the number of string searches and replacements required.
+    // void func_name_norm(std::string &input) noexcept {
+
+    //   // Iterate through the `alias_conversion` array, which contains pairs of
+    //   // original alias and its standardized replacement.
+    //   // The array is structured such that longer, more complex aliases are processed
+    //   // before their shorter, partial forms, enabling the cascading effect.
+    //   for(int i = 0; i < lalias; i += 2) {
+
+    //     // Find the first occurrence of the current alias in the input string.
+    //     size_t pos = input.find(alias_conversion[i]);
+
+    //     // Continue replacing as long as the alias is found.
+    //     while(pos != std::string::npos) {
+    //       // --- Special Case Handling for "arc" ---
+    //       // This is crucial to prevent incorrect transformations. For example,
+    //       // "arcot" should become "acot", not "aot" if "arc" was replaced with "a".
+    //       // This check ensures "arc" is replaced only if it's not immediately
+    //       // followed by 'o' (e.g., in "arcot").
+    //       if(alias_conversion[i] == arc_str) {
+    //         if((pos + 3) >= input.length() || // If "arc" is at the end of the string
+    //           (input[pos + 3] != 'o'))       // Or if the character after "arc" is not 'o'
+    //           input.replace(pos, 3, alias_conversion[i + 1]); // Replace "arc" with its standardized form
+    //       }
+    //       // --- Special Case Handling for "log" ---
+    //       // This differentiates "log" (natural logarithm) from "logk" (logarithm with a specified base).
+    //       // "log" should be replaced only if it's not followed by 'k'.
+    //       else if(alias_conversion[i] == log_str) {
+    //         if((pos + 3) >= input.length() || // If "log" is at the end of the string
+    //           (input[pos + 3] != 'k'))       // Or if the character after "log" is not 'k'
+    //           input.replace(pos, 3, alias_conversion[i + 1]); // Replace "log" with its standardized form.
+    //       }
+    //       // --- General Case: Direct Replacement ---
+    //       // For all other aliases, perform a direct replacement.
+    //       else input.replace(pos, alias_conversion[i].length(), alias_conversion[i + 1]);
+
+    //       // Continue searching for the *same* alias from the position immediately
+    //       // after where the replacement just occurred. This is important because
+    //       // the replacement itself might contain characters that form the alias
+    //       // again, or we need to ensure all instances are caught.
+    //       pos = input.find(alias_conversion[i], pos + alias_conversion[i + 1].length());
+    //     }
+    //   }
+    // }
+
     void func_name_norm(std::string &input) noexcept {
-
-      // Iterate through the `alias_conversion` array, which contains pairs of
-      // original alias and its standardized replacement.
-      // The array is structured such that longer, more complex aliases are processed
-      // before their shorter, partial forms, enabling the cascading effect.
-      for(int i = 0; i < lalias; i += 2) {
-
-        // Find the first occurrence of the current alias in the input string.
-        size_t pos = input.find(alias_conversion[i]);
-
-        // Continue replacing as long as the alias is found.
-        while(pos != std::string::npos) {
-          // --- Special Case Handling for "arc" ---
-          // This is crucial to prevent incorrect transformations. For example,
-          // "arcot" should become "acot", not "aot" if "arc" was replaced with "a".
-          // This check ensures "arc" is replaced only if it's not immediately
-          // followed by 'o' (e.g., in "arcot").
-          if(alias_conversion[i] == arc_str) {
-            if((pos + 3) >= input.length() || // If "arc" is at the end of the string
-               (input[pos + 3] != 'o'))       // Or if the character after "arc" is not 'o'
-              input.replace(pos, 3, alias_conversion[i + 1]); // Replace "arc" with its standardized form
+      std::string result;
+      result.resize(input.size());
+      const char *it = &input[0], *end = &input[input.size()];
+      char *k = &result[0], *t = k;
+      while(it != end) {
+        if(is_lower(*it)) {
+          int j = 1;
+          while((it + j != end) && is_lower(*(it + j))) j++;
+          const std::string *sub = alias_normalisation(it, j);
+          if(sub == &emp) {
+            std::memcpy(k, it, j);
+            k += j;
           }
-          // --- Special Case Handling for "log" ---
-          // This differentiates "log" (natural logarithm) from "logk" (logarithm with a specified base).
-          // "log" should be replaced only if it's not followed by 'k'.
-          else if(alias_conversion[i] == log_str) {
-            if((pos + 3) >= input.length() || // If "log" is at the end of the string
-               (input[pos + 3] != 'k'))       // Or if the character after "log" is not 'k'
-              input.replace(pos, 3, alias_conversion[i + 1]); // Replace "log" with its standardized form.
-          }
-          // --- General Case: Direct Replacement ---
-          // For all other aliases, perform a direct replacement.
-          else input.replace(pos, alias_conversion[i].length(), alias_conversion[i + 1]);
-
-          // Continue searching for the *same* alias from the position immediately
-          // after where the replacement just occurred. This is important because
-          // the replacement itself might contain characters that form the alias
-          // again, or we need to ensure all instances are caught.
-          pos = input.find(alias_conversion[i], pos + alias_conversion[i + 1].length());
+          else for(const char &c : *sub) *(k++) = c;
+          it += j;
         }
+        else *(k++) = *(it++);
       }
+      result.resize(k - t);
+      input.swap(result);
     }
 
     // Transforms implicit multiplication in a mathematical expression string 
@@ -1645,7 +1779,7 @@ class expression {
           // If 'x' is followed by a lowercase letter (e.g. a function),
           // or valid character (but not ')' or '!'), insert '*' after 'x'
           if((i + 1) < input.length() && 
-             (std::islower(input[i + 1]) || 
+             (is_lower(input[i + 1]) || 
              (implicit_mult_valid_char_find(input[i + 1]) && 
              (input[i + 1] != ')' && input[i + 1] != '!')))) {
             input.insert(i + 1, asterisk_str);
@@ -1653,7 +1787,7 @@ class expression {
         }
 
         // --------- Rule for functions (e.g. sin, cos, log) ---------
-        else if(std::islower(input[i])) {
+        else if(is_lower(input[i])) {
           // If a function name starts immediately after a digit or ')',
           // insert '*' before the function name
           if(i > 0 && (std::isdigit(input[i - 1]) || input[i - 1] == ')')) {
@@ -1701,57 +1835,83 @@ class expression {
     // Checks whether the input string contains any invalid characters.
     // Also detects if any Unicode characters are present.
     // Returns true if an invalid character is found; false otherwise.
-    bool invalid_char(const std::string &input, bool &is_unicode_present) const noexcept {
-      // Iterate through the input string byte-by-byte.
-      for (int i = 0; i < input.size(); ) {
-        unsigned char c = input[i];
-        int len = 1; // default length of character (1 byte for ASCII).
-
-        // ---------------- Unicode Decoding Shenanigans ----------------
-        // Determine the length of the UTF-8 encoded character based on the first byte.
-        // We're not decoding the character fully—just figuring out its byte span.
-
-        if((c & 0x80) == 0)       len = 1; // 0xxxxxxx : plain old ASCII.
-        else if((c & 0xE0) == 0xC0) len = 2; // 110xxxxx : 2-byte UTF-8 character.
-        else if((c & 0xF0) == 0xE0) len = 3; // 1110xxxx : 3-byte UTF-8 character.
-        else if((c & 0xF8) == 0xF0) len = 4; // 11110xxx : 4-byte UTF-8 character.
-        else return true; // Not a valid UTF-8 leading byte: instant disqualification!
-
-        // Sanity check: don't read past the end of the string.
-        if((i + len) > input.size()) return true;
-
-        // If it's multi-byte, we flag that Unicode was present.
-        if(len > 1) is_unicode_present = true;
-
-        // ---------------- Character Validation ----------------
-        // Use a helper to check if the character (ASCII or UTF-8) is valid.
-        // If not valid, we say NOPE immediately.
-        if(!is_valid_character(input.substr(i, len))) return true;
-
-        // Move ahead by however many bytes the current character consumed.
-        i += len;
+    bool input_validation_normalisation(std::string &input, bool &is_unicode_present) noexcept {
+      std::string result;
+      result.resize(input.size());
+      char *k = &result[0], *t = k;
+      const char *it = &input[0], *end = &input[input.size()];
+      while(it != end) {
+        if(((*it) & 0x80) == 0) {
+          if(is_space(*it)) it++;
+          else if(is_valid_character(it, 1)) *(k++) = to_lower(*(it++));
+          else return true;
+        }
+        else if(((*it) & 0xE0) == 0xC0) {
+          if(it + 2 >= end) return true;
+          else if(is_valid_character(it, 2)) {
+            is_unicode_present = true;
+            *(k++) = *(it++);
+            *(k++) = *(it++);
+          }
+          else return true;
+        }
+        else if(((*it) & 0xF0) == 0xE0) {
+          if(it + 3 >= end) return true;
+          else if(is_valid_character(it, 3)) {
+            is_unicode_present = true;
+            std::memcpy(k, it, 3);
+            k += 3;
+            it += 3;
+          }
+          else return true;
+        }
+        else return true;
       }
-
-      // If we made it through the entire string without issue, it's valid!
+      result.resize(k - t);
+      input.swap(result);
       return false;
     }
 
-    // Removes empty parenthesis.
+    // Remove (), ()()(), (()()()), ((())) in a single pass(O(n), don't use abstraction methods like find & erase coz O(n*k)).
+    // eg, (((()))A) -> (A), (()()()A) -> (A), ()A -> A, (AAA(A)()) -> (AAA(A)), (((A))) -> (((A))), ((()()()))((()))()()() -> _(nothing), (A()B) -> (AB).
     void remove_empt(std::string &input, bool &flag) noexcept {
-
-      // Remove any empty parenthesis and turn flag boollean
-      // to true for further correct error_message.
-      size_t t = input.find(empty_paren);
-      while(t != std::string::npos) {
-        if(t > 0 && std::islower(input[t - 1])) {
-          this -> err_log = err_no_arg_func;
-          this -> anomaly = true;
-          return;
+      int parenthesis = 0, result_parenthesis = 0; // stack like counters for input parenthesis and output parenthesis.
+      std::string result;
+      result.resize(input.size());
+      char *k = &result[0], *t = k;
+      const char *it = &input[0], *end = &input[input.size()];
+      while(it != end) {
+        switch(*it) {
+          case'(':
+            parenthesis++;
+            break;
+          case')':
+            if(parenthesis == result_parenthesis) {
+              *(k++) = *it;
+              result_parenthesis--;
+            }
+            parenthesis--;
+            break;
+          default:
+            int difference = parenthesis - result_parenthesis;
+            std::memset(k, '(', difference);
+            result_parenthesis = parenthesis; // update to sync.
+            k += difference;
+            const char *it_1 = (char*)std::memchr(it, '(', end - it), *it_2 = (char*)std::memchr(it, ')', end - it), *it_ = nullptr; // find the next parenthesis.
+            // set it_ to the closest pointer.
+            if(it_1 == NULL && it_2 == NULL) it_ = end;
+            else if(it_1 == NULL) it_ = it_2;
+            else if(it_2 == NULL) it_ = it_1;
+            else it_ = (it_1 < it_2 ? it_1 : it_2);
+            std::memmove(k, it, it_ - it); // move everything before the next parenthesis.
+            k += it_ - it; // update the output buffer.
+            it = it_ - 1; // -1 because main loop increments by 1.
         }
-        flag = true;
-        input.replace(t, 2, empty_string);
-        t = input.find(empty_paren, t == 0 ? 0 : t - 1);
+        it++;
       }
+      result.resize(k - t); // resize to actual size.
+      flag = true;
+      input.swap(result);
     }
 
     // Checks for various forms of inappropriate operator usage and flags errors accordingly.
@@ -1953,7 +2113,7 @@ class expression {
       std::stack<std::pair<int, bool>> parenthesis_count;
 
       for(int i = 0; i < input.size(); i++) {
-        if(std::islower(input[i])) {
+        if(is_lower(input[i])) {
           // Collect lowercase letters into 'temp' to form potential function names.
           temp += input[i];
         }
