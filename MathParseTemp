@@ -349,11 +349,10 @@ namespace {
   }
 
   // Special-cased constants/functions.
-  constexpr const char* p_x = "x";
-  constexpr const char* p_ln = "ln";
+  const std::string p_ln = "ln";
 
   // Valid 3-letter functions (e.g., sin, cos, tan, etc.).
-  constexpr std::array<const char*, 53> p_3lf {
+  const std::string p_3lf[53] {
     "neg","csc","","","pow","","mod","","sub","exp","min","","","cos","","",
     "sin","","rnd","","cot","","flr","sec","mul","div","npr","","","","","",
     "max","","abs","","","ncr","","","","tan","","","","add","","",
@@ -361,26 +360,25 @@ namespace {
   };
 
   // Valid 4-letter functions (e.g., sqrt, ceil, acos, etc.).
-  constexpr std::array<const char*, 28> p_4lf {
+  const std::string p_4lf[28] {
     "sech","","ceil","acos","cbrt","sinh","acot","logk","","","ftrl","","","tanh","","acsc",
     "","asec","asin","","","sqrt","csch","","","coth","cosh","atan"
   };
 
   // Checks whether a string is a known function by its length and hash.
-  bool is_allowed_function(const std::string &input) {
-    const size_t &length = input.length();
+  bool is_allowed_function(const char* ptr, int size) {
     unsigned int index;
-    switch(length) {
+    switch(size) {
       case 1:
-        return std::memcmp(p_x, &input[0], 1) == 0;
+        return *ptr == 'x';
       case 2:
-        return std::memcmp(p_ln, &input[0], 2) == 0;
+        return std::memcmp(&p_ln[0], ptr, 2) == 0;
       case 3:
-        index = -99 + (input[0]^27 + input[1]^32 + input[2]^10);
-        return index < 49 && std::memcmp(p_3lf[index], &input[0], 3) == 0;
+        index = -99 + ((*ptr)^27 + (*(ptr + 1))^32 + (*(ptr + 2))^10);
+        return index < 49 && !p_3lf[index].empty() && std::memcmp(&p_3lf[index][0], ptr, 3) == 0;
       case 4:
-        index = -129 + (input[1]^1 + input[2]^30 + input[3]^6);
-        return index < 28 && std::memcmp(p_4lf[index], &input[0], 4) == 0;
+        index = -129 + ((*(ptr + 1))^1 + (*(ptr + 2))^30 + (*(ptr + 3))^6);
+        return index < 28 && !p_4lf[index].empty() && std::memcmp(&p_4lf[index][0], ptr, 4) == 0;
       default:
         return false;
     }
@@ -982,7 +980,7 @@ class expression {
       if(this -> anomaly) return *this;
 
       // Can't embed into something that's not a recognized function or if it's just 'x' (the variable itself).
-      if(!is_allowed_function(function) || function == x_str) return *this;
+      if(!is_allowed_function(&function[0], function.length()) || function == x_str) return *this;
 
       // Copy this expression and mark it as a function now.
       expression result(*this);
@@ -1003,10 +1001,10 @@ class expression {
     }
 
     // Overload: same as above but accepts a C-style string literal for convenience.
-    expression embed_in(const char* function, const expression &other = expression()) const noexcept {
+    expression embed_in(const char* func, const expression &other = expression()) const noexcept {
       if(this -> anomaly) return *this;
-
-      if(!is_allowed_function(function) || function == x_str) return *this;
+      std::string function(func);
+      if(!is_allowed_function(&function[0], function.length()) || function == x_str) return *this;
 
       expression result(*this);
       result.make_function();
@@ -1137,67 +1135,29 @@ class expression {
     //    * If the name is 'x' (variable), checks if variables are allowed in this context.
     // - If any check fails, sets the anomaly flag and error message, then returns immediately.
     void app_func(const std::string &input, bool flag) noexcept {
-      std::string temp;
-      temp.reserve(5); // Pre-allocate to avoid repeated allocations (max func length + 1)
-    
-      for (int i = 0; i < input.size(); i++) {
-    
-        // Accumulate letters to form a potential function name.
-        // If it grows beyond 4 letters, that’s invalid (quick shortcut).
-        if(is_lower(input[i])) {
-          temp += input[i];
-          if(temp.size() == 5) {
-            this -> err_log = err_invalid_char_stream + temp + apostrophe_dot;
+      const char *it = &input[0], *end = it + input.size();
+      while(it != end) {
+        if(is_lower(*it)) {
+          int j = 1;
+          while(j < 5 && it + j != end && is_lower(*(it + j))) j++;
+          if(j == 5 || !is_allowed_function(it, j)) {
+            this -> err_log = err_invalid_char_stream + std::string(it, j) + apostrophe_dot;
             this -> anomaly = true;
             return;
           }
-        }
-        else {
-          // Non-letter encountered, time to check accumulated function name if any.
-          if(temp.empty()) continue;
-    
-          // Check if the accumulated string is an allowed function name.
-          if(!is_allowed_function(temp)) {
-            this -> err_log = err_invalid_char_stream + temp + apostrophe_dot;
-            this -> anomaly = true;
-            return;
-          }
-    
-          // Functions with names longer than one letter must be followed by '('.
-          if(temp.size() != 1 && input[i] != '(') {
+          if(j != 1 && ((it + j) == end || *(it + j) != '(')) {
             this -> err_log = flag ? err_no_arg_func : err_func_not_called;
             this -> anomaly = true;
             return;
           }
-    
-          // Special case: if it's 'x' and variables are disallowed, raise an error.
-          if(temp == x_str && !this -> allow_variable) {
+          if(j == 1 && !this -> allow_variable) {
             this -> err_log = err_var_where_not_allowed;
             this -> anomaly = true;
             return;
           }
-    
-          temp.clear(); // Reset for next potential function name.
+          it += j - 1;
         }
-      }
-    
-      // Final check for any leftover function name at the end of the string.
-      if(!temp.empty()) {
-        if(!is_allowed_function(temp)) {
-          this -> err_log = err_invalid_char_stream + temp + apostrophe_dot;
-          this -> anomaly = true;
-          return;
-        }
-        if(temp == x_str && !this -> allow_variable) {
-          this -> err_log = err_var_where_not_allowed;
-          this -> anomaly = true;
-          return;
-        }
-        if(temp != x_str) {
-          this -> err_log = err_no_arg_func;
-          this -> anomaly = true;
-          return;
-        }
+        it++;
       }
     }
 
