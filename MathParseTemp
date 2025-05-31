@@ -400,7 +400,7 @@ namespace {
   const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
 
   // Parenthesis helpers for function construction or validation.
-  const std::string open_paren = "(", close_paren = ")", hash = "#", double_open_paren = "((";
+  const std::string open_paren = "(", close_paren = ")", hash = "#";
 
   // Used as default or to identify issues with empty parenthesis in many scenarios.
   const std::string empty_string = "", empty_paren = "()";
@@ -567,8 +567,12 @@ class expression {
       implicit_mult(input);
       if(this -> anomaly) return *this;
 
+      // Check if corrcet functions are called and it is appropriately called using a '('.
+      app_func(input, flag);
+      if(this -> anomaly) return *this;
+
       // Check if use of commas is appropriate.
-      if(input.find(comma_str) != std::string::npos) valid_commas(input);
+      valid_commas(input);
       if(this -> anomaly) return *this;
 
       // Convert '!' to the function call "ftrl()".
@@ -583,27 +587,13 @@ class expression {
       malform_ops(input);
       if(this -> anomaly) return *this;
 
-      // Check if corrcet functions are called and it is appropriately called using a '('.
-      app_func(input, flag);
-      if(this -> anomaly) return *this;
-
-      // Flag if number of opening and closing parenthesis is uneven.
-      int opening_parenthesis = std::count(input.begin(), input.end(), '(');
-      int closing_parenthesis = std::count(input.begin(), input.end(), ')');
-      if(opening_parenthesis != closing_parenthesis) {
-        this -> err_log = err_incorrect_paren_use;
-        this -> anomaly = true;
-        return *this;
-      }
-
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
         binary_ops(input, op_str[i]);
         if(this -> anomaly) return *this;
       }
 
-      // Checking if there are () for potential redundancy removal.
-      if(input.find(double_open_paren) != std::string::npos) paren_cleaner(input);
+      paren_cleaner(input);
 
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
@@ -1795,30 +1785,31 @@ class expression {
     // Checks whether the input string contains any invalid characters.
     // Also detects if any Unicode characters are present.
     // Returns true if an invalid character is found; false otherwise.
+    // Also normalising the input string by removing spaces and lowercasing all characters(alphabets, keeping everything as is).
     bool input_validation_normalisation(std::string &input, bool &is_unicode_present) noexcept {
       std::string result;
-      result.resize(input.size());
-      char *k = &result[0], *t = k;
-      const char *it = &input[0], *end = &input[input.size()];
+      result.resize(input.size()); // Resize to maximum possible size.
+      char *k = &result[0], *t = k; // Writing pointers.
+      const char *it = &input[0], *end = it + input.size(); // Reading pointers.
       while(it != end) {
-        if(((*it) & 0x80) == 0) {
+        if(((*it) & 0x80) == 0) { // Single byte ASCCI characters.
           if(is_space(*it)) it++;
           else {
-            char c = to_lower(*(it++));
+            char c = to_lower(*(it++)); // Cannot directly check for valid characters before lowercasing potentially uppercase alphabets.
             if(is_valid_character(&c, 1)) *(k++) = c;
             else return true;
           }
         }
-        else if(((*it) & 0xE0) == 0xC0) {
+        else if(((*it) & 0xE0) == 0xC0) { // Two byte unicode characters.
           if(it + 2 >= end) return true;
           else if(is_valid_character(it, 2)) {
             is_unicode_present = true;
-            *(k++) = *(it++);
+            *(k++) = *(it++); // To avoid memcpy's overhead for just two bytes.
             *(k++) = *(it++);
           }
           else return true;
         }
-        else if(((*it) & 0xF0) == 0xE0) {
+        else if(((*it) & 0xF0) == 0xE0) { // Three byte unicode characters.
           if(it + 3 >= end) return true;
           else if(is_valid_character(it, 3)) {
             is_unicode_present = true;
@@ -1828,9 +1819,9 @@ class expression {
           }
           else return true;
         }
-        else return true;
+        else return true; // No 4 byte unicode are in valid character list.
       }
-      result.resize(k - t);
+      result.resize(k - t); // Resize to actual size.
       input.swap(result);
       return false;
     }
