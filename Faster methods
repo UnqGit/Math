@@ -1,0 +1,45 @@
+// parenthesis would be balanced before calling this function so the only focus is to make it as fast as possible(upgrade to c baby).
+// call  by checking if "()" exist first to not do redundant work.
+// remove (), ()()(), (()()()), ((())) in a single pass(O(n), don't use abstraction methods like find & erase coz O(n*k)).
+// eg, (((()))A) -> (A), (()()()A) -> (A), ()A -> A, (AAA(A)()) -> (AAA(A)), (((A))) -> (((A))), ((()()()))((()))()()() -> _(nothing), (A()B) -> (AB).
+void remove_empt(std::string &input, bool &flag) noexcept { // flag is to signal changes (we check that empty parenthesis exist before calling it so it's fine because it will always be updated).
+  // 3-10x faster then find and erase.
+  int parenthesis = 0, result_parenthesis = 0; // stack like counters for input parenthesis and output parenthesis.
+  std::string result;
+  result.resize(input.size());
+  char *k = &result[0], *t = k;
+  const char *it = &input[0], *end = &input[input.size()];
+  while(it != end) {
+    switch(*it) {
+      case'(':
+        parenthesis++;
+        break;
+      case')':
+        if(parenthesis == result_parenthesis) {
+          *(k++) = *it;
+          result_parenthesis--;
+        }
+        parenthesis--;
+        break;
+      default:
+        int difference = parenthesis - result_parenthesis--;
+        difference = difference >= 0 ? difference : - difference + 1; // don't ask me why but this was necessary for producing correct results.
+        std::memset(k, '(', difference);
+        result_parenthesis = parenthesis; // update to sync.
+        k += difference;
+        const char *it_1 = (char*)std::memchr(it, '(', end - it), *it_2 = (char*)std::memchr(it, ')', end - it), *it_ = nullptr; // find the next parenthesis.
+        // set it_ to the closest pointer.
+        if(it_1 == NULL && it_2 == NULL) it_ = end;
+        else if(it_1 == NULL) it_ = it_2;
+        else if(it_1 == NULL) it_ = it_1;
+        else it_ = (it_1 < it_2 ? it_1 : it_2);
+        std::memmove(k, it, it_ - it); // move everything before the next parenthesis.
+        k += it_ - it; // update the output buffer.
+        it = it_ - 1; // -1 because main loop increments by 1.
+    }
+    it++;
+  }
+  result.resize(k - t); // resize to actual size.
+  flag = true;
+  input.swap(result);
+} // basically black magic.
