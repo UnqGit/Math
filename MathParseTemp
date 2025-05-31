@@ -1843,8 +1843,11 @@ class expression {
       while(it != end) {
         if(((*it) & 0x80) == 0) {
           if(is_space(*it)) it++;
-          else if(is_valid_character(it, 1)) *(k++) = to_lower(*(it++));
-          else return true;
+          else {
+            char c = to_lower(*(it++));
+            if(is_valid_character(&c, 1)) *(k++) = c;
+            else return true;
+          }
         }
         else if(((*it) & 0xE0) == 0xC0) {
           if(it + 2 >= end) return true;
