@@ -551,8 +551,6 @@ class expression {
         this -> anomaly = true;
         return *this;
       }
-      // Convert common aliases to a unified function name.
-      func_name_norm(input);
       // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
       basic_cleanup(input, is_unicode_present);
       // Check for invalid decimal usage.
@@ -571,6 +569,8 @@ class expression {
       implicit_mult(input);
       if(this -> anomaly) return *this;
       // Check if corrcet functions are called and it is appropriately called using a '('.
+      // Convert common aliases to a unified function name.
+      func_name_norm(input);
       app_func(input, flag);
       if(this -> anomaly) return *this;
       // Check if use of commas is appropriate.
