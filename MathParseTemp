@@ -534,11 +534,8 @@ class expression {
 
     // Main function to be used.
     expression &clean() noexcept {
-
       if(!this -> anomaly) return *this;
-
       this -> anomaly = false;
-
       // Initialization.
       std::string &unmodified = this -> entered_expression;
       std::string &input = this -> modified_expression;
@@ -549,62 +546,52 @@ class expression {
         return *this;
       }
       bool flag = false;
-      
       bool is_unicode_present = false;
       if(input_validation_normalisation(input, is_unicode_present)) {
         this -> err_log = err_invalid_characters;
         this -> anomaly = true;
         return *this;
       }
-
       // Convert common aliases to a unified function name.
       func_name_norm(input);
-
       // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
       basic_cleanup(input, is_unicode_present);
-
       // Check for invalid decimal usage.
-      if(input.find(dot) != std::string::npos) invalid_decimal(input);
+      if(input.find('.') != std::string::npos) invalid_decimal(input);
       if(this -> anomaly) return *this;
-
       // Make parenthesis even.
       app_paren(input, flag);
-
       // Remove empty parenthesis.
       if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
-
+      if(input.empty()) {
+        this -> anomaly = true;
+        this -> err_log = err_incorrect_paren_use;
+        return *this;
+      }
       // Convert implict multiplication to explicit.
       implicit_mult(input);
       if(this -> anomaly) return *this;
-
       // Check if corrcet functions are called and it is appropriately called using a '('.
       app_func(input, flag);
       if(this -> anomaly) return *this;
-
       // Check if use of commas is appropriate.
       valid_commas(input);
       if(this -> anomaly) return *this;
-
       // Convert '!' to the function call "ftrl()".
-      if(input.find(exclaimation) != std::string::npos) factorial_convert(input);
+      if(input.find('!') != std::string::npos) factorial_convert(input);
       if(this -> anomaly) return *this;
-
       // Change √('#') to sqrt() and remove empty parenthesis potentially created by it or above few functions.
-      if(input.find(hash) != std::string::npos) add_sqrt(input);
+      if(input.find('#') != std::string::npos) add_sqrt(input);
       if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
-
       // Flag malperfomed operations such as '+)'.
       malform_ops(input);
       if(this -> anomaly) return *this;
-
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
         binary_ops(input, op_str[i]);
         if(this -> anomaly) return *this;
       }
-
       paren_cleaner(input);
-
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
       if(input.empty()) {
@@ -612,10 +599,8 @@ class expression {
         this -> anomaly = true;
         return *this;
       }
-
       // Log if successfully updated.
       this -> err_log = done_modified;
-
       // Should be able to parse in less than 20µs for most input strings.
       return *this;
     }
@@ -623,6 +608,11 @@ class expression {
     // Provide the input string.
     std::string original() const noexcept {
       return this -> entered_expression;
+    }
+
+    // Provide the modified string.
+    std::string modified() const noexcept {
+      return this -> modified_expression;
     }
 
     // Return the error log member.
@@ -1041,15 +1031,6 @@ class expression {
       return *this;
     }
 
-    // Not sure why anybody would want this but okay (no clean).
-    expression &update_nc(const std::string &new_expr) noexcept {
-      this -> entered_expression = new_expr;
-      this -> modified_expression.clear();
-      this -> anomaly = true;
-      this -> err_log = err_not_modified;
-      return *this;
-    }
-
     // String literal versions.
     // Update the input string with a new string and optionally cleanse it.
     expression &update(const char* new_expr) noexcept {
@@ -1058,15 +1039,6 @@ class expression {
       this -> anomaly = true;
       this -> err_log = err_not_modified;
       this -> clean();
-      return *this;
-    }
-
-    // Not sure why anybody would want this but okay (no clean).
-    expression &update_nc(const char* new_expr) noexcept {
-      this -> entered_expression = new_expr;
-      this -> modified_expression.clear();
-      this -> anomaly = true;
-      this -> err_log = err_not_modified;
       return *this;
     }
 
@@ -1320,18 +1292,19 @@ class expression {
         }
       }
       // Lambda to add implicit multiplication for placeholders like pi and euler.
-      auto pi_and_euler = [&](const std::string &to_check) -> void {
+      auto pi_and_euler = [&](const char to_check) -> void {
         size_t t = input.find(to_check);
         while(t != std::string::npos) {
-          std::string substring = to_check;
+          std::string substring;
           int update = 0;
           // Insert '*' before placeholder if preceded by number/letter.
           if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || is_lower(input[t - 1])))
-            substring.insert(substring.begin(), '*');
+            substring.push_back('*');
+          substring.push_back(to_check);
           // Insert '*' after placeholder if followed by letter or valid symbol.
-          if((t + to_check.length() < input.size()) && ((is_lower(input[t + to_check.length()])) ||
-             (basic_cleanup_char_lookup(input[t + to_check.length()]) && input[t + to_check.length()] != ')'))) {
-            substring.append(1, '*');
+          if((t + 1 < input.size()) && ((is_lower(input[t + 1])) ||
+             (basic_cleanup_char_lookup(input[t + 1]) && input[t + 1] != ')'))) {
+            substring.push_back('*');
             update = 1;
           }
           if(substring.length() != 1)
@@ -1339,8 +1312,8 @@ class expression {
           t = input.find(to_check, t + substring.length() - update);
         }
       };
-      pi_and_euler(equal_str);
-      pi_and_euler(at_str);
+      pi_and_euler('=');
+      pi_and_euler('@');
 
       // Replace remaining ASCII castings, skipping some depending on unicode presence.
       int i = is_unicode_present ? 0 : two_x_num_super;
