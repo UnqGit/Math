@@ -94,17 +94,27 @@ namespace {
 // usage of the above scope's unordered sets.
 namespace {
 
-  unsigned char to_lower(const unsigned char &c) {
+  inline char to_lower(const char &c) noexcept {
     return (c > 64 && c < 91) ? c + 32 : c;
   }
   
-  bool is_space(const unsigned char &c) {
+  inline bool is_space(const char &c) {
     return c == 32 || c == 9 || c == 10;
   }
 
-  bool is_lower(const char &c) noexcept {
+  inline bool is_lower(const char &c) noexcept {
     return c > 96 && c < 123;
   }
+
+  inline bool is_digit(const char &c) noexcept {
+    return c > 47 && c < 58;
+  }
+
+  inline bool is_low_num(const char &c) noexcept {
+    return is_lower(c) || is_digit(c);
+  }
+
+  
 
   // These were found by brute force to get the best results, no need to look in here.
 
@@ -219,7 +229,7 @@ namespace {
   // ======= Recognized function names ======= //
 
   // Valid 1–4 letter binary mathematical functions (e.g., "pow", "add").
-  constexpr std::array<const char*, 22> b_flt {
+  const std::string b_flt[22] {
     "mul","","npr","","gcd","add","","","sub","div","min","","logk","","mod","",
     "max","","lcm","","pow","ncr"
   };
@@ -230,7 +240,7 @@ namespace {
       case 3:
       case 4:
         index = -103 + (input[0]^3 + input[1]^4 + input.back()^2);
-        return index < 22 && std::memcmp(b_flt[index], &input[0], length) == 0;
+        return index < 22 && !b_flt[index].empty() && std::memcmp(&b_flt[index][0], &input[0], length) == 0;
       default:
         return false;
     }
@@ -1372,15 +1382,15 @@ class expression {
         }
         else if(input[i] == '.') {
           // Remove decimal if it's trailing or followed by non-digit
-          if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
+          if(i == input.size() - 1 || (i < input.size() - 1 && !is_digit(input[i + 1]))) {
             input.erase(i, 1);
             i--;
           }
           // Add leading zero if decimal at start or after non-digit
-          if(i > -1 && (input[i] == '.') && (i == 0 || (i > 0 && !std::isdigit(input[i - 1])))) {
+          if(i > -1 && (input[i] == '.') && (i == 0 || (i > 0 && !is_digit(input[i - 1])))) {
             input.insert(i, zero);
             i++;
-            if(i == input.size() - 1 || (i < input.size() - 1 && !std::isdigit(input[i + 1]))) {
+            if(i == input.size() - 1 || (i < input.size() - 1 && !is_digit(input[i + 1]))) {
               input.erase(i, 1);
               i--;
             }
@@ -1740,7 +1750,7 @@ class expression {
         else if(is_lower(input[i])) {
           // If a function name starts immediately after a digit or ')',
           // insert '*' before the function name
-          if(i > 0 && (std::isdigit(input[i - 1]) || input[i - 1] == ')')) {
+          if(i > 0 && (is_digit(input[i - 1]) || input[i - 1] == ')')) {
             input.insert(i, asterisk_str);
             i++; // skip past the inserted '*'
           }
@@ -1749,7 +1759,7 @@ class expression {
         // --------- Rule for factorial symbol '!' ---------
         else if(input[i] == '!') {
           // If '!' is immediately followed by a digit or letter, insert '*' after it
-          if((i + 1) < input.size() && std::isalnum(input[i + 1])) {
+          if((i + 1) < input.size() && is_low_num(input[i + 1])) {
             input.insert(i + 1, asterisk_str);
           }
         }
@@ -2166,7 +2176,7 @@ class expression {
 
         // Verify that the character immediately preceding the decimal point is a digit.
         // For example, "+.5" or "(.7" would be flagged as invalid.
-        if(!std::isdigit(input[t - 1])) {
+        if(!is_digit(input[t - 1])) {
           this -> err_log = err_dec_not_follows;
           this -> anomaly = true;
           return;
@@ -2177,7 +2187,7 @@ class expression {
 
           // Confirm that the character immediately following the decimal point is a digit.
           // Examples like "3." or "4.a" would be considered invalid.
-          if(!std::isdigit(input[t + 1])) {
+          if(!is_digit(input[t + 1])) {
             this -> err_log = err_dec_not_followed;
             this -> anomaly = true;
             return;
@@ -2187,7 +2197,7 @@ class expression {
             int j = 1;
 
             // Advance 'j' past all consecutive digits following the current decimal point.
-            while((t + j) < input.length() && std::isdigit(input[t + j])) j++;
+            while((t + j) < input.length() && is_digit(input[t + j])) j++;
 
             // After processing the digits, check if there are more characters in the string.
             if((t + j) < input.length()) {
