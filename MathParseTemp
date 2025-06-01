@@ -43,8 +43,7 @@ namespace {
   const std::string ascii_cast[a_c_size] {
     "⁰", "0", "¹", "1", "²", "2", "³", "3", "⁴", "4",
     "⁵", "5", "⁶", "6", "⁷", "7", "⁸", "8", "⁹", "9",
-    "=", "3.14159265358979323846264338327950288419",
-    "@", "2.71828182845904523536028747135266249775"
+    "=", "pi", "@", "e"
   };
   const std::string pi_str = "pi", equal_str = "=", e_str = "e", at_str = "@";
 }
@@ -380,9 +379,9 @@ namespace {
     unsigned int index;
     switch(size) {
       case 1:
-        return *ptr == 'x';
+        return *ptr == 'x' || *ptr == 'e';
       case 2:
-        return std::memcmp(&p_ln[0], ptr, 2) == 0;
+        return std::memcmp(&p_ln[0], ptr, 2) == 0 || std::memcmp(&pi_str[0], ptr, 2) == 0;
       case 3:
         index = -99 + ((*ptr)^27 + (*(ptr + 1))^32 + (*(ptr + 2))^10);
         return index < 49 && !p_3lf[index].empty() && std::memcmp(&p_3lf[index][0], ptr, 3) == 0;
@@ -1117,12 +1116,12 @@ class expression {
             this -> anomaly = true;
             return;
           }
-          if(j != 1 && ((it + j) == end || *(it + j) != '(')) {
+          if(j != 1 && ((it + j) == end || *(it + j) != '(') && !(j == 2 && *it == 'p')) {
             this -> err_log = flag ? err_no_arg_func : err_func_not_called;
             this -> anomaly = true;
             return;
           }
-          if(j == 1 && !this -> allow_variable) {
+          if(j == 1 && *it == 'x' && !this -> allow_variable) {
             this -> err_log = err_var_where_not_allowed;
             this -> anomaly = true;
             return;
@@ -1247,7 +1246,7 @@ class expression {
           size_t t = input.find(unicode_symbol_conversion[i]);
           while(t != std::string::npos) {
             input.replace(t, unicode_symbol_conversion[i].length(), unicode_symbol_conversion[i + 1]);
-            t = input.find(unicode_symbol_conversion[i], t + unicode_symbol_conversion[i + 1]);
+            t = input.find(unicode_symbol_conversion[i], t + unicode_symbol_conversion[i + 1].length());
             // √ is multi-byte, so subtract 1 when finding next occurrence (found out by testing).
           }
         }
