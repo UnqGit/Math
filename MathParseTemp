@@ -551,11 +551,6 @@ class expression {
         this -> anomaly = true;
         return *this;
       }
-      // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
-      basic_cleanup(input, is_unicode_present);
-      // Check for invalid decimal usage.
-      if(input.find('.') != std::string::npos) invalid_decimal(input);
-      if(this -> anomaly) return *this;
       // Make parenthesis even.
       app_paren(input, flag);
       // Remove empty parenthesis.
@@ -565,6 +560,11 @@ class expression {
         this -> err_log = err_incorrect_paren_use;
         return *this;
       }
+      // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
+      basic_cleanup(input, is_unicode_present);
+      // Check for invalid decimal usage.
+      if(input.find('.') != std::string::npos) invalid_decimal(input);
+      if(this -> anomaly) return *this;
       // Convert implict multiplication to explicit.
       implicit_mult(input);
       if(this -> anomaly) return *this;
@@ -1338,37 +1338,38 @@ class expression {
     // - Sign normalization helps avoid tricky bugs with multiple sign characters.
     // - Decimal fixes ensure the input won't confuse parsers or cause math errors.
     void basic_cleanup(std::string &input, const bool is_unicode_present) noexcept {
-      unicode_constant_cleanup(input, is_unicode_present);
-
-      for(int i = 0; i < input.size(); i++) {
-        if(is_sign(input[i])) {
-          int count = (input[i] == '-'), j = 1;
-
-          // Collapses consecutive '+' and '-' into a single sign:
-          // e.g., "---+" becomes "-"
-          while((i + j) < input.size() && is_sign(input[i + j])) {
-            count += input[i + j] == '-';
-            j++;
-          }
-          if(j > 1) input.replace(i, j, (count & 1 ? minus : plus));
-        }
-        else if(input[i] == '.') {
-          // Remove decimal if it's trailing or followed by non-digit
-          if(i == input.size() - 1 || (i < input.size() - 1 && !is_digit(input[i + 1]))) {
-            input.erase(i, 1);
-            i--;
-          }
-          // Add leading zero if decimal at start or after non-digit
-          if(i > -1 && (input[i] == '.') && (i == 0 || (i > 0 && !is_digit(input[i - 1])))) {
-            input.insert(i, zero);
-            i++;
-            if(i == input.size() - 1 || (i < input.size() - 1 && !is_digit(input[i + 1]))) {
-              input.erase(i, 1);
-              i--;
-            }
+      {
+        std::string result; // Temporary string for single pass approach without replace or erase.
+        result.resize((input.length() << 1) - (input.length() >> 1)); // Theoretical max number of output size (e.g -> ".5" => 0.5; i.e, 1.5x).
+        const char* it = &input[0], *end = it + input.length(); // Reading pointers.
+        char *k = &result[0], *t = k; // Writing pointer and static pointer to the start.
+        bool negative = false;
+        while(it != end) { // Loop through the input.
+          switch(*it) {
+            case'+':
+            case'-':
+              negative = *(it++) == '-';
+              while(it != end && is_sign(*it)) if(*(it++) == '-') negative = !negative; // Flip negative logic.
+              if(k != t && is_sign(*(k - 1))) {
+                // If the last written sign was '-' and the new sequence is also '-', make it '+' otherwise '-'
+                // needed for cases like -.+-+ where it would become "--" instead of "+" without handling it explicitly.
+                if(negative) *(k - 1) = *(k - 1) == '-' ? '+' : '-';
+              }
+              else *(k++) = negative ? '-' : '+'; // If the last written character wasn't a sign add the appropriate sign.
+              break;
+            case'.':
+              if(it + 1 == end || !is_digit(*(it + 1))) {it++; continue;}
+              if(k == t || !is_digit(*(k - 1))) // If the last output character wasn't a digit insert a 0.
+                *(k++) = '0';
+              *(k++) = *(it++); // Add the decimal point.
+              break;
+            default: *(k++) = *(it++); // Write the non-sign non-decimal character as-is.
           }
         }
+        result.resize(k - t); // Resize to actual size.
+        input.swap(result);
       }
+      unicode_constant_cleanup(input, is_unicode_present);
     }
 
    // Replace every '#' character (which was a placeholder for '√') with 'sqrt()' function call.
