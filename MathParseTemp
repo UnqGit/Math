@@ -200,12 +200,15 @@ namespace {
   };
   
   // Valid multibyte (Unicode) characters (as UTF-8 strings).
-  const std::string vc_mch[65] {
-    "÷","·","","","","¹","","","⁶","⁵","⁸","⁷","","⁹","","",
-    "","","","","","","","","","","","","","","","",
-    "","","⁰","","","","⁴","","","","","","π","","","",
-    "","³","","","","²","","√","","","","","","","","",
-    "×"
+  const std::string vc_2l[33] {
+    "×", "", "", "", "", "", "", "", "", "π", 
+    "", "", "", "", "", "", "", "", "", "", 
+    "", "¹", "", "", "", "", "", "³", "²", "", 
+    "", "·", "÷"
+  };
+  const std::string vc_3l[15] {
+    "√", "⁰", "", "", "", "", "", "", "", "⁸", 
+    "⁹", "⁶", "⁷", "⁴", "⁵"
   };
 
   // Determines if a UTF-8 sequence (1–3 bytes) is a valid character.
@@ -216,10 +219,11 @@ namespace {
         index = -6 + ((*ptr) % 88);
         return index < 52 && (*ptr) == vc_sch[index];
       case 2:
+        index = - 77 + ((unsigned char)(*(ptr + 0))^0 + (unsigned char)(*(ptr + 1))^25);
+        return index < 33 && !vc_2l[index].empty() && std::memcmp(ptr, &vc_2l[index][0], 2) == 0;
       case 3:
-        // Custom hash based on byte values to avoid full UTF-8 parsing.
-        index = -168 + ((unsigned char)(*ptr)^1 + (unsigned char)(*(ptr + 1))^11 + (unsigned char)(*(ptr + size - 1))^17);
-        return index < 65 && !vc_mch[index].empty() && std::memcmp(&vc_mch[index][0], ptr, size) == 0;
+        index = - 47 + ((unsigned char)(*(ptr + 1))^6 + (unsigned char)(*(ptr + 2))^7);
+        return index < 15 && !vc_3l[index].empty() && std::memcmp(ptr, &vc_3l[index][0], 3) == 0;
       default:
         return false;
     }
@@ -1783,7 +1787,7 @@ class expression {
           }
         }
         else if(((*it) & 0xE0) == 0xC0) { // Two byte unicode characters.
-          if(it + 2 >= end) return true;
+          if(it + 2 > end) return true;
           else if(is_valid_character(it, 2)) {
             is_unicode_present = true;
             *(k++) = *(it++); // To avoid memcpy's overhead for just two bytes.
@@ -1792,7 +1796,7 @@ class expression {
           else return true;
         }
         else if(((*it) & 0xF0) == 0xE0) { // Three byte unicode characters.
-          if(it + 3 >= end) return true;
+          if(it + 3 > end) return true;
           else if(is_valid_character(it, 3)) {
             is_unicode_present = true;
             std::memcpy(k, it, 3);
