@@ -1247,7 +1247,7 @@ class expression {
           size_t t = input.find(unicode_symbol_conversion[i]);
           while(t != std::string::npos) {
             input.replace(t, unicode_symbol_conversion[i].length(), unicode_symbol_conversion[i + 1]);
-            t = input.find(unicode_symbol_conversion[i], t + unicode_symbol_conversion[i].length() - 1 - (i == 8 ? 1 : 0));
+            t = input.find(unicode_symbol_conversion[i], t + unicode_symbol_conversion[i + 1]);
             // √ is multi-byte, so subtract 1 when finding next occurrence (found out by testing).
           }
         }
