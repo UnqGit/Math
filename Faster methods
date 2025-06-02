@@ -21,11 +21,11 @@ void unicode_constant_cleanup(std::string &input) noexcept {
       switch(*it) {
         case'e': // exp, neg, ceil, tangent, sine <- skip these ('e' appears nowhere else)
           if(it != it_ && (*(it - 1) == 'c' || *(it - 1) == 'n' || *(it - 1) == 'g')) {
-            it++;
+            *(k++) = *(it++);
             continue;
           }
           if(it + 2 < end && *(it + 1) == 'x' && *(it + 2) == 'p' && (it + 3 == end || *(it + 3) != 'i')) { // avoid exp and don't flag it with expi which is just e*x*pi.
-            it++;
+            *(k++) = *(it++);
             continue;
           }
           if(k != t && is_lower(*(k - 1))) *(k++) = '*';
