@@ -2,20 +2,68 @@ inline bool is_superscript(const char *ptr) noexcept {
   return ((*ptr == -30 && *(ptr + 1) == -127) || (*ptr == -62 && *(ptr + 1) != -73));
 }
 
-
+inline char superscript_to_ascci(const char *ptr, int size) noexcept {
+  switch(size) {
+    case 2:
+      return *(it + 1) == -71 ? '1' : 48 + (80 + *(it + 1));
+    case 3:
+      return 48 + (80 + *(it + 2));
+  }
+}
 
 void unicode_constant_cleanup(std::string &input) noexcept {
   std::string result;
-  result.resize(input.size());
+  result.resize(input.size() << 1);
   const char *it = &input[0], *it_ = it, *end = it + input.size();
+  char *k = &result[0], *t = k;
   while(it != end) {
-    if(*(it) & 0x80 == 0x00) {
+    if(*it > 0) {
       switch(*it) {
+        case'e': // exp, neg, ceil, tangent, sine <- skip these ('e' appears nowhere else)
+          if(it != it_ && (*(it - 1) == 'c' || *(it - 1) == 'n' || *(it - 1) == 'g')) {
+            it++;
+            continue;
+          }
+          if(it + 2 < end && *(it + 1) == 'x' && *(it + 2) == 'p' && (it + 3 == end || *(it + 3) != 'i')) { // avoid exp and don't flag it with expi which is just e*x*pi.
+            it++;
+            continue;
+          }
+          if(k != t && is_lower(*(k - 1))) *(k++) = '*';
+          *(k++) = *(it++);
+          if(it != end && (is_lower(*it) || *it == '(')) *(k++) = '*';
+          break;
         case'p':
           if(it + 1 != end && *(it + 1) == 'i') {
-            
+            if(k != t && is_lower(*(k - 1))) *(k++) = '*';
+            *(k++) = *(it++);
+            *(k++) = *(it++);
+            if(it != end && (is_lower(*it) || *it == '(')) *(k++) = '*';
           }
+          else *(k++) = *(it++);
+          break;
+        default:
+          *(k++) = *(it++);
       }
+    }
+    else {
+      int len = 2 + (*it == -30);
+      if(is_superscript(*it)){
+        if((k != t && (is_lower(*(k - 1)) || *(k - 1) == ')')) || it != it_ && is_digit(*(it - 1))) *(k++) = '^';
+        *(k++) = superscript_to_ascci(it, len);
+        if(it + len != end && is_digit(*(it + len))) *(k++) = '*';
+      }
+      else if(*it == -61 || *it == 62) {
+        if(*(it) == -61 && *(it + 1) == -73) *(k++) = '/';
+        else *(k++) = '*';
+      }
+      else if(len == 2) {
+        if(k != t && is_lower(*(k - 1))) *(k++) = '*';
+        *(k++) = 'p';
+        *(k++) = 'i';
+        if(it + len != end && (is_lower(*(it + len)) || *(it + len) == '(')) *(k++) = '*'; 
+      }
+      else *(k++) = '#';
+      it += len;
     }
   }
 }
