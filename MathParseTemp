@@ -113,7 +113,19 @@ namespace {
     return is_lower(c) || is_digit(c);
   }
 
+  inline bool is_superscript(const char *ptr) noexcept {
+    return ((*ptr == -30 && *(ptr + 1) == -127) || (*ptr == -62 && *(ptr + 1) != -73));
+  }
   
+  inline char superscript_to_ascci(const char *it, int size) noexcept {
+    switch(size) {
+      case 2:
+        return *(it + 1) == -71 ? '1' : 48 + (80 + *(it + 1));
+      case 3:
+        return 48 + (80 + *(it + 2));
+    }
+    return 48;
+  }
 
   // These were found by brute force to get the best results, no need to look in here.
 
@@ -549,8 +561,7 @@ class expression {
         return *this;
       }
       bool flag = false;
-      bool is_unicode_present = false;
-      if(input_validation_normalisation(input, is_unicode_present)) {
+      if(input_validation_normalisation(input)) {
         this -> err_log = err_invalid_characters;
         this -> anomaly = true;
         return *this;
@@ -565,7 +576,7 @@ class expression {
         return *this;
       }
       // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
-      basic_cleanup(input, is_unicode_present);
+      basic_cleanup(input);
       // Check for invalid decimal usage.
       if(input.find('.') != std::string::npos) invalid_decimal(input);
       if(this -> anomaly) return *this;
@@ -1244,90 +1255,63 @@ class expression {
     // Why this matters:
     // - Converts fancy Unicode math notation to simple, clean ASCII math strings that are easier to parse downstream.
     // - Ensures implicit multiplication (often missing in raw Unicode math strings) is correctly represented.
-    void unicode_constant_cleanup(std::string &input, const bool is_unicode_present) noexcept {
-      if(is_unicode_present) {
-        for(int i = 0; i < u_sym_c_size; i += 2) {
-          size_t t = input.find(unicode_symbol_conversion[i]);
-          while(t != std::string::npos) {
-            input.replace(t, unicode_symbol_conversion[i].length(), unicode_symbol_conversion[i + 1]);
-            t = input.find(unicode_symbol_conversion[i], t + unicode_symbol_conversion[i + 1].length());
-            // √ is multi-byte, so subtract 1 when finding next occurrence (found out by testing).
+    void unicode_constant_cleanup(std::string &input) noexcept {
+      std::string result;
+      result.resize(input.size() << 1);
+      const char *it = &input[0], *it_ = it, *end = it + input.size();
+      char *k = &result[0], *t = k;
+      while(it != end) {
+        if(*it > 0) {
+          switch(*it) {
+            case'e': // exp, neg, ceil, tangent, sine <- skip these ('e' appears nowhere else)
+              if(it != it_ && (*(it - 1) == 'c' || *(it - 1) == 'n' || *(it - 1) == 'g')) {
+                *(k++) = *(it++);
+                continue;
+              }
+              if(it + 2 < end && *(it + 1) == 'x' && *(it + 2) == 'p' && (it + 3 == end || *(it + 3) != 'i')) { // avoid exp and don't flag it with expi which is just e*x*pi.
+                *(k++) = *(it++);
+                continue;
+              }
+              if(k != t && is_lower(*(k - 1))) *(k++) = '*';
+              *(k++) = *(it++);
+              if(it != end && (is_lower(*it) || *it == '(')) *(k++) = '*';
+              break;
+            case'p':
+              if(it + 1 != end && *(it + 1) == 'i') {
+                if(k != t && is_lower(*(k - 1))) *(k++) = '*';
+                *(k++) = *(it++);
+                *(k++) = *(it++);
+                if(it != end && (is_lower(*it) || *it == '(')) *(k++) = '*';
+              }
+              else *(k++) = *(it++);
+              break;
+            default:
+              *(k++) = *(it++);
           }
         }
-      }
-      {
-        size_t t = input.find(pi_str);
-        while(t != std::string::npos) {
-          input.replace(t, 2, equal_str);  // Replace pi with placeholder.
-          t = input.find(pi_str, t + 1);
-        }
-      }
-      {
-        size_t t = input.find(e_str);
-        while(t != std::string::npos) {
-          // Avoid replacing 'e' in "exp" or "sec" or "neg" or "ceil".
-          if(!((t + 1 < input.size() && input[t + 1] == 'x' && t + 2 < input.size() && input[t + 2] == 'p') || 
-              (t > 0 && (input[t - 1] == 'c' || input[t - 1] == 'n' || input[t - 1] == 's' || input[t - 1] == 'g'))))
-            input.replace(t, 1, at_str);  // Replace e with placeholder.
-          t = input.find(e_str, t + 1);
-        }
-      }
-      if(is_unicode_present) {
-        for(int i = 0; i < num_super; i++) {
-          size_t t = input.find(superscript[i]);
-          while(t != std::string::npos) {
-            std::string substring = superscript[i];
-            int update = 0;
-            // Insert '^' before superscript if preceded by a number or letter (implicit exponentiation).
-            if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || is_lower(input[t - 1])))
-              substring.insert(substring.begin(), '^');
-
-            // Insert '*' after superscript if followed by a letter or valid symbol (implicit multiplication).
-            if((t + superscript[i].length() < input.size()) && ((is_lower(input[t + superscript[i].length()])) ||
-               (basic_cleanup_char_lookup(input[t + superscript[i].length()]) && input[t + superscript[i].length()] != ')'))) {
-              substring.append(1, '*');
-              update = 1;
-            }
-            if(substring.length() != superscript[i].length())
-              input.replace(t, superscript[i].size(), substring);
-            t = input.find(superscript[i], t + substring.length() - update);
+        else {
+          int len = 2 + (*it == -30);
+          if(is_superscript(it)){
+            if((k != t && (is_lower(*(k - 1)) || *(k - 1) == ')')) || it != it_ && is_digit(*(it - 1))) *(k++) = '^';
+            *(k++) = superscript_to_ascci(it, len);
+            if(it + len != end && is_digit(*(it + len))) *(k++) = '*';
           }
-        }
-      }
-      // Lambda to add implicit multiplication for placeholders like pi and euler.
-      auto pi_and_euler = [&](const char to_check) -> void {
-        size_t t = input.find(to_check);
-        while(t != std::string::npos) {
-          std::string substring;
-          int update = 0;
-          // Insert '*' before placeholder if preceded by number/letter.
-          if(t > 0 && (basic_cleanup_char_lookup(input[t - 1]) || is_lower(input[t - 1])))
-            substring.push_back('*');
-          substring.push_back(to_check);
-          // Insert '*' after placeholder if followed by letter or valid symbol.
-          if((t + 1 < input.size()) && ((is_lower(input[t + 1])) ||
-             (basic_cleanup_char_lookup(input[t + 1]) && input[t + 1] != ')'))) {
-            substring.push_back('*');
-            update = 1;
+          else if(*it == -61 || *it == 62) {
+            if(*(it) == -61 && *(it + 1) == -73) *(k++) = '/';
+            else *(k++) = '*';
           }
-          if(substring.length() != 1)
-            input.replace(t, 1, substring);
-          t = input.find(to_check, t + substring.length() - update);
-        }
-      };
-      pi_and_euler('=');
-      pi_and_euler('@');
-
-      // Replace remaining ASCII castings, skipping some depending on unicode presence.
-      int i = is_unicode_present ? 0 : two_x_num_super;
-      for(; i < a_c_size; i += 2) {
-        size_t t = input.find(ascii_cast[i]);
-        while(t != std::string::npos) {
-          input.replace(t, ascii_cast[i].length(), ascii_cast[i + 1]);
-          t = input.find(ascii_cast[i], t + ascii_cast[i].length() - 1 - (i < two_x_num_super ? 1 : 0));
-          // Adjust for multi-byte superscripts.
+          else if(len == 2) {
+            if(k != t && is_lower(*(k - 1))) *(k++) = '*';
+            *(k++) = 'p';
+            *(k++) = 'i';
+            if(it + len != end && (is_lower(*(it + len)) || *(it + len) == '(')) *(k++) = '*'; 
+          }
+          else *(k++) = '#';
+          it += len;
         }
       }
+      result.resize(k - t);
+      input.swap(result);
     }
 
     // Cleans up and normalizes the input string by:
@@ -1341,7 +1325,7 @@ class expression {
     // - Makes sure expressions are consistent and easy to parse downstream by converting ambiguous or messy parts into neat, standard forms.
     // - Sign normalization helps avoid tricky bugs with multiple sign characters.
     // - Decimal fixes ensure the input won't confuse parsers or cause math errors.
-    void basic_cleanup(std::string &input, const bool is_unicode_present) noexcept {
+    void basic_cleanup(std::string &input) noexcept {
       {
         std::string result; // Temporary string for single pass approach without replace or erase.
         result.resize((input.length() << 1) - (input.length() >> 1)); // Theoretical max number of output size (e.g -> ".5" => 0.5; i.e, 1.5x).
@@ -1373,7 +1357,7 @@ class expression {
         result.resize(k - t); // Resize to actual size.
         input.swap(result);
       }
-      unicode_constant_cleanup(input, is_unicode_present);
+      unicode_constant_cleanup(input);
     }
 
    // Replace every '#' character (which was a placeholder for '√') with 'sqrt()' function call.
@@ -1772,7 +1756,7 @@ class expression {
     // Also detects if any Unicode characters are present.
     // Returns true if an invalid character is found; false otherwise.
     // Also normalising the input string by removing spaces and lowercasing all characters(alphabets, keeping everything as is).
-    bool input_validation_normalisation(std::string &input, bool &is_unicode_present) noexcept {
+    bool input_validation_normalisation(std::string &input) noexcept {
       std::string result;
       result.resize(input.size()); // Resize to maximum possible size.
       char *k = &result[0], *t = k; // Writing pointers.
@@ -1789,7 +1773,6 @@ class expression {
         else if(((*it) & 0xE0) == 0xC0) { // Two byte unicode characters.
           if(it + 2 > end) return true;
           else if(is_valid_character(it, 2)) {
-            is_unicode_present = true;
             *(k++) = *(it++); // To avoid memcpy's overhead for just two bytes.
             *(k++) = *(it++);
           }
@@ -1798,7 +1781,6 @@ class expression {
         else if(((*it) & 0xF0) == 0xE0) { // Three byte unicode characters.
           if(it + 3 > end) return true;
           else if(is_valid_character(it, 3)) {
-            is_unicode_present = true;
             std::memcpy(k, it, 3);
             k += 3;
             it += 3;
