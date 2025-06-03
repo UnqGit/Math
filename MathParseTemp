@@ -1,52 +1,31 @@
 #pragma once
 
 // Constant strings for replacement.
-namespace {
+// namespace {
 
-  // Used to replace the operators in order for BODMAS / PEMDAS presedence.
-  const std::string op_str = "^/*-+";
+//   // Had to change the aliases too often so made a variable for number of members.
+//   constexpr int lalias = 24;
 
-  // // Had to change the aliases too often so made a variable for number of members.
-  // constexpr int lalias = 24;
-
-  // // Array used to find alaises and standardize them.
-  // // Ofc i tried maps but those don't give as much advantage and are more error temporary_conversion
-  // // and we have to add each new function every time with every alias we want to handle.
-  // const std::string alias_conversion[lalias] {
-  //   "floor", "flr",
-  //   "factorial","ftrl",
-  //   "round","rnd",
-  //   "sine", "sin",
-  //   "cosin", "cos",
-  //   "tangent", "tan",
-  //   "secant", "sec",
-  //   "cotan", "cot",
-  //   "log", "ln",
-  //   "arc", "a",
-  //   "cosec", "csc",
-  //   "ar", "a"
-  // };
-  // const std::string arc_str = "arc";
-  // const std::string log_str = "log";
-
-  // Used in basic cleanup -> unicode_constant_cleanup function.
-  static constexpr int u_sym_c_size = 10;
-  static constexpr int num_super = 10;
-  static constexpr int two_x_num_super = 2 * num_super;
-  static constexpr int a_c_size = 24;
-  const std::string unicode_symbol_conversion[u_sym_c_size] {
-    "·", "*", "×", "*", "÷", "/", "π", "=", "√", "#"
-  };
-  const std::string superscript[num_super] {
-    "⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"
-  };
-  const std::string ascii_cast[a_c_size] {
-    "⁰", "0", "¹", "1", "²", "2", "³", "3", "⁴", "4",
-    "⁵", "5", "⁶", "6", "⁷", "7", "⁸", "8", "⁹", "9",
-    "=", "pi", "@", "e"
-  };
-  const std::string pi_str = "pi", equal_str = "=", e_str = "e", at_str = "@";
-}
+//   // Array used to find alaises and standardize them.
+//   // Ofc i tried maps but those don't give as much advantage and are more error temporary_conversion
+//   // and we have to add each new function every time with every alias we want to handle.
+//   const std::string alias_conversion[lalias] {
+//     "floor", "flr",
+//     "factorial","ftrl",
+//     "round","rnd",
+//     "sine", "sin",
+//     "cosin", "cos",
+//     "tangent", "tan",
+//     "secant", "sec",
+//     "cotan", "cot",
+//     "log", "ln",
+//     "arc", "a",
+//     "cosec", "csc",
+//     "ar", "a"
+//   };
+//   const std::string arc_str = "arc";
+//   const std::string log_str = "log";
+// }
 
 // Constant maps for fast lookups.
 // namespace {
@@ -93,6 +72,10 @@ namespace {
 // usage of the above scope's unordered sets.
 namespace {
 
+  // Used to replace the operators in order for BODMAS / PEMDAS presedence.
+  const std::string op_str = "^/*-+";
+
+
   inline char to_lower(const char &c) noexcept {
     return (c > 64 && c < 91) ? c + 32 : c;
   }
@@ -134,7 +117,7 @@ namespace {
   // Used in valid_commas(): defines invalid characters that shouldn't precede a comma.
   // Indexed by (char % 8). We rely on this cheap modulo hash to verify character category.
   constexpr char i_prec[8] {'(','\0','*','+',',','-','^','/'};
-  constexpr bool is_invalid_precedence(const unsigned char &input) {
+  constexpr bool is_invalid_precedence(const unsigned char &input) noexcept {
     return input == i_prec[input % 8];
   }
 
@@ -142,20 +125,26 @@ namespace {
   constexpr bool (*is_op)(const unsigned char&) = &is_invalid_precedence;
 
   // Determines if a character before 'x' makes it invalid (e.g., "exp" vs "x").
-  constexpr bool invalid_precede_x(const unsigned char &input) {
+  constexpr bool invalid_precede_x(const unsigned char &input) noexcept {
     return input == 'a' || input == 'e';
   }
 
   // Used in valid_commas(): checks if the character after a comma is illegal.
   constexpr char i_subs[7] {'*','\0',',','^','\0','/',')'};
-  constexpr bool is_invalid_subsidence(const unsigned char &input) {
+  constexpr bool is_invalid_subsidence(const unsigned char &input) noexcept {
     return input == i_subs[input % 7];
   }
 
   // Detects primary operators in expressions.
   constexpr char p_ops[6] {'*','+','\0','-','^','/'};
-  constexpr bool is_primary_ops(const unsigned char &input) {
+  constexpr bool is_primary_ops(const unsigned char &input) noexcept {
     return input == p_ops[input % 6];
+  }
+
+  constexpr char i_p_e[7] {'n','\0','c','\0','\0','s','g'};
+  inline bool is_invalid_precede_e(const char *ptr) noexcept {
+    size_t index = - 6 + (*ptr % 13);
+    return index < 7 && i_p_e[index] == *ptr;
   }
 
   // Checks if a character is a unary sign ('+' or '-').
@@ -374,7 +363,7 @@ namespace {
   }
 
   // Special-cased constants/functions.
-  const std::string p_ln = "ln";
+  const std::string p_ln = "ln", pi_str = "pi";
 
   // Valid 3-letter functions (e.g., sin, cos, tan, etc.).
   const std::string p_3lf[53] {
@@ -1263,8 +1252,8 @@ class expression {
       while(it != end) {
         if(*it > 0) {
           switch(*it) {
-            case'e': // exp, neg, ceil, tangent, sine <- skip these ('e' appears nowhere else)
-              if(it != it_ && (*(it - 1) == 'c' || *(it - 1) == 'n' || *(it - 1) == 'g')) {
+            case'e': // exp, neg, sec, ceil, tangent, sine <- skip these ('e' appears nowhere else)
+              if(it != it_ && is_invalid_precede_e(it - 1)) {
                 *(k++) = *(it++);
                 continue;
               }
