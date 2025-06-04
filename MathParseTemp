@@ -1568,9 +1568,9 @@ class expression {
           if(it != end && (is_lower(*it) || *it == '(' || *it == '#')) *(k++) = '*';
         }
         else if(*it == 'x') {
-          if(it != it_ && !invalid_precede_x(*(k - 1)) && is_lower(*(k - 1))) *(k++) = '*';
+          bool is_correct_precede = (k == t || !invalid_precede_x(*(k - 1)));
           *(k++) = *(it++);
-          if(it != end && ((it != it_ && !invalid_precede_x(*(k - 1)) && (*it == '(' || is_low_num(*it) || *it == '#')))) *(k++) = '*';
+          if(it != end && (is_correct_precede && (*it == '(' || is_low_num(*(it)) || *(it) == '#'))) *(k++) = '*';
         }
         else if(is_lower(*it)) {
           *(k++) = *(it++);
