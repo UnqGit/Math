@@ -1,32 +1,5 @@
 #pragma once
 
-// Constant strings for replacement.
-// namespace {
-
-//   // Had to change the aliases too often so made a variable for number of members.
-//   constexpr int lalias = 24;
-
-//   // Array used to find alaises and standardize them.
-//   // Ofc i tried maps but those don't give as much advantage and are more error temporary_conversion
-//   // and we have to add each new function every time with every alias we want to handle.
-//   const std::string alias_conversion[lalias] {
-//     "floor", "flr",
-//     "factorial","ftrl",
-//     "round","rnd",
-//     "sine", "sin",
-//     "cosin", "cos",
-//     "tangent", "tan",
-//     "secant", "sec",
-//     "cotan", "cot",
-//     "log", "ln",
-//     "arc", "a",
-//     "cosec", "csc",
-//     "ar", "a"
-//   };
-//   const std::string arc_str = "arc";
-//   const std::string log_str = "log";
-// }
-
 // Constant maps for fast lookups.
 // namespace {
 //   const std::unordered_set<char> sign {'+','-'};
@@ -152,28 +125,6 @@ namespace {
     return input == 43 || input == 45;  // '+' and '-'
   }
 
-  // Used in implicit_mult(): characters that trigger implicit multiplication.
-  // Example: "2x" or "(x)(y)" imply multiplication between operands.
-  constexpr char imv_ch[25] {
-    '2','3','4','5','6','7','8','9',
-    '!','\0','#','\0','\0','\0','\0','(',
-    ')','\0','\0','\0','\0','\0','\0','0',
-    '1'
-  };
-  constexpr bool implicit_mult_valid_char_find(const unsigned char &input) {
-    return input == imv_ch[input % 25];
-  }
-
-  // Used in cleanup() or sanitization: valid tail characters.
-  constexpr char bc_lch[17] {
-    '3','4','5','6','7','8','9',')',
-    '\0','\0','=','\0','.','@','0','1', // (=) is placeholder for pi and @ for euler's number.
-    '2'
-  };
-  constexpr bool basic_cleanup_char_lookup(const unsigned char &input) {
-    return input == bc_lch[input % 17];
-  }
-
   // First-stage delimiter characters in binary_ops().
   constexpr char p_op_fd[8] {
     '(','\0','*','+',',','-','^','/'
@@ -225,6 +176,18 @@ namespace {
       case 3:
         index = - 47 + ((unsigned char)(*(ptr + 1))^6 + (unsigned char)(*(ptr + 2))^7);
         return index < 15 && !vc_3l[index].empty() && std::memcmp(ptr, &vc_3l[index][0], 3) == 0;
+      default:
+        return false;
+    }
+  }
+
+  inline bool not_valid_embed(const std::string &input) noexcept {
+    const size_t &length = input.length();
+    switch(length) {
+      case 1:
+        return input[0] == 'x' || input[0] == 'e';
+      case 2:
+        return input[0] == 'p';
       default:
         return false;
     }
@@ -407,14 +370,13 @@ namespace {
   
   // Common punctuation and math symbols used across formatting and parsing.
   const std::string apostrophe_dot = "'.", dot = ".", comma_str = ",", new_line = "\n";
-  const std::string plus = "+", minus = "-", zero = "0", sqrt_str = "√", carret_str = "^", asterisk_str = "*", exclaimation = "!";
 
   // Stringified versions of math functions with parentheses — used during reconstruction or parsing.
   const std::string sqrt_func_str = "sqrt(", neg_func_str = "neg(", ftrl_func_str = "ftrl(";
   const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
 
   // Parenthesis helpers for function construction or validation.
-  const std::string open_paren = "(", close_paren = ")", hash = "#";
+  const std::string open_paren = "(", close_paren = ")";
 
   // Used as default or to identify issues with empty parenthesis in many scenarios.
   const std::string empty_string = "", empty_paren = "()";
@@ -422,12 +384,10 @@ namespace {
   // The special variable usually representing the independent variable.
   const std::string x_str = "x";
 
-
   // === Error message strings for parsing issues ===
   
   // General format or input-based errors.
   const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
-  const std::string err_decimal_after_superscript = "POWER FOLLOWED BY NORMAL DECIMAL.";
   const std::string err_invalid_characters = "INVALID CHARACTERS.";
 
   // Parenthesis misuse or malformed usage.
@@ -458,7 +418,7 @@ namespace {
 
   // Comma misuse in function arguments.
   const std::string err_no_comma = "NO COMMA IN A BINARY FUNCTION.";
-  const std::string err_used_comma = "USE OF COMMA IN A NON BINARY FUNCTION.";
+  const std::string err_used_comma = "USE OF COMMA OUTSIDE NON BINARY FUNCTION.";
   const std::string err_mul_comma = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
   const std::string err_no_first_arg = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
   const std::string err_no_second_arg = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
@@ -472,16 +432,10 @@ namespace {
 
   // Operator functionality or sequence problems.
   const std::string err_no_func_op = "NO FUNCTIONALITY TO OPERATOR.";
-  const std::string err_mal_op = "MALFORMED OPERATORS.";
-  const std::string err_tr_op = "TRAILING OPERATORS.";
-  const std::string err_han_op = "HANGING OPERATORS.";
-  const std::string err_han_op_paren = "HANGING OPERATOR AFTER PARENTHESIS.";
-  const std::string err_trl_op_paren = "TRAILING OPERATOR AFTER PARENTHESIS.";
-
 
   // === Helper strings for debugging, logging, or diagnostics ===
 
-  const std::string fp_org_str = "\nOriginal: ";
+  const std::string fp_org_str = "Original: ";
   const std::string fp_mod_str = "\nModified: ";
   const std::string fp_status_str = "\nStatus: ";
   const std::string fp_log_str = "\nLog: ";
@@ -542,13 +496,13 @@ class expression {
       this -> anomaly = false;
       // Initialization.
       std::string &unmodified = this -> entered_expression;
-      std::string &input = this -> modified_expression;
-      input = unmodified;
       if(unmodified.empty()) {
         this -> anomaly = true;
         this -> err_log = err_empty_string;
         return *this;
       }
+      std::string &input = this -> modified_expression;
+      input = unmodified;
       bool flag = false;
       if(input_validation_normalisation(input)) {
         this -> err_log = err_invalid_characters;
@@ -587,8 +541,6 @@ class expression {
       if(input.find('#') != std::string::npos) add_sqrt(input);
       if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
       // Flag malperfomed operations such as '+)'.
-      malform_ops(input);
-      if(this -> anomaly) return *this;
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
         binary_ops(input, op_str[i]);
@@ -973,7 +925,7 @@ class expression {
       if(this -> anomaly) return *this;
 
       // Can't embed into something that's not a recognized function or if it's just 'x' (the variable itself).
-      if(!is_allowed_function(&function[0], function.length()) || function == x_str) return *this;
+      if(!is_allowed_function(&function[0], function.length()) || not_valid_embed(function)) return *this;
 
       // Copy this expression and mark it as a function now.
       expression result(*this);
@@ -997,7 +949,7 @@ class expression {
     expression embed_in(const char* func, const expression &other = expression()) const noexcept {
       if(this -> anomaly) return *this;
       std::string function(func);
-      if(!is_allowed_function(&function[0], function.length()) || function == x_str) return *this;
+      if(!is_allowed_function(&function[0], function.length()) || not_valid_embed(function)) return *this;
 
       expression result(*this);
       result.make_function();
@@ -1290,7 +1242,7 @@ class expression {
             if(*(it) == -61 && *(it + 1) == -73) *(k++) = '/';
             else *(k++) = '*';
           }
-          else(len == 2) {
+          else {
             if(k != t && is_lower(*(k - 1))) *(k++) = '*';
             *(k++) = 'p';
             *(k++) = 'i';
@@ -1496,6 +1448,11 @@ class expression {
 
           // Special handling for unary '+' operator: it can simply be removed.
           if(delimiter == '+') {
+            if(input.size() == 1) {
+              this -> err_log = err_no_func_op;
+              this -> anomaly = true;
+              return;
+            }
             input.erase(index, 1); // Erase the comma (originally '+').
             index--;               // Adjust index due to removal.
             continue;              // Move to the next delimiter.
@@ -1573,55 +1530,6 @@ class expression {
       }
     }
 
-    // // Converts various function aliases and common misspellings into a standardized,
-    // // concise function name format. This process uses a "cascading rhythm" of
-    // // string replacements, where longer aliases are progressively shortened
-    // // to their canonical forms (e.g., "cosine" -> "cosin" -> "cos").
-    // // This strategy minimizes the number of string searches and replacements required.
-    // void func_name_norm(std::string &input) noexcept {
-
-    //   // Iterate through the `alias_conversion` array, which contains pairs of
-    //   // original alias and its standardized replacement.
-    //   // The array is structured such that longer, more complex aliases are processed
-    //   // before their shorter, partial forms, enabling the cascading effect.
-    //   for(int i = 0; i < lalias; i += 2) {
-
-    //     // Find the first occurrence of the current alias in the input string.
-    //     size_t pos = input.find(alias_conversion[i]);
-
-    //     // Continue replacing as long as the alias is found.
-    //     while(pos != std::string::npos) {
-    //       // --- Special Case Handling for "arc" ---
-    //       // This is crucial to prevent incorrect transformations. For example,
-    //       // "arcot" should become "acot", not "aot" if "arc" was replaced with "a".
-    //       // This check ensures "arc" is replaced only if it's not immediately
-    //       // followed by 'o' (e.g., in "arcot").
-    //       if(alias_conversion[i] == arc_str) {
-    //         if((pos + 3) >= input.length() || // If "arc" is at the end of the string
-    //           (input[pos + 3] != 'o'))       // Or if the character after "arc" is not 'o'
-    //           input.replace(pos, 3, alias_conversion[i + 1]); // Replace "arc" with its standardized form
-    //       }
-    //       // --- Special Case Handling for "log" ---
-    //       // This differentiates "log" (natural logarithm) from "logk" (logarithm with a specified base).
-    //       // "log" should be replaced only if it's not followed by 'k'.
-    //       else if(alias_conversion[i] == log_str) {
-    //         if((pos + 3) >= input.length() || // If "log" is at the end of the string
-    //           (input[pos + 3] != 'k'))       // Or if the character after "log" is not 'k'
-    //           input.replace(pos, 3, alias_conversion[i + 1]); // Replace "log" with its standardized form.
-    //       }
-    //       // --- General Case: Direct Replacement ---
-    //       // For all other aliases, perform a direct replacement.
-    //       else input.replace(pos, alias_conversion[i].length(), alias_conversion[i + 1]);
-
-    //       // Continue searching for the *same* alias from the position immediately
-    //       // after where the replacement just occurred. This is important because
-    //       // the replacement itself might contain characters that form the alias
-    //       // again, or we need to ensure all instances are caught.
-    //       pos = input.find(alias_conversion[i], pos + alias_conversion[i + 1].length());
-    //     }
-    //   }
-    // }
-
     void func_name_norm(std::string &input) noexcept {
       std::string result;
       result.resize(input.size());
@@ -1669,7 +1577,7 @@ class expression {
           if(it != end && (*it == '#' || is_digit(*it))) *(k++) = '*';
         }
         else if(*it == ')') {
-          *(k++) = '*';
+          *(k++) = *(it++);
           if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
         }
         else if(*it == '!') {
@@ -1766,123 +1674,11 @@ class expression {
       input.swap(result);
     }
 
-    // Checks for various forms of inappropriate operator usage and flags errors accordingly.
-    // This function aims to catch syntax errors related to operator placement (e.g., hanging operators,
-    // operators without arguments, consecutive operators).
-    void malform_ops(std::string &input) noexcept {
-
-      // --- Initial Checks ---
-
-      // Flag an error immediately if the input expression is empty.
-      if(input.empty()) {
-        this -> err_log = err_no_expression; // Set error message for empty input.
-        this -> anomaly = true;              // Mark the expression as invalid.
-        return;
-      }
-
-      // Flag an error if the entire expression consists of a single primary operator.
-      // E.g., "+", "*", "/", etc. (unary signs are handled later if part of a larger expression).
-      if(input.size() == 1 && is_primary_ops(input.front())) {
-        this -> err_log = err_no_func_op; // Set error message for a lone operator.
-        this -> anomaly = true;
-        return;
-      }
-
-      // --- Iterative Checks for Operator Malformations ---
-
-      // Loop through each character in the input string to check for operator-related errors.
-      for(int i = 0; i < input.length(); i++) {
-
-        if(input[i] == '(' && (i + 1) < input.length() && input[i + 1] == ')') {
-          this -> err_log = err_paren_no_arg; // Error for parentheses with no arguments.
-          this -> anomaly = true;
-          return;
-        }
-
-        // Check if the current character is one of the primary mathematical operators.
-        if(is_primary_ops(input[i])) {
-
-          // Handle unary plus sign at the very beginning of the expression.
-          if(i == 0 && input[i] == '+') {
-            if(input.size() != 1) { // If it's not a lone '+' (already handled above), remove it.
-              input.erase(i, 1);
-              i--; // Decrement 'i' to re-evaluate the character now at this position.
-              continue; // Move to the next iteration.
-            }
-            else { // If it's a lone '+', it's an error.
-              this -> err_log = err_no_func_op; // Set error for a lone operator.
-              this -> anomaly = true;
-              return;
-            }
-          }
-
-          // Check operator placement if it's not at the very beginning of the expression.
-          if(i > 0) {
-            // Error check: Operator immediately after an opening parenthesis, unless it's a unary minus.
-            // E.g., "(+5)" is fine, "(*5)" is not.
-            if(input[i - 1] == '(' && input[i] != '-') {
-              if(input[i] == '+') { // Remove unary '+' inside parentheses.
-                input.erase(i, 1);
-                i--;
-                continue;
-              }
-              this -> err_log = err_han_op_paren; // Error for hanging operator after an open parenthesis.
-              this -> anomaly = true;
-              return;
-            }
-
-            // Check operator placement if it's not at the very end of the expression.
-            if((i + 1) < input.size()) {
-              // Error check: Operator immediately before a closing parenthesis.
-              // E.g., "5+)" is an error.
-              if(input[i + 1] == ')') {
-                this -> err_log = err_trl_op_paren; // Error for trailing operator before a close parenthesis.
-                this -> anomaly = true;
-                return;
-              }
-              // Check for consecutive primary operators.
-              // E.g., "5**2", "5/+" etc.
-              else if(is_primary_ops(input[i + 1])) {
-                if(input[i + 1] == '+') { // If the next operator is a '+', remove it. E.g., "5*+2" becomes "5*2".
-                  input.erase(i + 1, 1);
-                  i--; // Decrement 'i' to re-evaluate the current position (after deletion).
-                  continue;
-                }
-                // Allow cases like "5*-2" (minus as a unary sign) if the current operator is not a sign.
-                // E.g., "2+-3" becomes "2-3" (handled by basic_cleanup).
-                else if(!is_sign(input[i]) && input[i + 1] == '-') {
-                  continue;
-                }
-                else { // Any other consecutive primary operators are errors. E.g., "5**2", "5//2".
-                  this -> err_log = err_mal_op; // Error for malformed (consecutive) operators.
-                  this -> anomaly = true;
-                  return;
-                }
-              }
-            }
-            // Error check: Trailing operator at the end of the expression (e.g., "5+").
-            else {
-              this -> err_log = err_tr_op; // Error for a trailing operator at end of expression.
-              this -> anomaly = true;
-              return;
-            }
-          }
-          // Error check: Hanging operator at the start of the expression, if it's not a unary sign.
-          // E.g., "*5", "/2". Also catches cases like "++5" or "-+5" if `is_sign` handles those.
-          else if(!is_sign(input[i]) || ((i + 1) < input.length() && is_sign(input[i + 1]))) {
-            this -> err_log = err_han_op; // Error for a hanging operator at start of expression.
-            this -> anomaly = true;
-            return;
-          }
-        }
-      }
-    }
-
     // Convert implicit factorial symbols ('!') into explicit function calls (e.g., ftrl()).
     // Also performs error checks for invalid placements of the factorial operator.
     void factorial_convert(std::string &input) noexcept {
       // Find the first occurrence of the '!' character.
-      size_t t = input.find(exclaimation);
+      size_t t = input.find('!');
 
       // Error: '!' at the very beginning is invalid as there's nothing to apply it to.
       if(t == 0) {
@@ -1946,7 +1742,7 @@ class expression {
         input.insert(i == 0 ? 0 : i + 1, ftrl_func_str);
 
         // Move to the next '!' occurrence. Adjust by +4 to skip over the just-inserted "ftrl(".
-        t = input.find(exclaimation, t + 4);
+        t = input.find('!', t + 4);
       }
     }
 
@@ -2205,8 +2001,8 @@ class expression {
 
   // Private data members.
   protected:
-    std::string entered_expression = empty_string;
-    std::string modified_expression = empty_string;
+    std::string entered_expression;
+    std::string modified_expression;
     bool anomaly = true;
     bool allow_variable = true;
     std::string err_log = err_not_modified;
