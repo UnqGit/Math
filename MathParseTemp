@@ -1329,7 +1329,6 @@ class expression {
     //
     // Also: By scanning from the right, it ensures nested sqrt calls work correctly, e.g., `##9` becomes `sqrt(sqrt(9))`, operator associativity.
     void add_sqrt(std::string &input) noexcept {
-      std::cout << input << std::endl;
       // The delimiter check function (like +, -, *, /, ^, comma, or closing parenthesis).
       bool (*delimiter_map)(const unsigned char&) = &primary_op_second_delimiter;
 
