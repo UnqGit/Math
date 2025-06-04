@@ -1281,7 +1281,7 @@ class expression {
         else {
           int len = 2 + (*it == -30);
           if(is_superscript(it)){
-            if((k != t && (is_lower(*(k - 1)) || *(k - 1) == ')')) || it != it_ && is_digit(*(it - 1))) *(k++) = '^';
+            if((k != t && (is_lower(*(k - 1)) || *(k - 1) == ')')) || it != it_ && is_digit(*(it - 1)) || *it == '!') *(k++) = '^';
             *(k++) = superscript_to_ascci(it, len);
             if(it + len != end && is_digit(*(it + len))) *(k++) = '*';
           }
