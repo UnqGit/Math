@@ -1285,17 +1285,17 @@ class expression {
             *(k++) = superscript_to_ascci(it, len);
             if(it + len != end && is_digit(*(it + len))) *(k++) = '*';
           }
-          else if(*it == -61 || *it == 62) {
+          else if(len == 3) *(k++) = '*';
+          else if(*it != -49) {
             if(*(it) == -61 && *(it + 1) == -73) *(k++) = '/';
             else *(k++) = '*';
           }
-          else if(len == 2) {
+          else(len == 2) {
             if(k != t && is_lower(*(k - 1))) *(k++) = '*';
             *(k++) = 'p';
             *(k++) = 'i';
             if(it + len != end && (is_lower(*(it + len)) || *(it + len) == '(')) *(k++) = '*'; 
           }
-          else *(k++) = '#';
           it += len;
         }
       }
@@ -1649,96 +1649,37 @@ class expression {
     // into explicit multiplication using '*'. 
     // For example, turns "2x" into "2*x", or "3(x+1)" into "3*(x+1)".
     void implicit_mult(std::string &input) noexcept {
-      // Loop through each character in the input string
-      for(int i = 0; i < input.length(); i++) {
-
-        // --------- Rule for square root symbol '#' ---------
-        if(input[i] == '#') {
-
-          // If the '#' is preceded by a valid character (e.g. number, variable, etc.),
-          // and not by '(' or another '#', insert '*' before the '#'.
-          if(i > 0 && implicit_mult_valid_char_find(input[i - 1]) &&
-             !(input[i - 1] == '(' || input[i - 1] == '#')) {
-            input.insert(i, asterisk_str); // insert '*'
-            i++; // advance to skip the inserted '*'
-          }
-
-          // Error check: if '#' is immediately followed by ')', it's a syntax error
-          if((i + 1) < input.size() && input[i + 1] == ')') {
-            this -> err_log = err_paren_no_arg;
-            this -> anomaly = true;
-            return;
-          } 
+      // '#' is placeholder for sqrt symbol.
+      std::string result;
+      result.resize(input.size() << 1);
+      const char *it = &input[0], *end = it + input.size(), *it_ = it;
+      char *k = &result[0], *t = k;
+      while(it != end) {
+        if(is_digit(*it)) {
+          *(k++) = *(it++);
+          if(it != end && (is_lower(*it) || *it == '(' || *it == '#')) *(k++) = '*';
         }
-
-        // --------- Rule for variable 'x' ---------
-        else if(input[i] == 'x') {
-
-          // Skip if 'x' is preceded by an invalid character
-          if(i > 0 && invalid_precede_x(input[i - 1])) continue;
-
-          // If 'x' is preceded by a valid character (e.g. number or closing paren)
-          // and not by '(' or '#', insert '*' before 'x'
-          if(i > 0 && implicit_mult_valid_char_find(input[i - 1]) &&
-             !(input[i - 1] == '(' || input[i - 1] == '#')) {
-            input.insert(i, asterisk_str);
-            i++; // move past inserted '*'
-          }
-
-          // If 'x' is followed by a lowercase letter (e.g. a function),
-          // or valid character (but not ')' or '!'), insert '*' after 'x'
-          if((i + 1) < input.length() && 
-             (is_lower(input[i + 1]) || 
-             (implicit_mult_valid_char_find(input[i + 1]) && 
-             (input[i + 1] != ')' && input[i + 1] != '!')))) {
-            input.insert(i + 1, asterisk_str);
-          }
+        else if(*it == 'x') {
+          if(it != it_ && !invalid_precede_x(*(k - 1)) && is_lower(*(k - 1))) *(k++) = '*';
+          *(k++) = *(it++);
+          if(it != end && ((it != it_ && !invalid_precede_x(*(k - 1)) && (*it == '(' || is_low_num(*it) || *it == '#')))) *(k++) = '*';
         }
-
-        // --------- Rule for functions (e.g. sin, cos, log) ---------
-        else if(is_lower(input[i])) {
-          // If a function name starts immediately after a digit or ')',
-          // insert '*' before the function name
-          if(i > 0 && (is_digit(input[i - 1]) || input[i - 1] == ')')) {
-            input.insert(i, asterisk_str);
-            i++; // skip past the inserted '*'
-          }
+        else if(is_lower(*it)) {
+          *(k++) = *(it++);
+          if(it != end && (*it == '#' || is_digit(*it))) *(k++) = '*';
         }
-
-        // --------- Rule for factorial symbol '!' ---------
-        else if(input[i] == '!') {
-          // If '!' is immediately followed by a digit or letter, insert '*' after it
-          if((i + 1) < input.size() && is_low_num(input[i + 1])) {
-            input.insert(i + 1, asterisk_str);
-          }
+        else if(*it == ')') {
+          *(k++) = '*';
+          if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
         }
-
-        // --------- Rule for opening parenthesis '(' ---------
-        else if(input[i] == '(') {
-          // If '(' is preceded by a valid character (not '(' or '#'), insert '*' before it
-          if(i > 0 && implicit_mult_valid_char_find(input[i - 1]) &&
-             !(input[i - 1] == '(' || input[i - 1] == '#')) {
-            input.insert(i, asterisk_str);
-            i++; // move past inserted '*'
-          }
-
-          // Error check: if '(' is immediately followed by ')', it's a syntax error
-          if((i + 1) < input.size() && input[i + 1] == ')') {
-            this -> err_log = err_paren_no_arg;
-            this -> anomaly = true;
-            return;
-          } 
+        else if(*it == '!') {
+          *(k++) = *(it++);
+          if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
         }
-
-        // --------- Rule for closing parenthesis ')' ---------
-        else if(input[i] == ')') {
-          // If ')' is followed by a valid character (not ')' or '!'), insert '*' after it
-          if((i + 1) < input.length() && implicit_mult_valid_char_find(input[i + 1]) &&
-             !(input[i + 1] == ')' || input[i + 1] == '!')) {
-            input.insert(i + 1, asterisk_str);
-          }
-        }
+        else *(k++) = *(it++);
       }
+      result.resize(k - t);
+      input.swap(result);
     }
 
     // Checks whether the input string contains any invalid characters.
