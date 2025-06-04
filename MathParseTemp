@@ -402,6 +402,7 @@ namespace {
   // Errors specific to function and variable contexts.
   const std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
   const std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
+  const std::string err_no_arg_sqrt = "NO FUNCTIONALITY TO SQUARE ROOT FUNCTION.";
   const std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
 
   // Issues with malformed or ambiguous strings of characters.
@@ -535,10 +536,9 @@ class expression {
       // Convert '!' to the function call "ftrl()".
       if(input.find('!') != std::string::npos) factorial_convert(input);
       if(this -> anomaly) return *this;
-      // Change √('#') to sqrt() and remove empty parenthesis potentially created by it or above few functions.
+      // Change √('#') to sqrt().
       if(input.find('#') != std::string::npos) add_sqrt(input);
-      if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
-      // Flag malperfomed operations such as '+)'.
+      if(this -> anomaly) return *this;
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
         binary_ops(input, op_str[i]);
@@ -1235,7 +1235,7 @@ class expression {
             *(k++) = superscript_to_ascci(it, len);
             if(it + len != end && is_digit(*(it + len))) *(k++) = '*';
           }
-          else if(len == 3) *(k++) = '*';
+          else if(len == 3) *(k++) = '#';
           else if(*it != -49) {
             if(*(it) == -61 && *(it + 1) == -73) *(k++) = '/';
             else *(k++) = '*';
@@ -1329,7 +1329,7 @@ class expression {
     //
     // Also: By scanning from the right, it ensures nested sqrt calls work correctly, e.g., `##9` becomes `sqrt(sqrt(9))`, operator associativity.
     void add_sqrt(std::string &input) noexcept {
-
+      std::cout << input << std::endl;
       // The delimiter check function (like +, -, *, /, ^, comma, or closing parenthesis).
       bool (*delimiter_map)(const unsigned char&) = &primary_op_second_delimiter;
 
@@ -1343,7 +1343,25 @@ class expression {
         int h;
         for(h = t + 1; h >= 0; h--)
           if(input[h] == '#') { t = h; break; }
-
+        if(t == input.size() - 1) {
+          this -> err_log = err_no_arg_sqrt;
+          this -> anomaly = true;
+          return;
+        }
+        else if(delimiter_map(input[t + 1])) {
+          if(is_sign(input[t + 1])) {
+            if(t + 1 == input.size() || delimiter_map(input[t + 2])) {
+              this -> err_log = err_no_arg_sqrt;
+              this -> anomaly = true;
+              return;
+            }
+          }
+          else {
+            this -> err_log = err_no_arg_sqrt;
+            this -> anomaly = true;
+            return;
+          }
+        }
         // Replace '#' with "sqrt("
         input.replace(t, 1, sqrt_func_str); // sqrt_func_str == "sqrt(".
 
@@ -1371,7 +1389,7 @@ class expression {
           input.insert(j, close_paren); // close_paren == ")".
         }
         else {
-          input += close_paren;
+          input.push_back(')');
         }
       }
     }
@@ -1443,7 +1461,7 @@ class expression {
         // --- Handling Left Operand (First Argument) ---
         // Check if the character *before* the current operator (now a comma) is an invalid delimiter.
         // This helps identify "hanging" operators (e.g., `*2`, `+b`).
-        if(index == 0 || (index > 0 && delimiter_map(input[index - 1]))) {
+        if(index == 0 || delimiter_map(input[index - 1])) {
 
           // If the operator cannot have a missing first argument (e.g., `*`, `/`, `^`),
           // log an error and mark the expression as anomalous.
@@ -1457,7 +1475,7 @@ class expression {
 
           // Special handling for unary '+' operator: it can simply be removed.
           if(delimiter == '+') {
-            if(input.size() == 1) {
+            if(input.size() == 1 || index == input.size() - 1 || primary_op_second_delimiter(input[index + 1])) {
               this -> err_log = err_no_func_op;
               this -> anomaly = true;
               return;
