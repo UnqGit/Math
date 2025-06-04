@@ -520,8 +520,6 @@ class expression {
       }
       // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
       basic_cleanup(input);
-      // Check for invalid decimal usage.
-      if(input.find('.') != std::string::npos) invalid_decimal(input);
       if(this -> anomaly) return *this;
       // Convert implict multiplication to explicit.
       implicit_mult(input);
@@ -1269,6 +1267,7 @@ class expression {
     void basic_cleanup(std::string &input) noexcept {
       {
         std::string result; // Temporary string for single pass approach without replace or erase.
+        int j;
         result.resize((input.length() << 1) - (input.length() >> 1)); // Theoretical max number of output size (e.g -> ".5" => 0.5; i.e, 1.5x).
         const char* it = &input[0], *end = it + input.length(); // Reading pointers.
         char *k = &result[0], *t = k; // Writing pointer and static pointer to the start.
@@ -1291,6 +1290,16 @@ class expression {
               if(k == t || !is_digit(*(k - 1))) // If the last output character wasn't a digit insert a 0.
                 *(k++) = '0';
               *(k++) = *(it++); // Add the decimal point.
+              j = 1;
+              while(it + j != end && is_digit(*(it + j))) j++;
+              std::memcpy(k, it, j);
+              k += j;
+              it += j;
+              if(it != end && *it == '.') {
+                this -> err_log = err_mul_dec;
+                this -> anomaly = true;
+                return;
+              }
               break;
             default: *(k++) = *(it++); // Write the non-sign non-decimal character as-is.
           }
@@ -1828,83 +1837,6 @@ class expression {
 
           temp.clear(); // Reset temp since we're done processing a token.
         }
-      }
-    }
-
-    // This function validates the format of decimal numbers within a given string.
-    // It checks for various common decimal formatting errors to ensure data integrity.
-    void invalid_decimal(const std::string &input) noexcept {
-
-      // Check for an empty input string. An empty string is considered an invalid decimal format.
-      if(input.empty()) {
-        this -> err_log = err_empty_string;
-        this -> anomaly = true;
-        return;
-      }
-
-      // Locate the first occurrence of the decimal point character.
-      size_t t = input.find(dot);
-
-      // If a decimal point is found at the very beginning of the string (e.g., ".5"),
-      // it is considered an invalid format.
-      if(t == 0) {
-        this -> err_log = err_hanging_dec;
-        this -> anomaly = true;
-        return;
-      }
-
-      // Iterate through all occurrences of decimal points within the string.
-      while(t != std::string::npos) {
-
-        // Verify that the character immediately preceding the decimal point is a digit.
-        // For example, "+.5" or "(.7" would be flagged as invalid.
-        if(!is_digit(input[t - 1])) {
-          this -> err_log = err_dec_not_follows;
-          this -> anomaly = true;
-          return;
-        }
-
-        // Ensure that there are characters following the decimal point.
-        if(t < input.length()) {
-
-          // Confirm that the character immediately following the decimal point is a digit.
-          // Examples like "3." or "4.a" would be considered invalid.
-          if(!is_digit(input[t + 1])) {
-            this -> err_log = err_dec_not_followed;
-            this -> anomaly = true;
-            return;
-          }
-
-          else {
-            int j = 1;
-
-            // Advance 'j' past all consecutive digits following the current decimal point.
-            while((t + j) < input.length() && is_digit(input[t + j])) j++;
-
-            // After processing the digits, check if there are more characters in the string.
-            if((t + j) < input.length()) {
-
-              // If the next character found after the sequence of digits is another decimal point,
-              // it indicates multiple decimal points within a single number, which is invalid.
-              if(input[t + j] == '.') {
-                // Differentiate between a trailing decimal point (e.g., "12.3.
-                // ") and multiple decimal points within the number (e.g., "1.2.3").
-                this -> err_log = ((t + j == input.length() - 1) ? err_trailing_dec
-                : err_mul_dec);
-                this -> anomaly = true;
-                return;
-              }
-            }
-    
-            // If no invalid conditions are met, and only digits follow the decimal point until the end of the string,
-            // the current decimal point is considered valid in its context.
-            else return;
-          }
-        }
-    
-        // Search for the next occurrence of a decimal point, starting from the character
-        // immediately after the current one, to continue validation.
-        t = input.find(dot, t + 1);
       }
     }
 
