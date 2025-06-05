@@ -326,7 +326,6 @@ namespace {
 
 }
 
-
 // Pre-compile strings so it doesn't cost time (e.g., error messages or frequently reused strings).
 namespace {
   // === Helper strings for syntax parsing and output formatting ===
@@ -416,7 +415,6 @@ namespace {
   static const std::string unexpected_error = "An unexpected error occured during parsing.";
 }
 
-
 //                                                   //
 // <-------- Main part of the entire file. --------> //
 //                                                   //
@@ -439,23 +437,23 @@ class expression {
 
     // Constructor with expression string input and variable toggling option.
     expression(const std::string &input, bool allow_var = true): entered_expression(input), allow_variable(allow_var) {
-      this -> clean();
+      this -> parse();
     }
 
     // Constructor with expression const string literals without refernce so it doesn't point to nothing
     // and gives a copy which is more suitable here, also a variable toggling option.
     expression(const char* input, bool allow_var = true): allow_variable(allow_var), entered_expression(input) {
-      this -> clean();
+      this -> parse();
     }
 
     // Copy constructor.
     expression(const expression &other): entered_expression(other.entered_expression), modified_expression(other.modified_expression),
     anomaly(other.anomaly), allow_variable(other.allow_variable), err_log(other.err_log) {
-      this -> clean();
+      this -> parse();
     }
 
     // Main function to be used.
-    expression &clean() noexcept {
+    expression &parse() noexcept {
       if(!this -> anomaly) return *this;
       this -> anomaly = false;
       // Initialization.
@@ -485,7 +483,7 @@ class expression {
       // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
       basic_cleanup(input);
       if(this -> anomaly) return *this;
-      // Convert implict multiplication to explicit.
+      // Convert implicit multiplication to explicit.
       implicit_mult(input);
       if(this -> anomaly) return *this;
       // Check if corrcet functions are called and it is appropriately called using a '('.
@@ -500,7 +498,7 @@ class expression {
       if(input.find('!') != std::string::npos) factorial_convert(input);
       if(this -> anomaly) return *this;
       // Change √(placeholder(powered by basic_cleanup) -> '#') to sqrt().
-      if(input.find('#') != std::string::npos) add_sqrt(input);
+      if(input.find('#') != std::string::npos) sqrt_convert(input);
       if(this -> anomaly) return *this;
       // Convert (^ + / - *) into function-like format in bodmas order.
       for(int i = 0; i < 5; i++) {
@@ -563,7 +561,7 @@ class expression {
       this -> modified_expression.clear();
       this -> anomaly = true;
       this -> err_log = err_not_modified;
-      this -> clean();
+      this -> parse();
       return *this;
     }
 
@@ -573,7 +571,7 @@ class expression {
       this -> modified_expression.clear();
       this -> anomaly = true;
       this -> err_log = err_not_modified;
-      this -> clean();
+      this -> parse();
       return *this;
     }
 
@@ -937,24 +935,24 @@ class expression {
       return *this;
     }
 
-    // Update the input string with a new string and optionally cleanse it.
+    // Update the input string with a new string.
     expression &update(const std::string &new_expr) noexcept {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anomaly = true;
       this -> err_log = err_not_modified;
-      this -> clean();
+      this -> parse();
       return *this;
     }
 
     // String literal versions.
-    // Update the input string with a new string and optionally cleanse it.
+    // Update the input string with a new string.
     expression &update(const char* new_expr) noexcept {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anomaly = true;
       this -> err_log = err_not_modified;
-      this -> clean();
+      this -> parse();
       return *this;
     }
 
@@ -1006,43 +1004,51 @@ class expression {
   // Helper functions.
   private:
 
-    // Check if functions present are appropriate and are called appropriately by '('.
-    void app_func(const std::string &input, bool flag) noexcept {
-      const char *it = &input[0], *end = it + input.size();
+    // Checks whether the input string contains any invalid characters.
+    // Also detects if any Unicode characters are present.
+    // Returns true if an invalid character is found; false otherwise.
+    // Also normalising the input string by removing spaces and lowercasing all characters(alphabets, keeping everything as is).
+    bool input_validation_normalisation(std::string &input) noexcept {
+      std::string result;
+      result.resize(input.size()); // Resize to maximum possible size.
+      char *k = &result[0], *t = k; // Writing pointers.
+      const char *it = &input[0], *end = it + input.size(); // Reading pointers.
       while(it != end) {
-        if(is_lower(*it)) {
-          int j = 1;
-          // * Max function length is 4 letters.
-          while(j < 5 && it + j != end && is_lower(*(it + j))) j++;
-          if(j == 5 || !is_allowed_function(it, j)) {
-            this -> err_log = err_invalid_char_stream + std::string(it, j) + apostrophe_dot;
-            this -> anomaly = true;
-            return;
+        if(((*it) & 0x80) == 0) { // Single byte ASCCI characters.
+          if(is_space(*it)) it++;
+          else {
+            char c = to_lower(*(it++)); // Cannot directly check for valid characters before lowercasing potentially uppercase alphabets.
+            if(is_valid_character(&c, 1)) *(k++) = c;
+            else return true;
           }
-          // If function is not followed by a '(' (don't include "pi" (check for 'p')).
-          if(j != 1 && ((it + j) == end || *(it + j) != '(') && !(j == 2 && *it == 'p')) {
-            this -> err_log = flag ? err_no_arg_func : err_func_not_called;
-            this -> anomaly = true;
-            return;
-          }
-          // If it's x and variables aren't allowed.
-          if(j == 1 && *it == 'x' && !this -> allow_variable) {
-            this -> err_log = err_var_where_not_allowed;
-            this -> anomaly = true;
-            return;
-          }
-          it += j - 1;
         }
-        it++;
+        else if(((*it) & 0xE0) == 0xC0) { // Two byte unicode characters.
+          if(it + 2 > end) return true;
+          else if(is_valid_character(it, 2)) {
+            *(k++) = *(it++); // To avoid memcpy's overhead for just two bytes.
+            *(k++) = *(it++);
+          }
+          else return true;
+        }
+        else if(((*it) & 0xF0) == 0xE0) { // Three byte unicode characters.
+          if(it + 3 > end) return true;
+          else if(is_valid_character(it, 3)) {
+            std::memcpy(k, it, 3);
+            k += 3;
+            it += 3;
+          }
+          else return true;
+        }
+        else return true; // No 4 byte unicode are in valid character list.
       }
+      result.resize(k - t); // Resize to actual size.
+      input.swap(result);
+      return false;
     }
 
     // Ensures the input string has balanced parentheses by:
     // - Counting unmatched closing parentheses and adding opening parentheses at the front if needed.
     // - Counting unmatched opening parentheses and appending closing parentheses at the end.
-    //
-    // Parameters:
-    //   input - the string to check and fix parentheses in (modified in place).
     void app_paren(std::string &input) noexcept {
       int parenthesis = 0, front_paren = 0; // stack like counters.
       const char *it = &input[0], *end = &input[input.size()];
@@ -1068,37 +1074,45 @@ class expression {
       input.swap(result);
     }
 
-    // Called at the last of the parsing setup so it only checks for lowercase letters and not '+-/^*'
-    // Because those are converted to function like format, such as: 3+8*8 -> add(3,mul(8,8)).
-    // Removes redundant parenthesis.
-    void paren_cleaner(std::string &input) noexcept {
+    // Remove (), ()()(), (()()()), ((())) in a single pass(O(n), don't use abstraction methods like find & erase coz O(n*k)).
+    // eg, (((()))A) -> (A), (()()()A) -> (A), ()A -> A, (AAA(A)()) -> (AAA(A)), (((A))) -> (((A))), ((()()()))((()))()()() -> _(nothing), (A()B) -> (AB).
+    void remove_empt(std::string &input, bool &flag) noexcept {
+      int parenthesis = 0, result_parenthesis = 0; // stack like counters for input parenthesis and output parenthesis.
       std::string result;
       result.resize(input.size());
       char *k = &result[0], *t = k;
-      const char *it = &input[0], *end = &input[input.size()], *it_o = it;
-      int parenthesis = 0, result_parenthesis = 0;
+      const char *it = &input[0], *end = &input[input.size()];
       while(it != end) {
         switch(*it) {
           case'(':
-            if(it != it_o && is_lower(*(it - 1))) {
-              result_parenthesis++;
-              *(k++) = '(';
-            }
             parenthesis++;
             break;
           case')':
             if(parenthesis == result_parenthesis) {
+              *(k++) = *it;
               result_parenthesis--;
-              *(k++) = ')';
             }
             parenthesis--;
             break;
           default:
-            *(k++) = *it;
+            int difference = parenthesis - result_parenthesis;
+            std::memset(k, '(', difference);
+            result_parenthesis = parenthesis; // update to sync.
+            k += difference;
+            const char *it_1 = (char*)std::memchr(it, '(', end - it), *it_2 = (char*)std::memchr(it, ')', end - it), *it_ = nullptr; // find the next parenthesis.
+            // set it_ to the closest pointer.
+            if(it_1 == NULL && it_2 == NULL) it_ = end;
+            else if(it_1 == NULL) it_ = it_2;
+            else if(it_2 == NULL) it_ = it_1;
+            else it_ = (it_1 < it_2 ? it_1 : it_2);
+            std::memmove(k, it, it_ - it); // move everything before the next parenthesis.
+            k += it_ - it; // update the output buffer.
+            it = it_ - 1; // -1 because main loop increments by 1.
         }
         it++;
       }
-      result.resize(k - t);
+      result.resize(k - t); // resize to actual size.
+      flag = true;
       input.swap(result);
     }
 
@@ -1212,9 +1226,238 @@ class expression {
       unicode_constant_cleanup(input);
     }
 
+    // Transforms implicit multiplication in a mathematical expression string 
+    // into explicit multiplication using '*'. 
+    // For example, turns "2x" into "2*x", or "3(x+1)" into "3*(x+1)".
+    void implicit_mult(std::string &input) noexcept {
+      // '#' is placeholder for sqrt symbol.
+      std::string result;
+      result.resize(input.size() << 1); // Max theoretical size.
+      const char *it = &input[0], *end = it + input.size(), *it_ = it;
+      char *k = &result[0], *t = k;
+      while(it != end) {
+        if(is_digit(*it)) { // Case for digits
+          *(k++) = *(it++);
+          if(it != end && (is_lower(*it) || *it == '(' || *it == '#')) *(k++) = '*';
+        }
+        else if(*it == 'x') { // Case for variable 'x'.
+          bool is_correct_precede = (k == t || !invalid_precede_x(*(k - 1)));
+          *(k++) = *(it++);
+          if(it != end && (is_correct_precede && (*it == '(' || is_low_num(*(it)) || *(it) == '#'))) *(k++) = '*';
+        }
+        else if(is_lower(*it)) { // Case for lowecase letters.
+          *(k++) = *(it++);
+          if(it != end && (*it == '#' || is_digit(*it))) *(k++) = '*';
+        }
+        else if(*it == ')') { // Case for closing parenthesis.
+          *(k++) = *(it++);
+          if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
+        }
+        else if(*it == '!') { // Case for factorial symbol.
+          *(k++) = *(it++);
+          if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
+        }
+        else *(k++) = *(it++); // Else direct copy.
+      }
+      result.resize(k - t);
+      input.swap(result);
+    }
+
+    // Convert aliases into normalised mathematical function names such as: 'arccotangent' -> 'acot'.
+    void func_name_norm(std::string &input) noexcept {
+      std::string result;
+      result.resize(input.size());
+      const char *it = &input[0], *end = &input[input.size()];
+      char *k = &result[0], *t = k;
+      while(it != end) {
+        if(is_lower(*it)) {
+          int j = 1;
+          while((it + j != end) && is_lower(*(it + j))) j++; // Get the length of character stream.
+          const std::string *sub = alias_normalisation(it, j); // Normalise.
+          if(sub == &emp) { // If not recognised alias, copy as-is.
+            std::memcpy(k, it, j);
+            k += j;
+          }
+          else for(const char &c : *sub) *(k++) = c;
+          it += j;
+        }
+        else *(k++) = *(it++);
+      }
+      result.resize(k - t);
+      input.swap(result);
+    }
+
+    // Check if functions present are appropriate and are called appropriately by '('.
+    void app_func(const std::string &input, bool flag) noexcept {
+      const char *it = &input[0], *end = it + input.size();
+      while(it != end) {
+        if(is_lower(*it)) {
+          int j = 1;
+          // * Max function length is 4 letters.
+          while(j < 5 && it + j != end && is_lower(*(it + j))) j++;
+          if(j == 5 || !is_allowed_function(it, j)) {
+            this -> err_log = err_invalid_char_stream + std::string(it, j) + apostrophe_dot;
+            this -> anomaly = true;
+            return;
+          }
+          // If function is not followed by a '(' (don't include "pi" (check for 'p')).
+          if(j != 1 && ((it + j) == end || *(it + j) != '(') && !(j == 2 && *it == 'p')) {
+            this -> err_log = flag ? err_no_arg_func : err_func_not_called;
+            this -> anomaly = true;
+            return;
+          }
+          // If it's x and variables aren't allowed.
+          if(j == 1 && *it == 'x' && !this -> allow_variable) {
+            this -> err_log = err_var_where_not_allowed;
+            this -> anomaly = true;
+            return;
+          }
+          it += j - 1;
+        }
+        it++;
+      }
+    }
+
+    // Validates the correct usage of commas within binary functions in a given input string.
+    // Ensures commas only appear where they logically belong (i.e., within binary functions).
+    void valid_commas(const std::string &input) noexcept {
+      std::string temp; // Temporarily holds function names or variables being built character by character.
+      int parenthesis = 0; // Tracks the current depth of nested parentheses.
+      // Stack holds pairs: 
+      //   - the parenthesis depth when a binary function starts,
+      //   - a bool flag to track if a comma has been seen inside that function's arguments.
+      std::stack<std::pair<int, bool>> parenthesis_count;
+      for(int i = 0; i < input.size(); i++) {
+        if(is_lower(input[i])) {
+          // Collect lowercase letters into 'temp' to form potential function names.
+          temp += input[i];
+        }
+        else {
+          if(input[i] == '(') {
+            // If we just finished reading a binary function name...
+            if(!temp.empty() && is_binary_func(temp)) {
+              // Push the current parenthesis depth and a "comma-not-yet-found" flag.
+              parenthesis_count.push({parenthesis, false});
+            }
+            parenthesis++; // We just opened a parenthesis, diving deeper!
+          }
+          else if(input[i] == ')') {
+            parenthesis--; // Coming back up a level of nesting.
+            // If we have more closing parens than opening: oops!
+            if(parenthesis < 0) {
+              this -> err_log = err_incorrect_paren_use;
+              this -> anomaly = true;
+              return;
+            }
+            // Check if we're closing a binary function's parentheses.
+            if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
+              // If no comma was found inside a binary function: that's a problem.
+              if(!parenthesis_count.top().second) {
+                this -> err_log = err_no_comma;
+                this -> anomaly = true;
+                return;
+              }
+              parenthesis_count.pop(); // Remove this function from the stack.
+            }
+          }
+          else if(input[i] == ',') {
+            // Check if we are even inside a binary function at all.
+            if(parenthesis_count.empty() || parenthesis_count.top().first != parenthesis - 1) {
+              this -> err_log = err_used_comma; // Rogue comma with no binary function.
+              this -> anomaly = true;
+              return;
+            }
+            // A second comma in the same binary function.
+            if(parenthesis_count.top().second) {
+              this -> err_log = err_mul_comma;
+              this -> anomaly = true;
+              return;
+            }
+            // Ensure the comma is not preceded by an operator or other junk.
+            if((i == 0) || is_invalid_precedence(input[i - 1])) {
+              this -> err_log = err_no_first_arg; // Comma with no first argument? That's suspicious.
+              this -> anomaly = true;
+              return;
+            }
+            // Ensure the comma is not followed by an operator or invalid symbol.
+            if((i == input.size() - 1) || is_invalid_subsidence(input[i + 1])) {
+              this -> err_log = err_no_second_arg; // Comma with no second argument? Even more suspicious.
+              this -> anomaly = true;
+              return;
+            }
+            // Mark that we've seen a valid comma inside this binary function.
+            parenthesis_count.top().second = true;
+          }
+          temp.clear(); // Reset temp since we're done processing a token.
+        }
+      }
+    }
+
+    // Convert implicit factorial symbols ('!') into explicit function calls (e.g., ftrl()).
+    // Also performs error checks for invalid placements of the factorial operator.
+    void factorial_convert(std::string &input) noexcept {
+      // Find the first occurrence of the '!' character.
+      size_t t = input.find('!');
+      // Error: '!' at the very beginning is invalid as there's nothing to apply it to.
+      if(t == 0) {
+        this -> err_log = invalid_fact_place;
+        this -> anomaly = true;
+        return;
+      }
+      // Process all occurrences of '!' in the input string.
+      while (t != std::string::npos) {
+        int parenthesis = 0;
+        int i = t - 1;
+        // Error: If the character before '!' is an operator or an opening parenthesis,
+        // there's no valid operand for the factorial.
+        if(is_op(input[t - 1]) || input[t - 1] == '(') {
+          this -> err_log = err_no_arg_fact;
+          this -> anomaly = true;
+          return;
+        }
+        // Replace the '!' with a closing parenthesis for the explicit function call.
+        input[t] = ')';
+        // Walk backwards to find the beginning of the factorial's operand.
+        for (; i >= 0; i--) {
+          // Handle nested parentheses correctly.
+          if(input[i] == '(') {
+            if(parenthesis == 0) break;
+            parenthesis--;
+            if(parenthesis < 0) {
+              // More closing than opening parens while walking back — invalid structure.
+              this -> err_log = err_incorrect_paren_use;
+              this -> anomaly = true;
+              return;
+            }
+          }
+          // Stop at beginning or at an operator, if parentheses are balanced.
+          else if(i == 0 || is_op(input[i])) {
+            if(parenthesis == 0) {
+              break;
+            }
+            else {
+              // Found an operator while parentheses were still open — invalid location.
+              this -> err_log = invalid_fact_place;
+              this -> anomaly = true;
+              return;
+            }
+          }
+          // Track opening of a nested expression.
+          else if(input[i] == ')') {
+            parenthesis++;
+          }
+        }
+        // Insert the "ftrl(" function call before the operand.
+        // If i == 0, insert at the beginning. Otherwise, insert right after the relevant operator or parenthesis.
+        input.insert(i == 0 ? 0 : i + 1, ftrl_func_str);
+        // Move to the next '!' occurrence. Adjust by +4 to skip over the just-inserted "ftrl(".
+        t = input.find('!', t + 4);
+      }
+    }
+
     // Scan from right: right-associative.
     // Replace '#' (placeholder for sqrt symbol) with function format "sqrt()" by finding appropriate place to insert "sqrt(" & ")".
-    void add_sqrt(std::string &input) noexcept {
+    void sqrt_convert(std::string &input) noexcept {
       // The delimiter check function (like +, -, *, /, ^, comma, or closing parenthesis).
       bool (*delimiter_map)(const unsigned char&) = &primary_op_second_delimiter;
       // How many sqrt placeholders are there?
@@ -1402,286 +1645,38 @@ class expression {
       }
     }
 
-    // Convert aliases into normalised mathematical function names such as: 'arccotangent' -> 'acot'.
-    void func_name_norm(std::string &input) noexcept {
-      std::string result;
-      result.resize(input.size());
-      const char *it = &input[0], *end = &input[input.size()];
-      char *k = &result[0], *t = k;
-      while(it != end) {
-        if(is_lower(*it)) {
-          int j = 1;
-          while((it + j != end) && is_lower(*(it + j))) j++; // Get the length of character stream.
-          const std::string *sub = alias_normalisation(it, j); // Normalise.
-          if(sub == &emp) { // If not recognised alias, copy as-is.
-            std::memcpy(k, it, j);
-            k += j;
-          }
-          else for(const char &c : *sub) *(k++) = c;
-          it += j;
-        }
-        else *(k++) = *(it++);
-      }
-      result.resize(k - t);
-      input.swap(result);
-    }
-
-    // Transforms implicit multiplication in a mathematical expression string 
-    // into explicit multiplication using '*'. 
-    // For example, turns "2x" into "2*x", or "3(x+1)" into "3*(x+1)".
-    void implicit_mult(std::string &input) noexcept {
-      // '#' is placeholder for sqrt symbol.
-      std::string result;
-      result.resize(input.size() << 1); // Max theoretical size.
-      const char *it = &input[0], *end = it + input.size(), *it_ = it;
-      char *k = &result[0], *t = k;
-      while(it != end) {
-        if(is_digit(*it)) { // Case for digits
-          *(k++) = *(it++);
-          if(it != end && (is_lower(*it) || *it == '(' || *it == '#')) *(k++) = '*';
-        }
-        else if(*it == 'x') { // Case for variable 'x'.
-          bool is_correct_precede = (k == t || !invalid_precede_x(*(k - 1)));
-          *(k++) = *(it++);
-          if(it != end && (is_correct_precede && (*it == '(' || is_low_num(*(it)) || *(it) == '#'))) *(k++) = '*';
-        }
-        else if(is_lower(*it)) { // Case for lowecase letters.
-          *(k++) = *(it++);
-          if(it != end && (*it == '#' || is_digit(*it))) *(k++) = '*';
-        }
-        else if(*it == ')') { // Case for closing parenthesis.
-          *(k++) = *(it++);
-          if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
-        }
-        else if(*it == '!') { // Case for factorial symbol.
-          *(k++) = *(it++);
-          if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
-        }
-        else *(k++) = *(it++); // Else direct copy.
-      }
-      result.resize(k - t);
-      input.swap(result);
-    }
-
-    // Checks whether the input string contains any invalid characters.
-    // Also detects if any Unicode characters are present.
-    // Returns true if an invalid character is found; false otherwise.
-    // Also normalising the input string by removing spaces and lowercasing all characters(alphabets, keeping everything as is).
-    bool input_validation_normalisation(std::string &input) noexcept {
-      std::string result;
-      result.resize(input.size()); // Resize to maximum possible size.
-      char *k = &result[0], *t = k; // Writing pointers.
-      const char *it = &input[0], *end = it + input.size(); // Reading pointers.
-      while(it != end) {
-        if(((*it) & 0x80) == 0) { // Single byte ASCCI characters.
-          if(is_space(*it)) it++;
-          else {
-            char c = to_lower(*(it++)); // Cannot directly check for valid characters before lowercasing potentially uppercase alphabets.
-            if(is_valid_character(&c, 1)) *(k++) = c;
-            else return true;
-          }
-        }
-        else if(((*it) & 0xE0) == 0xC0) { // Two byte unicode characters.
-          if(it + 2 > end) return true;
-          else if(is_valid_character(it, 2)) {
-            *(k++) = *(it++); // To avoid memcpy's overhead for just two bytes.
-            *(k++) = *(it++);
-          }
-          else return true;
-        }
-        else if(((*it) & 0xF0) == 0xE0) { // Three byte unicode characters.
-          if(it + 3 > end) return true;
-          else if(is_valid_character(it, 3)) {
-            std::memcpy(k, it, 3);
-            k += 3;
-            it += 3;
-          }
-          else return true;
-        }
-        else return true; // No 4 byte unicode are in valid character list.
-      }
-      result.resize(k - t); // Resize to actual size.
-      input.swap(result);
-      return false;
-    }
-
-    // Remove (), ()()(), (()()()), ((())) in a single pass(O(n), don't use abstraction methods like find & erase coz O(n*k)).
-    // eg, (((()))A) -> (A), (()()()A) -> (A), ()A -> A, (AAA(A)()) -> (AAA(A)), (((A))) -> (((A))), ((()()()))((()))()()() -> _(nothing), (A()B) -> (AB).
-    void remove_empt(std::string &input, bool &flag) noexcept {
-      int parenthesis = 0, result_parenthesis = 0; // stack like counters for input parenthesis and output parenthesis.
+    // Called at the last of the parsing setup so it only checks for lowercase letters and not '+-/^*'
+    // Because those are converted to function like format, such as: 3+8*8 -> add(3,mul(8,8)).
+    // Removes redundant parenthesis.
+    void paren_cleaner(std::string &input) noexcept {
       std::string result;
       result.resize(input.size());
       char *k = &result[0], *t = k;
-      const char *it = &input[0], *end = &input[input.size()];
+      const char *it = &input[0], *end = &input[input.size()], *it_o = it;
+      int parenthesis = 0, result_parenthesis = 0;
       while(it != end) {
         switch(*it) {
           case'(':
+            if(it != it_o && is_lower(*(it - 1))) {
+              result_parenthesis++;
+              *(k++) = '(';
+            }
             parenthesis++;
             break;
           case')':
             if(parenthesis == result_parenthesis) {
-              *(k++) = *it;
               result_parenthesis--;
+              *(k++) = ')';
             }
             parenthesis--;
             break;
           default:
-            int difference = parenthesis - result_parenthesis;
-            std::memset(k, '(', difference);
-            result_parenthesis = parenthesis; // update to sync.
-            k += difference;
-            const char *it_1 = (char*)std::memchr(it, '(', end - it), *it_2 = (char*)std::memchr(it, ')', end - it), *it_ = nullptr; // find the next parenthesis.
-            // set it_ to the closest pointer.
-            if(it_1 == NULL && it_2 == NULL) it_ = end;
-            else if(it_1 == NULL) it_ = it_2;
-            else if(it_2 == NULL) it_ = it_1;
-            else it_ = (it_1 < it_2 ? it_1 : it_2);
-            std::memmove(k, it, it_ - it); // move everything before the next parenthesis.
-            k += it_ - it; // update the output buffer.
-            it = it_ - 1; // -1 because main loop increments by 1.
+            *(k++) = *it;
         }
         it++;
       }
-      result.resize(k - t); // resize to actual size.
-      flag = true;
+      result.resize(k - t);
       input.swap(result);
-    }
-
-    // Convert implicit factorial symbols ('!') into explicit function calls (e.g., ftrl()).
-    // Also performs error checks for invalid placements of the factorial operator.
-    void factorial_convert(std::string &input) noexcept {
-      // Find the first occurrence of the '!' character.
-      size_t t = input.find('!');
-      // Error: '!' at the very beginning is invalid as there's nothing to apply it to.
-      if(t == 0) {
-        this -> err_log = invalid_fact_place;
-        this -> anomaly = true;
-        return;
-      }
-      // Process all occurrences of '!' in the input string.
-      while (t != std::string::npos) {
-        int parenthesis = 0;
-        int i = t - 1;
-        // Error: If the character before '!' is an operator or an opening parenthesis,
-        // there's no valid operand for the factorial.
-        if(is_op(input[t - 1]) || input[t - 1] == '(') {
-          this -> err_log = err_no_arg_fact;
-          this -> anomaly = true;
-          return;
-        }
-        // Replace the '!' with a closing parenthesis for the explicit function call.
-        input[t] = ')';
-        // Walk backwards to find the beginning of the factorial's operand.
-        for (; i >= 0; i--) {
-          // Handle nested parentheses correctly.
-          if(input[i] == '(') {
-            if(parenthesis == 0) break;
-            parenthesis--;
-            if(parenthesis < 0) {
-              // More closing than opening parens while walking back — invalid structure.
-              this -> err_log = err_incorrect_paren_use;
-              this -> anomaly = true;
-              return;
-            }
-          }
-          // Stop at beginning or at an operator, if parentheses are balanced.
-          else if(i == 0 || is_op(input[i])) {
-            if(parenthesis == 0) {
-              break;
-            }
-            else {
-              // Found an operator while parentheses were still open — invalid location.
-              this -> err_log = invalid_fact_place;
-              this -> anomaly = true;
-              return;
-            }
-          }
-          // Track opening of a nested expression.
-          else if(input[i] == ')') {
-            parenthesis++;
-          }
-        }
-        // Insert the "ftrl(" function call before the operand.
-        // If i == 0, insert at the beginning. Otherwise, insert right after the relevant operator or parenthesis.
-        input.insert(i == 0 ? 0 : i + 1, ftrl_func_str);
-        // Move to the next '!' occurrence. Adjust by +4 to skip over the just-inserted "ftrl(".
-        t = input.find('!', t + 4);
-      }
-    }
-
-    // Validates the correct usage of commas within binary functions in a given input string.
-    // Ensures commas only appear where they logically belong (i.e., within binary functions).
-    void valid_commas(const std::string &input) noexcept {
-      std::string temp; // Temporarily holds function names or variables being built character by character.
-      int parenthesis = 0; // Tracks the current depth of nested parentheses.
-      // Stack holds pairs: 
-      //   - the parenthesis depth when a binary function starts,
-      //   - a bool flag to track if a comma has been seen inside that function's arguments.
-      std::stack<std::pair<int, bool>> parenthesis_count;
-      for(int i = 0; i < input.size(); i++) {
-        if(is_lower(input[i])) {
-          // Collect lowercase letters into 'temp' to form potential function names.
-          temp += input[i];
-        }
-        else {
-          if(input[i] == '(') {
-            // If we just finished reading a binary function name...
-            if(!temp.empty() && is_binary_func(temp)) {
-              // Push the current parenthesis depth and a "comma-not-yet-found" flag.
-              parenthesis_count.push({parenthesis, false});
-            }
-            parenthesis++; // We just opened a parenthesis, diving deeper!
-          }
-          else if(input[i] == ')') {
-            parenthesis--; // Coming back up a level of nesting.
-            // If we have more closing parens than opening: oops!
-            if(parenthesis < 0) {
-              this -> err_log = err_incorrect_paren_use;
-              this -> anomaly = true;
-              return;
-            }
-            // Check if we're closing a binary function's parentheses.
-            if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
-              // If no comma was found inside a binary function: that's a problem.
-              if(!parenthesis_count.top().second) {
-                this -> err_log = err_no_comma;
-                this -> anomaly = true;
-                return;
-              }
-              parenthesis_count.pop(); // Remove this function from the stack.
-            }
-          }
-          else if(input[i] == ',') {
-            // Check if we are even inside a binary function at all.
-            if(parenthesis_count.empty() || parenthesis_count.top().first != parenthesis - 1) {
-              this -> err_log = err_used_comma; // Rogue comma with no binary function.
-              this -> anomaly = true;
-              return;
-            }
-            // A second comma in the same binary function.
-            if(parenthesis_count.top().second) {
-              this -> err_log = err_mul_comma;
-              this -> anomaly = true;
-              return;
-            }
-            // Ensure the comma is not preceded by an operator or other junk.
-            if((i == 0) || is_invalid_precedence(input[i - 1])) {
-              this -> err_log = err_no_first_arg; // Comma with no first argument? That's suspicious.
-              this -> anomaly = true;
-              return;
-            }
-            // Ensure the comma is not followed by an operator or invalid symbol.
-            if((i == input.size() - 1) || is_invalid_subsidence(input[i + 1])) {
-              this -> err_log = err_no_second_arg; // Comma with no second argument? Even more suspicious.
-              this -> anomaly = true;
-              return;
-            }
-            // Mark that we've seen a valid comma inside this binary function.
-            parenthesis_count.top().second = true;
-          }
-          temp.clear(); // Reset temp since we're done processing a token.
-        }
-      }
     }
 
   // Friend operators / convinience functions.
