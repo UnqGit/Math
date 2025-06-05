@@ -1,48 +1,11 @@
 #pragma once
 
-// Constant maps for fast lookups.
-// namespace {
-//   const std::unordered_set<char> sign {'+','-'};
-//   const std::unordered_set<char> primary_ops {'+','-','*','/','^'};
-//   const std::unordered_set<char> invalid_subsidence {',','*','/',')','^'};
-//   const std::unordered_set<char> invalid_precedence {',','*','/','+','-','(','^'};
-//   const std::unordered_set<char> &ops = invalid_precedence;
-//   const std::unordered_set<char> implicit_mult_valid_chars {'0','1','2','3','4','5','6','7','8','9','(',')','x','#','!'};
-//   const std::unordered_set<char> basic_cleanup_lookup {'0','1','2','3','4','5','6','7','8','9','.',')','=','@'};
-//   const std::unordered_set<std::string> binary_funcs {"pow","gcd","ncr","npr","add","sub","mul","div","mod","logk","lcm","min","max"};
-//   const std::unordered_set<std::string> valid_characters {
-//     "⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹",
-//     "0","1","2","3","4","5","6","7","8","9",
-//     "^","+","-","/","*","÷","×","·","√","π",
-//     ".","(",")",",","!","a","b","c","d","e",
-//     "f","g","h","i","k","l","m","n","o","p",
-//     "q","r","s","t","u","v","w","x"
-//   };
-//   const std::unordered_set<std::string> allowed_functions {
-//     "x", "exp", "ln",
-//     "sqrt", "sin", "cos",
-//     "csc", "sec", "tan",
-//     "cot", "asin", "acos",
-//     "acsc", "asec", "atan",
-//     "acot", "sinh", "cosh",
-//     "csch", "sech", "tanh",
-//     "coth", "abs", "gcd",
-//     "ncr", "npr", "add",
-//     "sub", "mul", "div",
-//     "mod", "flr", "rnd",
-//     "ceil", "ftrl", "pow",
-//     "neg", "logk", "cbrt",
-//     "lcm", "min", "max"
-//   };
-// }
-
 // Specialized lookup and validation utilities for parsing expressions.
 //
 // These are hand-optimized over generic unordered_set/hashmap equivalents
 // using fixed-size lookup tables and bit hacks. If you want to add functionality,
 // update the hash logic and tables as per YOUR addition
-// or comment this scope and uncomment the above namespace and all the commented out
-// usage of the above scope's unordered sets.
+// or comment this scope and change with unordered sets.
 namespace {
 
   // Used to replace the operators in order for BODMAS / PEMDAS presedence.
@@ -511,7 +474,7 @@ class expression {
         return *this;
       }
       // Make parenthesis even.
-      app_paren(input, flag);
+      app_paren(input);
       // Remove empty parenthesis.
       if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
       if(input.empty()) {
@@ -536,7 +499,7 @@ class expression {
       // Convert '!' to the function call "ftrl()".
       if(input.find('!') != std::string::npos) factorial_convert(input);
       if(this -> anomaly) return *this;
-      // Change √('#') to sqrt().
+      // Change √(placeholder(powered by basic_cleanup) -> '#') to sqrt().
       if(input.find('#') != std::string::npos) add_sqrt(input);
       if(this -> anomaly) return *this;
       // Convert (^ + / - *) into function-like format in bodmas order.
@@ -1043,38 +1006,26 @@ class expression {
   // Helper functions.
   private:
 
-    // Validate if a substring of letters in the input forms a valid function name,
-    // and ensure it is properly followed by an opening parenthesis '(' if required.
-    // Also checks if variables like 'x' are allowed where they appear.
-    //
-    // Parameters:
-    //   input - the full input string to check through
-    //   flag  - determines which error message to use if a function lacks arguments
-    //
-    // Behavior:
-    // - Accumulates consecutive lowercase letters up to 4 (max function name length).
-    // - If more than 4 letters are found in a row, marks anomaly with an error.
-    // - For each accumulated function name, verifies:
-    //    * It’s an allowed function name.
-    //    * It is followed by '(' if the function expects arguments.
-    //    * If the name is 'x' (variable), checks if variables are allowed in this context.
-    // - If any check fails, sets the anomaly flag and error message, then returns immediately.
+    // Check if functions present are appropriate and are called appropriately by '('.
     void app_func(const std::string &input, bool flag) noexcept {
       const char *it = &input[0], *end = it + input.size();
       while(it != end) {
         if(is_lower(*it)) {
           int j = 1;
+          // * Max function length is 4 letters.
           while(j < 5 && it + j != end && is_lower(*(it + j))) j++;
           if(j == 5 || !is_allowed_function(it, j)) {
             this -> err_log = err_invalid_char_stream + std::string(it, j) + apostrophe_dot;
             this -> anomaly = true;
             return;
           }
+          // If function is not followed by a '(' (don't include "pi" (check for 'p')).
           if(j != 1 && ((it + j) == end || *(it + j) != '(') && !(j == 2 && *it == 'p')) {
             this -> err_log = flag ? err_no_arg_func : err_func_not_called;
             this -> anomaly = true;
             return;
           }
+          // If it's x and variables aren't allowed.
           if(j == 1 && *it == 'x' && !this -> allow_variable) {
             this -> err_log = err_var_where_not_allowed;
             this -> anomaly = true;
@@ -1092,8 +1043,7 @@ class expression {
     //
     // Parameters:
     //   input - the string to check and fix parentheses in (modified in place).
-    //   flag  - a boolean reference set to true if any opening parentheses are inserted at the front.
-    void app_paren(std::string &input, bool &flag) noexcept {
+    void app_paren(std::string &input) noexcept {
       int parenthesis = 0, front_paren = 0; // stack like counters.
       const char *it = &input[0], *end = &input[input.size()];
       while(it != end) {
@@ -1110,7 +1060,6 @@ class expression {
         }
       }
       if(front_paren == 0 && parenthesis == 0) return;
-      if(front_paren != 0) flag = true; // signal changes at front.
       std::string result;
       result.resize(front_paren + input.size() + parenthesis);
       std::memset(&result[0], '(', front_paren);
@@ -1119,27 +1068,9 @@ class expression {
       input.swap(result);
     }
 
-    // Cleans up unnecessary parentheses from a fully functionalized expression string.
-    // This function assumes all operators have already been converted to functional form,
-    // e.g., "5 + 7" → "add(5, 7)".
-    // It targets parentheses that wrap around things without a preceding function name (like stray brackets),
-    // removing redundant pairs without breaking the expression.
-    //
-    // Important:
-    //   - Should be called **after** verifying balanced parentheses.
-    //   - Does NOT handle operator symbols like '+' or '-' directly; those should already be replaced.
-    //
-    // How it works:
-    //   - Uses a stack to track opening parentheses indices and whether they’re "potentially removable".
-    //   - An opening parenthesis is marked as removable if it’s NOT preceded by a lowercase letter (function name).
-    //   - When a closing parenthesis is found:
-    //       - If the matching opening parenthesis was marked removable, erase both parentheses.
-    //       - Otherwise, just pop the stack and move on.
-    //   - If an error is detected (like empty stack or consecutive parentheses without content), flags an anomaly.
-    //
-    // Side effects:
-    //   - Modifies the input string in place by removing redundant parentheses.
-    //   - Updates error log and anomaly flag if improper parenthesis usage is found.
+    // Called at the last of the parsing setup so it only checks for lowercase letters and not '+-/^*'
+    // Because those are converted to function like format, such as: 3+8*8 -> add(3,mul(8,8)).
+    // Removes redundant parenthesis.
     void paren_cleaner(std::string &input) noexcept {
       std::string result;
       result.resize(input.size());
@@ -1171,76 +1102,57 @@ class expression {
       input.swap(result);
     }
 
-    // Helper function to clean up Unicode constants and symbols inside the input string.
-    //
-    // What it does:
-    // - Replaces Unicode math symbols (like √, superscripts, etc.) with their ASCII equivalents or functional forms.
-    // - Handles special constants like π (pi) and e (Euler’s number) and ensures they are replaced properly.
-    // - Deals with superscript Unicode characters (e.g., ², ³) by converting them into "^" notation or inserting implicit multiplication "*" where needed.
-    // - Carefully avoids breaking multi-byte Unicode sequences and ensures operators/constants are replaced in the right order.
-    //
-    // How it works:
-    // - If Unicode is present:
-    //     - Iterates over a conversion table of Unicode symbols and replaces each occurrence in the string.
-    //     - Special case for the square root (√) symbol because it's multi-byte.
-    // - Replaces occurrences of "pi" with an internal placeholder (`equal_str`).
-    // - Replaces occurrences of "e" with another placeholder (`at_str`), avoiding cases where "exp" or trig functions like "cos" might be mistakenly replaced.
-    // - Processes superscript characters by:
-    //     - Converting them to "^" followed by the numeric character.
-    //     - Adding multiplication symbols "*" before or after superscripts where appropriate (e.g., `2³4` → `2^3*4`).
-    // - Uses a lambda (`pi_and_euler`) to handle placeholders insertion with careful multiplication insertion around them.
-    // - Finally replaces certain ASCII castings that may still exist (based on `ascii_cast` array), accounting for multi-byte chars.
-    //
-    // Why this matters:
-    // - Converts fancy Unicode math notation to simple, clean ASCII math strings that are easier to parse downstream.
-    // - Ensures implicit multiplication (often missing in raw Unicode math strings) is correctly represented.
+    // Remove unicodes from the string and convert them to ASCII and insert '^' or '*' where necessary(works with UTF-8).
     void unicode_constant_cleanup(std::string &input) noexcept {
       std::string result;
-      result.resize(input.size() << 1);
+      result.resize(input.size() << 1); // Max theoretical size needed.
       const char *it = &input[0], *it_ = it, *end = it + input.size();
       char *k = &result[0], *t = k;
       while(it != end) {
         if(*it > 0) {
           switch(*it) {
-            case'e': // exp, neg, sec, ceil, tangent, sine <- skip these ('e' appears nowhere else)
+            case'e': // neg, sec, ceil, tangent, sine <- skip these ('e' appears nowhere else), otherwise euler's number.
               if(it != it_ && is_invalid_precede_e(it - 1)) {
                 *(k++) = *(it++);
                 continue;
               }
-              if(it + 2 < end && *(it + 1) == 'x' && *(it + 2) == 'p' && (it + 3 == end || *(it + 3) != 'i')) { // avoid exp and don't flag it with expi which is just e*x*pi.
+              // Case for exp and not including expi which is e*x*pi.
+              if(it + 2 < end && *(it + 1) == 'x' && *(it + 2) == 'p' && (it + 3 == end || *(it + 3) != 'i')) {
                 *(k++) = *(it++);
                 continue;
               }
+              // Else euler's number so check for lowercase letters to inser '*'.
               if(k != t && is_lower(*(k - 1))) *(k++) = '*';
               *(k++) = *(it++);
               if(it != end && (is_lower(*it) || *it == '(')) *(k++) = '*';
               break;
             case'p':
-              if(it + 1 != end && *(it + 1) == 'i') {
+              if(it + 1 != end && *(it + 1) == 'i') { // Case for 'pi'.
                 if(k != t && is_lower(*(k - 1))) *(k++) = '*';
                 *(k++) = *(it++);
                 *(k++) = *(it++);
                 if(it != end && (is_lower(*it) || *it == '(')) *(k++) = '*';
               }
-              else *(k++) = *(it++);
+              else *(k++) = *(it++); // Direct copy.
               break;
             default:
-              *(k++) = *(it++);
+              *(k++) = *(it++); // Direct copy.
           }
         }
         else {
-          int len = 2 + (*it == -30);
-          if(is_superscript(it)){
+          int len = 2 + (*it == -30); // Check the length of the unicode character (the unicode characters available which have
+          // 3 byte length start with the byte with value -30, 4 byte characters aren't present(made sure by input characetr validation in an earlier step.)).
+          if(is_superscript(it)) {
             if((k != t && (is_lower(*(k - 1)) || *(k - 1) == ')')) || it != it_ && is_digit(*(it - 1)) || *(it - 1) == '!') *(k++) = '^';
             *(k++) = superscript_to_ascci(it, len);
             if(it + len != end && is_digit(*(it + len))) *(k++) = '*';
           }
-          else if(len == 3) *(k++) = '#';
-          else if(*it != -49) {
-            if(*(it) == -61 && *(it + 1) == -73) *(k++) = '/';
+          else if(len == 3) *(k++) = '#'; // Case of '√', replacing with placeholder.
+          else if(*it != -49) { // Case of {'·','×','÷'}.
+            if(*(it) == -61 && *(it + 1) == -73) *(k++) = '/'; // For '÷'.
             else *(k++) = '*';
           }
-          else {
+          else { // Case of 'π'
             if(k != t && is_lower(*(k - 1))) *(k++) = '*';
             *(k++) = 'p';
             *(k++) = 'i';
@@ -1253,22 +1165,12 @@ class expression {
       input.swap(result);
     }
 
-    // Cleans up and normalizes the input string by:
-    // - Calling the unicode_constant_cleanup() to handle Unicode symbols and constants.
-    // - Normalizing sign sequences: multiple '+' and '-' characters in a row get simplified to a single '+' or '-'.
-    // - Fixing decimal points by:
-    //     - Adding a leading zero if decimal starts without a digit (".5" → "0.5").
-    //     - Removing trailing or multiple consecutive decimals that don't make sense (e.g., "2...2" → "2.3").
-    //
-    // Why is this important?
-    // - Makes sure expressions are consistent and easy to parse downstream by converting ambiguous or messy parts into neat, standard forms.
-    // - Sign normalization helps avoid tricky bugs with multiple sign characters.
-    // - Decimal fixes ensure the input won't confuse parsers or cause math errors.
+    // Cleanup chaining signs and invalid decimals(flag where needed).
     void basic_cleanup(std::string &input) noexcept {
       {
         std::string result; // Temporary string for single pass approach without replace or erase.
         int j;
-        result.resize((input.length() << 1) - (input.length() >> 1)); // Theoretical max number of output size (e.g -> ".5" => 0.5; i.e, 1.5x).
+        result.resize(input.length() + (input.length() >> 1)); // Theoretical max number of output size (e.g -> ".5" => 0.5; i.e, 1.5x).
         const char* it = &input[0], *end = it + input.length(); // Reading pointers.
         char *k = &result[0], *t = k; // Writing pointer and static pointer to the start.
         bool negative = false;
@@ -1310,33 +1212,15 @@ class expression {
       unicode_constant_cleanup(input);
     }
 
-   // Replace every '#' character (which was a placeholder for '√') with 'sqrt()' function call.
-    //
-    // What it does:
-    // - '#' is temporary stand-in for the square root symbol (√) because Unicode.
-    // - This function scans the input string for all '#' characters and replaces each with "sqrt(".
-    // - Then, it intelligently finds where to close the sqrt function with a matching ')' based on the expression that follows.
-    //
-    // How it works:
-    // 1. Counts how many '#' characters are in the input.
-    // 2. From the *right side* (because sqrt is right-associative here), finds each '#' one by one.
-    // 3. Replaces the '#' with "sqrt(" (5 characters).
-    // 4. Starting right after the inserted "sqrt(", scans forward to find the correct place to insert a closing ')' to wrap the operand inside sqrt.
-    //    - It uses a "delimiter map" function (`primary_op_second_delimiter`) that tells whether a character is a delimiter (like +, -, *, /, ^, etc.).
-    //    - The logic keeps track of parentheses to avoid prematurely closing sqrt if the operand is an expression inside parentheses.
-    //    - It skips signs '+' or '-' immediately following the sqrt to avoid messing with expressions like `sqrt(-4)`.
-    // 5. Inserts ')' either just before the next delimiter or at the end of the string if none is found.
-    //
-    // Also: By scanning from the right, it ensures nested sqrt calls work correctly, e.g., `##9` becomes `sqrt(sqrt(9))`, operator associativity.
+    // Scan from right: right-associative.
+    // Replace '#' (placeholder for sqrt symbol) with function format "sqrt()" by finding appropriate place to insert "sqrt(" & ")".
     void add_sqrt(std::string &input) noexcept {
       // The delimiter check function (like +, -, *, /, ^, comma, or closing parenthesis).
       bool (*delimiter_map)(const unsigned char&) = &primary_op_second_delimiter;
-
       // How many sqrt placeholders are there?
       int count = std::count(input.begin(), input.end(), '#');
       int t = input.length() - 1;  // Start scanning from the end for right-to-left behavior.
       int parenthesis = 0;
-
       for(int i = 0; i < count; i++) {
         // Find the next '#' from the right side, moving leftward each time.
         int h;
@@ -1363,11 +1247,9 @@ class expression {
         }
         // Replace '#' with "sqrt("
         input.replace(t, 1, sqrt_func_str); // sqrt_func_str == "sqrt(".
-
         // After insertion, the new 'cursor' is at t + 5 (right after "sqrt(").
         t += 5;
         int j = t;
-
         // Find where to insert the closing ')'.
         for(; j < input.length(); j++) {
           if(delimiter_map(input[j]) && parenthesis == 0) {
@@ -1375,14 +1257,12 @@ class expression {
             // Special cases:
             // - If delimiter is at the start and is a sign (+/-), ignore it to include negative numbers inside sqrt.
             if(j == t && is_sign(input[j])) continue;
-
             // - If just after the inserted sqrt, there's a '(' preceded by a sign, continue scanning.
             if(!(j == t + 1 && ((input[j] == '(') && is_sign(input[j - 1])))) break;
           }
           if(input[j] == '(') parenthesis++;
           else if(input[j] == ')') parenthesis--;
         }
-
         // Insert closing ')' at the found position or at the end if no delimiter found.
         if(j < input.size() - 1) {
           input.insert(j, close_paren); // close_paren == ")".
@@ -1393,23 +1273,15 @@ class expression {
       }
     }
 
-    // Converts binary operators (like '^', '/', '*', '+', '-') in the input string
-    // into a functional structure (e.g., "a^b" becomes "pow(a,b)").
-    // This function respects operator precedence and associativity by processing
-    // operators in a specific order (right-to-left for exponentiation, left-to-right for others).
+    // Convert operators into function like format e.g -> 8+8 -> add(8,8).
+    // (Called in this order -> ^/*+-).
     void binary_ops(std::string &input, const unsigned char &delimiter) noexcept {
-
       // Pointer to a function that determines valid delimiters for parsing.
-      // Initially set to check for characters that would delimit the *first* operand.
       bool (*delimiter_map)(const unsigned char&) = &primary_op_first_delimiter;
-
-      // Pointers to store the appropriate function name (e.g., "pow(", "div(")
-      // and the corresponding error message string based on the current delimiter.
+      // Pointers to store the appropriate messages depending on function name (e.g., "pow(", "div(").
       const std::string *function, *error_name;
-      // `check_hang` flag: true if the operator cannot stand alone without a left operand
-      // (e.g., '*', '/', '^'). False for '+' and '-' which can be unary.
+      // Signs can be unary.
       bool check_hang = !is_sign(delimiter);
-
       // Initialize `function` and `error_name` based on the operator being processed.
       switch(delimiter) {
         case '^':
@@ -1423,45 +1295,34 @@ class expression {
         case '+':
           function = &add_func_str; error_name = &err_full_add; break;
       }
-
-      // Determine the starting index and direction for searching for the delimiter.
-      // For exponentiation ('^'), process from right-to-left (due to right-associativity),
-      // so start near the end of the string.
-      // For other operators, process from left-to-right (left-associativity), start at the beginning.
+      // Starting point based on the operator (^ is right-associative).
       int index = delimiter == '^' ? input.length() - 2 : 0;
       // Count total occurrences of the delimiter to control the main loop iterations.
       int count = std::count(input.begin(), input.end(), delimiter);
-
       // Lambda function to determine the loop termination condition.
-      // For '^', stop when index reaches 0 (or less). For others, stop at end of string.
+      // For '^', stop when index reaches 0. For others, stop at end of string.
       auto stop = [&]() -> size_t {
         return delimiter == '^' ? 0 : input.length();
       };
       // `update`: defines the step direction for searching (e.g., -1 for right-to-left, 1 for left-to-right).
       // `offset`: adjusts the starting point for the inner search loop based on the delimiter.
       int update = delimiter == '^' ? -1 : 1;
-      int offset = delimiter == '^' ? 1 : 0; // Ensures starting search after the current `index` for left-to-right, or before for right-to-left.
-
+      int offset = delimiter == '^' ? 1 : 0;
       // Main loop: Iterates `count` times, processing one instance of the `delimiter` per iteration.
       for(int i = 0; i < count; i++) {
-
-        // Inner loop: Finds the next occurrence of the `delimiter` in the string, respecting associativity.
-        // It searches from `index + offset` up to `stop()` in the `update` direction.
+        // Find the "next" occurence of the operator.
         for(int j = index + offset; j != stop(); j += update) {
           if(input[j] == delimiter) {
-            index = j; // Update `index` to the position of the found delimiter.
-            break;     // Exit inner loop, as the delimiter is found.
+            index = j; // Update `index` to the position of the found delimiter and exit.
+            break;
           }
         }
-
         // Replace the found operator with a comma, marking the separation between arguments.
         input[index] = ',';
-
         // --- Handling Left Operand (First Argument) ---
         // Check if the character *before* the current operator (now a comma) is an invalid delimiter.
         // This helps identify "hanging" operators (e.g., `*2`, `+b`).
         if(index == 0 || delimiter_map(input[index - 1])) {
-
           // If the operator cannot have a missing first argument (e.g., `*`, `/`, `^`),
           // log an error and mark the expression as anomalous.
           if(check_hang) {
@@ -1471,24 +1332,21 @@ class expression {
             this -> anomaly = true;
             return; // Terminate processing due to error.
           }
-
-          // Special handling for unary '+' operator: it can simply be removed.
+          // Special handling for unary '+' operator: it can simply be removed if it has valid arguments.
           if(delimiter == '+') {
             if(input.size() == 1 || index == input.size() - 1 || primary_op_second_delimiter(input[index + 1])) {
               this -> err_log = err_no_func_op;
               this -> anomaly = true;
               return;
             }
-            input.erase(index, 1); // Erase the comma (originally '+').
-            index--;               // Adjust index due to removal.
-            continue;              // Move to the next delimiter.
+            input.erase(index, 1);
+            index--;
+            continue;
           }
           // Special handling for unary '-' operator: convert to "neg()" function.
           else {
-            input.erase(index, 1); // Erase the comma (originally '-').
-            index--;               // Adjust index due to removal.
-            // Insert "neg(" at the correct position (before the operand).
-            // If it was at the very beginning, insert at 0, otherwise at `index + 1`.
+            input.erase(index, 1); // Erase comma.
+            index--;
             input.insert(index > 0 ? index + 1 : 0, neg_func_str);
             index += 4; // Adjust `index` by the length of "neg(".
           }
@@ -1497,65 +1355,54 @@ class expression {
         // for the function name and insert it.
         else {
           int parenthesis = 0; // Counter for nested parentheses to ensure correct argument scope.
-          int j = index - 1;   // Start searching left from the current comma.
-
+          int j = index - 1;
           // Search backward to find the beginning of the left operand.
-          // Stop if an opening delimiter is found *outside* any parentheses.
           for(; j > 0; j--) {
             if(delimiter_map(input[j]) && parenthesis == 0) break; // Found delimiter and not inside parens.
-            if(input[j] == ')') parenthesis++;                     // Increment for closing parenthesis.
-            else if(input[j] == '(') parenthesis--;                // Decrement for opening parenthesis.
+            if(input[j] == ')') parenthesis++;
+            else if(input[j] == '(') parenthesis--;
           }
           // Insert the function name (e.g., "pow(", "mul(") at the calculated position.
-          // If `j` is 0 or less, insert at the beginning of the string.
           input.insert(j <= 0 ? 0 : j + 1, *function);
           index += function -> length(); // Adjust `index` by the length of the inserted function name.
         }
-
         // --- Handling Right Operand (Second Argument) and Closing Parenthesis ---
         // After processing the left operand, switch the delimiter map to find characters
         // that would delimit the *second* operand (e.g., closing parenthesis, other operators).
         delimiter_map = &primary_op_second_delimiter;
-    
-        int j = index + 1;       // Start searching right from the current comma.
-        int parenthesis = 0;     // Reset parenthesis counter for forward search.
-
+        int j = index + 1;
+        int parenthesis = 0;
         // Search forward to find the end of the right operand.
         // Stop if a closing delimiter is found *outside* any parentheses.
         for(; j < input.length(); j++) {
           if(delimiter_map(input[j]) && parenthesis == 0) {
-            // Special case: if it's a non-sign operator and the next character is a sign,
-            // it means the sign is part of the right operand (e.g., `2*-3`).
-            // In this scenario, don't stop; continue searching.
+            // For cases like 8/-8 which is valid.
             if(!is_sign(delimiter) && is_sign(input[j]) && j == index + 1) continue;
-            break; // Found delimiter and not inside parens.
+            break;
           }
-          if(input[j] == ')') parenthesis--; // Decrement for closing parenthesis.
-          else if(input[j] == '(') parenthesis++; // Increment for opening parenthesis.
+          if(input[j] == ')') parenthesis--;
+          else if(input[j] == '(') parenthesis++;
         }
-
-        // Error check: If the end of the right operand is immediately after the comma,
-        // it indicates a trailing operator (e.g., `2+`), which is an error.
+        // Trailing error check: If the end of the right operand is immediately after the comma.
         if(j - index == 1 || index == input.length() - 1) {
           this -> err_log = err_trailing;
           this -> err_log += *error_name;
           this -> err_log += err_operator;
           this -> anomaly = true;
-          return; // Terminate processing due to error.
+          return;
         }
-        // Insert the closing parenthesis ')' at the end of the right operand.
-        else if(j < input.length()) { // If `j` is within string bounds, insert.
+        else if(j < input.length()) {
           input.insert(j, close_paren);
         }
-        else { // If `j` is at the very end of the string, append.
-          input += close_paren;
+        else {
+          input.push_back(')');
         }
-
         // Reset the delimiter map for the next iteration to find first operands again.
         delimiter_map = &primary_op_first_delimiter;
       }
     }
 
+    // Convert aliases into normalised mathematical function names such as: 'arccotangent' -> 'acot'.
     void func_name_norm(std::string &input) noexcept {
       std::string result;
       result.resize(input.size());
@@ -1564,9 +1411,9 @@ class expression {
       while(it != end) {
         if(is_lower(*it)) {
           int j = 1;
-          while((it + j != end) && is_lower(*(it + j))) j++;
-          const std::string *sub = alias_normalisation(it, j);
-          if(sub == &emp) {
+          while((it + j != end) && is_lower(*(it + j))) j++; // Get the length of character stream.
+          const std::string *sub = alias_normalisation(it, j); // Normalise.
+          if(sub == &emp) { // If not recognised alias, copy as-is.
             std::memcpy(k, it, j);
             k += j;
           }
@@ -1585,32 +1432,32 @@ class expression {
     void implicit_mult(std::string &input) noexcept {
       // '#' is placeholder for sqrt symbol.
       std::string result;
-      result.resize(input.size() << 1);
+      result.resize(input.size() << 1); // Max theoretical size.
       const char *it = &input[0], *end = it + input.size(), *it_ = it;
       char *k = &result[0], *t = k;
       while(it != end) {
-        if(is_digit(*it)) {
+        if(is_digit(*it)) { // Case for digits
           *(k++) = *(it++);
           if(it != end && (is_lower(*it) || *it == '(' || *it == '#')) *(k++) = '*';
         }
-        else if(*it == 'x') {
+        else if(*it == 'x') { // Case for variable 'x'.
           bool is_correct_precede = (k == t || !invalid_precede_x(*(k - 1)));
           *(k++) = *(it++);
           if(it != end && (is_correct_precede && (*it == '(' || is_low_num(*(it)) || *(it) == '#'))) *(k++) = '*';
         }
-        else if(is_lower(*it)) {
+        else if(is_lower(*it)) { // Case for lowecase letters.
           *(k++) = *(it++);
           if(it != end && (*it == '#' || is_digit(*it))) *(k++) = '*';
         }
-        else if(*it == ')') {
+        else if(*it == ')') { // Case for closing parenthesis.
           *(k++) = *(it++);
           if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
         }
-        else if(*it == '!') {
+        else if(*it == '!') { // Case for factorial symbol.
           *(k++) = *(it++);
           if(it != end && (*it == '(' || is_low_num(*it) || *it == '#')) *(k++) = '*';
         }
-        else *(k++) = *(it++);
+        else *(k++) = *(it++); // Else direct copy.
       }
       result.resize(k - t);
       input.swap(result);
@@ -1705,19 +1552,16 @@ class expression {
     void factorial_convert(std::string &input) noexcept {
       // Find the first occurrence of the '!' character.
       size_t t = input.find('!');
-
       // Error: '!' at the very beginning is invalid as there's nothing to apply it to.
       if(t == 0) {
         this -> err_log = invalid_fact_place;
         this -> anomaly = true;
         return;
       }
-
       // Process all occurrences of '!' in the input string.
       while (t != std::string::npos) {
         int parenthesis = 0;
         int i = t - 1;
-
         // Error: If the character before '!' is an operator or an opening parenthesis,
         // there's no valid operand for the factorial.
         if(is_op(input[t - 1]) || input[t - 1] == '(') {
@@ -1725,13 +1569,10 @@ class expression {
           this -> anomaly = true;
           return;
         }
-
         // Replace the '!' with a closing parenthesis for the explicit function call.
         input[t] = ')';
-
         // Walk backwards to find the beginning of the factorial's operand.
         for (; i >= 0; i--) {
-
           // Handle nested parentheses correctly.
           if(input[i] == '(') {
             if(parenthesis == 0) break;
@@ -1743,7 +1584,6 @@ class expression {
               return;
             }
           }
-
           // Stop at beginning or at an operator, if parentheses are balanced.
           else if(i == 0 || is_op(input[i])) {
             if(parenthesis == 0) {
@@ -1756,17 +1596,14 @@ class expression {
               return;
             }
           }
-
           // Track opening of a nested expression.
           else if(input[i] == ')') {
             parenthesis++;
           }
         }
-
         // Insert the "ftrl(" function call before the operand.
         // If i == 0, insert at the beginning. Otherwise, insert right after the relevant operator or parenthesis.
         input.insert(i == 0 ? 0 : i + 1, ftrl_func_str);
-
         // Move to the next '!' occurrence. Adjust by +4 to skip over the just-inserted "ftrl(".
         t = input.find('!', t + 4);
       }
@@ -1775,15 +1612,12 @@ class expression {
     // Validates the correct usage of commas within binary functions in a given input string.
     // Ensures commas only appear where they logically belong (i.e., within binary functions).
     void valid_commas(const std::string &input) noexcept {
-
       std::string temp; // Temporarily holds function names or variables being built character by character.
       int parenthesis = 0; // Tracks the current depth of nested parentheses.
-
       // Stack holds pairs: 
       //   - the parenthesis depth when a binary function starts,
       //   - a bool flag to track if a comma has been seen inside that function's arguments.
       std::stack<std::pair<int, bool>> parenthesis_count;
-
       for(int i = 0; i < input.size(); i++) {
         if(is_lower(input[i])) {
           // Collect lowercase letters into 'temp' to form potential function names.
@@ -1800,14 +1634,12 @@ class expression {
           }
           else if(input[i] == ')') {
             parenthesis--; // Coming back up a level of nesting.
-
             // If we have more closing parens than opening: oops!
             if(parenthesis < 0) {
               this -> err_log = err_incorrect_paren_use;
               this -> anomaly = true;
               return;
             }
-
             // Check if we're closing a binary function's parentheses.
             if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
               // If no comma was found inside a binary function: that's a problem.
@@ -1826,32 +1658,27 @@ class expression {
               this -> anomaly = true;
               return;
             }
-
             // A second comma in the same binary function.
             if(parenthesis_count.top().second) {
               this -> err_log = err_mul_comma;
               this -> anomaly = true;
               return;
             }
-
             // Ensure the comma is not preceded by an operator or other junk.
             if((i == 0) || is_invalid_precedence(input[i - 1])) {
               this -> err_log = err_no_first_arg; // Comma with no first argument? That's suspicious.
               this -> anomaly = true;
               return;
             }
-
             // Ensure the comma is not followed by an operator or invalid symbol.
             if((i == input.size() - 1) || is_invalid_subsidence(input[i + 1])) {
               this -> err_log = err_no_second_arg; // Comma with no second argument? Even more suspicious.
               this -> anomaly = true;
               return;
             }
-
             // Mark that we've seen a valid comma inside this binary function.
             parenthesis_count.top().second = true;
           }
-
           temp.clear(); // Reset temp since we're done processing a token.
         }
       }
