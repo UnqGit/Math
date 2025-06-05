@@ -46,34 +46,34 @@
 namespace {
 
   // Used to replace the operators in order for BODMAS / PEMDAS presedence.
-  const std::string op_str = "^/*-+";
+  static const std::string op_str = "^/*-+";
 
 
-  inline char to_lower(const char &c) noexcept {
+  static inline char to_lower(const char &c) noexcept {
     return (c > 64 && c < 91) ? c + 32 : c;
   }
   
-  inline bool is_space(const char &c) {
+  static inline bool is_space(const char &c) {
     return c == 32 || c == 9 || c == 10;
   }
 
-  inline bool is_lower(const char &c) noexcept {
+  static inline bool is_lower(const char &c) noexcept {
     return c > 96 && c < 123;
   }
 
-  inline bool is_digit(const char &c) noexcept {
+  static inline bool is_digit(const char &c) noexcept {
     return c > 47 && c < 58;
   }
 
-  inline bool is_low_num(const char &c) noexcept {
+  static inline bool is_low_num(const char &c) noexcept {
     return is_lower(c) || is_digit(c);
   }
 
-  inline bool is_superscript(const char *ptr) noexcept {
+  static inline bool is_superscript(const char *ptr) noexcept {
     return ((*ptr == -30 && *(ptr + 1) == -127) || (*ptr == -62 && *(ptr + 1) != -73));
   }
   
-  inline char superscript_to_ascci(const char *it, int size) noexcept {
+  static inline char superscript_to_ascci(const char *it, int size) noexcept {
     switch(size) {
       case 2:
         return *(it + 1) == -71 ? '1' : 48 + (80 + *(it + 1));
@@ -89,62 +89,62 @@ namespace {
 
   // Used in valid_commas(): defines invalid characters that shouldn't precede a comma.
   // Indexed by (char % 8). We rely on this cheap modulo hash to verify character category.
-  constexpr char i_prec[8] {'(','\0','*','+',',','-','^','/'};
-  constexpr bool is_invalid_precedence(const unsigned char &input) noexcept {
+  static constexpr char i_prec[8] {'(','\0','*','+',',','-','^','/'};
+  static constexpr bool is_invalid_precedence(const unsigned char &input) noexcept {
     return input == i_prec[input % 8];
   }
 
   // Alias used in factorial_convert() to check for operator characters.
-  constexpr bool (*is_op)(const unsigned char&) = &is_invalid_precedence;
+  static constexpr bool (*is_op)(const unsigned char&) = &is_invalid_precedence;
 
   // Determines if a character before 'x' makes it invalid (e.g., "exp" vs "x").
-  constexpr bool invalid_precede_x(const unsigned char &input) noexcept {
+  static constexpr bool invalid_precede_x(const unsigned char &input) noexcept {
     return input == 'a' || input == 'e';
   }
 
   // Used in valid_commas(): checks if the character after a comma is illegal.
-  constexpr char i_subs[7] {'*','\0',',','^','\0','/',')'};
-  constexpr bool is_invalid_subsidence(const unsigned char &input) noexcept {
+  static constexpr char i_subs[7] {'*','\0',',','^','\0','/',')'};
+  static constexpr bool is_invalid_subsidence(const unsigned char &input) noexcept {
     return input == i_subs[input % 7];
   }
 
   // Detects primary operators in expressions.
-  constexpr char p_ops[6] {'*','+','\0','-','^','/'};
-  constexpr bool is_primary_ops(const unsigned char &input) noexcept {
+  static constexpr char p_ops[6] {'*','+','\0','-','^','/'};
+  static constexpr bool is_primary_ops(const unsigned char &input) noexcept {
     return input == p_ops[input % 6];
   }
 
-  constexpr char i_p_e[7] {'n','\0','c','\0','\0','s','g'};
-  inline bool is_invalid_precede_e(const char *ptr) noexcept {
+  static constexpr char i_p_e[7] {'n','\0','c','\0','\0','s','g'};
+  static inline bool is_invalid_precede_e(const char *ptr) noexcept {
     size_t index = - 6 + (*ptr % 13);
     return index < 7 && i_p_e[index] == *ptr;
   }
 
   // Checks if a character is a unary sign ('+' or '-').
-  constexpr bool is_sign(const unsigned char &input) {
+  static constexpr bool is_sign(const unsigned char &input) {
     return input == 43 || input == 45;  // '+' and '-'
   }
 
   // First-stage delimiter characters in binary_ops().
-  constexpr char p_op_fd[8] {
+  static constexpr char p_op_fd[8] {
     '(','\0','*','+',',','-','^','/'
   };
-  constexpr bool primary_op_first_delimiter(const unsigned char &input) {
+  static constexpr bool primary_op_first_delimiter(const unsigned char &input) {
     return input == p_op_fd[input % 8];
   }
 
   // Second-stage delimiter characters in binary_ops().
-  constexpr char p_op_sd[8] {
+  static constexpr char p_op_sd[8] {
     '\0',')','*','+',',','-','^','/'
   };
-  constexpr bool primary_op_second_delimiter(const unsigned char &input) {
+  static constexpr bool primary_op_second_delimiter(const unsigned char &input) {
     return input == p_op_sd[input % 8];
   }
 
   // ======= Valid character detection (ASCII + Unicode) ======= //
 
   // Valid single-byte characters (ASCII only).
-  constexpr char vc_sch[52] {
+  static constexpr char vc_sch[52] {
     '^','\0','\0','a','b','c','d','e','f','g','h','i','\0','k','l','m',
     'n','o','p','q','r','s','t','u','v','w','x','!','\0','\0','\0','\0',
     '\0','\0','(',')','*','+',',','-','.','/','0','1','2','3','4','5',
@@ -152,19 +152,19 @@ namespace {
   };
   
   // Valid multibyte (Unicode) characters (as UTF-8 strings).
-  const std::string vc_2l[33] {
+  static const std::string vc_2l[33] {
     "×", "", "", "", "", "", "", "", "", "π", 
     "", "", "", "", "", "", "", "", "", "", 
     "", "¹", "", "", "", "", "", "³", "²", "", 
     "", "·", "÷"
   };
-  const std::string vc_3l[15] {
+  static const std::string vc_3l[15] {
     "√", "⁰", "", "", "", "", "", "", "", "⁸", 
     "⁹", "⁶", "⁷", "⁴", "⁵"
   };
 
   // Determines if a UTF-8 sequence (1–3 bytes) is a valid character.
-  bool is_valid_character(const char *ptr, int size) noexcept {
+  static bool is_valid_character(const char *ptr, int size) noexcept {
     unsigned int index;
     switch(size) {
       case 1:
@@ -181,7 +181,7 @@ namespace {
     }
   }
 
-  inline bool not_valid_embed(const std::string &input) noexcept {
+  static inline bool not_valid_embed(const std::string &input) noexcept {
     const size_t &length = input.length();
     switch(length) {
       case 1:
@@ -196,11 +196,11 @@ namespace {
   // ======= Recognized function names ======= //
 
   // Valid 1–4 letter binary mathematical functions (e.g., "pow", "add").
-  const std::string b_flt[22] {
+  static const std::string b_flt[22] {
     "mul","","npr","","gcd","add","","","sub","div","min","","logk","","mod","",
     "max","","lcm","","pow","ncr"
   };
-  bool is_binary_func(const std::string &input) {
+  static bool is_binary_func(const std::string &input) {
     const size_t &length = input.length();
     unsigned int index;
     switch(length) {
@@ -213,28 +213,28 @@ namespace {
     }
   }
 
-  const std::string norm_lookup[20] {
+  static const std::string norm_lookup[20] {
     "cos", "csc", "tan", "sec", "cot", "rnd", 
     "flr", "cosh", "sinh", "asec", "acot", "ftrl", "acsc", "atan", 
     "asin", "acos", "coth", "csch", "sech", "tanh"
   };
   
-  const std::string alias_ln = "log";
-  const std::string alias_sin = "sine";
-  const std::string alias_acot = "arccotangent";
+  static const std::string alias_ln = "log";
+  static const std::string alias_sin = "sine";
+  static const std::string alias_acot = "arccotangent";
   
-  const std::string norm_ln = "ln";
-  const std::string norm_sin = "sin";
-  const std::string norm_acot = "acot";
+  static const std::string norm_ln = "ln";
+  static const std::string norm_sin = "sin";
+  static const std::string norm_acot = "acot";
   
-  const std::string alias_5lf[16] {
+  static const std::string alias_5lf[16] {
     "arcsc","cosec","cosin","","asine","floor","","",
     "","","cotan","","arcos","arcot","sineh","round"
   };
-  constexpr const size_t lookup_arr_5lf[16] {
+  static constexpr const size_t lookup_arr_5lf[16] {
     12,1,0,1000,14,6,1000,1000,1000,1000,4,1000,15,10,8,5
   };
-  const std::string alias_6lf[43] {
+  static const std::string alias_6lf[43] {
     "cotanh","","","","","","","",
     "","arccot","arccos","","","","","",
     "","","","","","acotan","","",
@@ -242,45 +242,45 @@ namespace {
     "","","secant","","cosech","cosine","arctan","arcsin",
     "cosinh","","arcsec"
   };
-  constexpr const size_t lookup_arr_6lf[43] {
+  static constexpr const size_t lookup_arr_6lf[43] {
     16,1000,1000,1000,1000,1000,1000,1000,1000,10,15,1000,1000,1000,1000,1000,1000,1000,1000,1000,
     1000,10,1000,1000,15,12,12,1000,1000,1000,1000,1000,1000,1000,3,1000,17,0,13,14,
     7,1000,9
   };
-  const std::string alias_7lf[17] {
+  static const std::string alias_7lf[17] {
     "arcosec","acosine","tangent","","arcotan","arcsine","","",
     "","","","asecant","arcosin","","","secanth",
     "cosineh"
   };
-  constexpr const size_t lookup_arr_7lf[17] {
+  static constexpr const size_t lookup_arr_7lf[17] {
     12,15,2,1000,10,14,1000,1000,1000,1000,1000,9,15,1000,1000,18,7
   };
-  const std::string alias_8lf[13] {
+  static const std::string alias_8lf[13] {
     "arccotan","","arcosine","arccosin","","","arccosec","atangent",
     "","","","cosecant","tangenth"
   };
-  constexpr const size_t lookup_arr_8lf[13] {
+  static constexpr const size_t lookup_arr_8lf[13] {
     10,1000,15,15,1000,1000,12,13,1000,1000,1000,1,19
   };
-  const std::string alias_9lf[17] {
+  static const std::string alias_9lf[17] {
     "arcsecant","","","","","","","",
     "","","","","acosecant","cotangent","cosecanth","factorial",
     "arccosine"
   };
-  constexpr const size_t lookup_arr_9lf[17] {
+  static constexpr const size_t lookup_arr_9lf[17] {
     9,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000,12,4,17,11,15
   };
-  const std::string alias_10lf[6] {
+  static const std::string alias_10lf[6] {
     "arcosecant","arctangent","","cotangenth","","acotangent"
   };
-  constexpr const size_t lookup_arr_10lf[6] {
+  static constexpr const size_t lookup_arr_10lf[6] {
     12,13,1000,16,1000,10
   };
-  const std::string  alias_11lf[2] {"arccosecant","arcotangent"};
-  constexpr const size_t lookup_arr_11lf[2] {12,10};
+  static const std::string alias_11lf[2] {"arccosecant","arcotangent"};
+  static constexpr const size_t lookup_arr_11lf[2] {12,10};
   
-  const std::string emp = "";
-  const std::string *alias_normalisation(const char* &input, size_t size) noexcept {
+  static const std::string emp = "";
+  static const std::string *alias_normalisation(const char* &input, size_t size) noexcept {
     size_t index;
     switch(size) {
       case 3:
@@ -326,10 +326,10 @@ namespace {
   }
 
   // Special-cased constants/functions.
-  const std::string p_ln = "ln", pi_str = "pi";
+  static const std::string p_ln = "ln", pi_str = "pi";
 
   // Valid 3-letter functions (e.g., sin, cos, tan, etc.).
-  const std::string p_3lf[53] {
+  static const std::string p_3lf[53] {
     "neg","csc","","","pow","","mod","","sub","exp","min","","","cos","","",
     "sin","","rnd","","cot","","flr","sec","mul","div","npr","","","","","",
     "max","","abs","","","ncr","","","","tan","","","","add","","",
@@ -337,13 +337,13 @@ namespace {
   };
 
   // Valid 4-letter functions (e.g., sqrt, ceil, acos, etc.).
-  const std::string p_4lf[28] {
+  static const std::string p_4lf[28] {
     "sech","","ceil","acos","cbrt","sinh","acot","logk","","","ftrl","","","tanh","","acsc",
     "","asec","asin","","","sqrt","csch","","","coth","cosh","atan"
   };
 
   // Checks whether a string is a known function by its length and hash.
-  bool is_allowed_function(const char* ptr, int size) {
+  static bool is_allowed_function(const char* ptr, int size) {
     unsigned int index;
     switch(size) {
       case 1:
@@ -369,88 +369,88 @@ namespace {
   // === Helper strings for syntax parsing and output formatting ===
   
   // Common punctuation and math symbols used across formatting and parsing.
-  const std::string apostrophe_dot = "'.", dot = ".", comma_str = ",", new_line = "\n";
+  static const std::string apostrophe_dot = "'.", dot = ".", comma_str = ",", new_line = "\n";
 
   // Stringified versions of math functions with parentheses — used during reconstruction or parsing.
-  const std::string sqrt_func_str = "sqrt(", neg_func_str = "neg(", ftrl_func_str = "ftrl(";
-  const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
+  static const std::string sqrt_func_str = "sqrt(", neg_func_str = "neg(", ftrl_func_str = "ftrl(";
+  static const std::string pow_func_str = "pow(", div_func_str = "div(", mul_func_str = "mul(", sub_func_str = "sub(", add_func_str = "add(";
 
   // Parenthesis helpers for function construction or validation.
-  const std::string open_paren = "(", close_paren = ")";
+  static const std::string open_paren = "(", close_paren = ")";
 
   // Used as default or to identify issues with empty parenthesis in many scenarios.
-  const std::string empty_string = "", empty_paren = "()";
+  static const std::string empty_string = "", empty_paren = "()";
 
   // The special variable usually representing the independent variable.
-  const std::string x_str = "x";
+  static const std::string x_str = "x";
 
   // === Error message strings for parsing issues ===
   
   // General format or input-based errors.
-  const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
-  const std::string err_invalid_characters = "INVALID CHARACTERS.";
+  static const std::string err_empty_string = "EMPTY STRING.", err_no_expression = "NO EXPRESSION.";
+  static const std::string err_invalid_characters = "INVALID CHARACTERS.";
 
   // Parenthesis misuse or malformed usage.
-  const std::string err_incorrect_paren_use = "INCORRECT USE OF PARENTHESIS.";
-  const std::string err_invalid_parenthesis = "INVALID PARENTHESIS.";
-  const std::string err_paren_no_arg = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
+  static const std::string err_incorrect_paren_use = "INCORRECT USE OF PARENTHESIS.";
+  static const std::string err_invalid_parenthesis = "INVALID PARENTHESIS.";
+  static const std::string err_paren_no_arg = "INVALID PARENTHESIS, NO ARGUMENT INSIDE.";
 
   // Success and failure messages for parser transformations.
-  const std::string done_modified = "SUCCESSFULLY MODIFIED.";
-  const std::string err_not_modified = "NOT MODIFIED.";
+  static const std::string done_modified = "SUCCESSFULLY MODIFIED.";
+  static const std::string err_not_modified = "NOT MODIFIED.";
 
   // Errors specific to function and variable contexts.
-  const std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
-  const std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
-  const std::string err_no_arg_sqrt = "NO FUNCTIONALITY TO SQUARE ROOT FUNCTION.";
-  const std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
+  static const std::string err_var_where_not_allowed = "VARIABLE IN NON-FUNCTION EXPRESSION.";
+  static const std::string err_no_arg_func = "NO ARGUMENT FOR FUNCTION.";
+  static const std::string err_no_arg_sqrt = "NO FUNCTIONALITY TO SQUARE ROOT FUNCTION.";
+  static const std::string err_func_not_called = "FUNCTION NOT FOLLOWED BY '('.";
 
   // Issues with malformed or ambiguous strings of characters.
-  const std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
+  static const std::string err_invalid_char_stream = "INVALID STRING OF LETTERS: '";
 
   // Operator-specific syntax errors.
-  const std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
-  const std::string err_full_exp = "EXPONENTIATION", err_full_div = "DIVISION", err_full_mul = "MULTIPLICATION", err_full_sub = "SUBTRACTION";
-  const std::string err_full_add = "ADDITION";
+  static const std::string err_hanging = "HANGING ", err_trailing = "TRAILING ", err_operator = " OPERATOR.";
+  static const std::string err_full_exp = "EXPONENTIATION", err_full_div = "DIVISION", err_full_mul = "MULTIPLICATION", err_full_sub = "SUBTRACTION";
+  static const std::string err_full_add = "ADDITION";
 
   // Factorial-specific errors.
-  const std::string invalid_fact_place = "INVALID FACTORIAL PLACEMENT.";
-  const std::string err_no_arg_fact = "NO ARGUMENT IN FACTORIAL FUNCTION.";
+  static const std::string invalid_fact_place = "INVALID FACTORIAL PLACEMENT.";
+  static const std::string err_no_arg_fact = "NO ARGUMENT IN FACTORIAL FUNCTION.";
 
   // Comma misuse in function arguments.
-  const std::string err_no_comma = "NO COMMA IN A BINARY FUNCTION.";
-  const std::string err_used_comma = "USE OF COMMA OUTSIDE NON BINARY FUNCTION.";
-  const std::string err_mul_comma = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
-  const std::string err_no_first_arg = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
-  const std::string err_no_second_arg = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
+  static const std::string err_no_comma = "NO COMMA IN A BINARY FUNCTION.";
+  static const std::string err_used_comma = "USE OF COMMA OUTSIDE NON BINARY FUNCTION.";
+  static const std::string err_mul_comma = "USE OF MULTIPLE COMMAS IN A BINARY FUNCTION.";
+  static const std::string err_no_first_arg = "NO FIRST ARGUMENT IN A BINARY FUNCTION.";
+  static const std::string err_no_second_arg = "NO SECOND ARGUMENT IN A BINARY FUNCTION.";
 
   // Decimal formatting issues.
-  const std::string err_hanging_dec = "HANGING DECIMAL.";
-  const std::string err_dec_not_followed = "DECIMAL NOT FOLLOWED BY A NUMBER.";
-  const std::string err_dec_not_follows = "DECIMAL NOT PRECEDED BY A NUMBER.";
-  const std::string err_trailing_dec = "TRAILING DECIMAL.";
-  const std::string err_mul_dec = "MULTIPLE DECIMALS IN ONE NUMBER.";
+  static const std::string err_hanging_dec = "HANGING DECIMAL.";
+  static const std::string err_dec_not_followed = "DECIMAL NOT FOLLOWED BY A NUMBER.";
+  static const std::string err_dec_not_follows = "DECIMAL NOT PRECEDED BY A NUMBER.";
+  static const std::string err_trailing_dec = "TRAILING DECIMAL.";
+  static const std::string err_mul_dec = "MULTIPLE DECIMALS IN ONE NUMBER.";
 
   // Operator functionality or sequence problems.
-  const std::string err_no_func_op = "NO FUNCTIONALITY TO OPERATOR.";
+  static const std::string err_no_func_op = "NO FUNCTIONALITY TO OPERATOR.";
 
   // === Helper strings for debugging, logging, or diagnostics ===
 
-  const std::string fp_org_str = "Original: ";
-  const std::string fp_mod_str = "\nModified: ";
-  const std::string fp_status_str = "\nStatus: ";
-  const std::string fp_log_str = "\nLog: ";
+  static const std::string fp_org_str = "Original: ";
+  static const std::string fp_mod_str = "\nModified: ";
+  static const std::string fp_status_str = "\nStatus: ";
+  static const std::string fp_log_str = "\nLog: ";
 
   // Used to indicate detection status in debug logs.
-  const std::string fp_no_str = "No ", fp_anomaly_detected = "anomaly Detected.";
+  static const std::string fp_no_str = "No ", fp_anomaly_detected = "anomaly Detected.";
 
   // Used for diagnostics output.
-  const std::string dt_no_str = "No.";
-  const std::string dt_yes_str = "Yes.";
-  const std::string dt_var_allow = "Variable allowed: ";
+  static const std::string dt_no_str = "No.";
+  static const std::string dt_yes_str = "Yes.";
+  static const std::string dt_var_allow = "Variable allowed: ";
 
   // Fallback error message for unexpected failures.
-  const std::string unexpected_error = "An unexpected error occured during parsing.";
+  static const std::string unexpected_error = "An unexpected error occured during parsing.";
 }
 
 
@@ -1231,7 +1231,7 @@ class expression {
         else {
           int len = 2 + (*it == -30);
           if(is_superscript(it)){
-            if((k != t && (is_lower(*(k - 1)) || *(k - 1) == ')')) || it != it_ && is_digit(*(it - 1)) || *it == '!') *(k++) = '^';
+            if((k != t && (is_lower(*(k - 1)) || *(k - 1) == ')')) || it != it_ && is_digit(*(it - 1)) || *(it - 1) == '!') *(k++) = '^';
             *(k++) = superscript_to_ascci(it, len);
             if(it + len != end && is_digit(*(it + len))) *(k++) = '*';
           }
@@ -1927,7 +1927,14 @@ class expression {
       obj.update(str);
       return obj;
     }
-
+    
+    friend const expression &operator<<(expression &obj, std::istream &is) {
+      std::string line;
+      std::getline(is, line);
+      obj.update(line);
+      return obj;
+    }
+    
     // To parse a input directly from input stream.
     friend std::istream &operator>>(std::istream &is, expression &obj) {
       std::string line;
