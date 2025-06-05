@@ -1099,12 +1099,11 @@ class expression {
             std::memset(k, '(', difference);
             result_parenthesis = parenthesis; // update to sync.
             k += difference;
-            const char *it_1 = (char*)std::memchr(it, '(', end - it), *it_2 = (char*)std::memchr(it, ')', end - it), *it_ = nullptr; // find the next parenthesis.
+            const char *it_1 = (char*)std::memchr(it, '(', end - it), *it_2 = (char*)std::memchr(it, ')', end - it), *it_ = end; // find the next parenthesis.
             // set it_ to the closest pointer.
-            if(it_1 == NULL && it_2 == NULL) it_ = end;
-            else if(it_1 == NULL) it_ = it_2;
-            else if(it_2 == NULL) it_ = it_1;
-            else it_ = (it_1 < it_2 ? it_1 : it_2);
+            if (it_1 != NULL && it_2 != NULL) it_ = (it_1 < it_2 ? it_1 : it_2);
+            else if (it_1 != NULL) it_ = it_1;
+            else if (it_2 != NULL) it_ = it_2;
             std::memmove(k, it, it_ - it); // move everything before the next parenthesis.
             k += it_ - it; // update the output buffer.
             it = it_ - 1; // -1 because main loop increments by 1.
@@ -1728,7 +1727,7 @@ class expression {
       // If an anomaly exists and it's not "not modified", print an empty string; otherwise, print "no anomaly".
       os << fp_status_str << ((anomaly && this -> err_log != &err_not_modified) ? empty_string : fp_no_str) << fp_anomaly_detected;
       // Output the error log, which provides details about any detected anomalies or issues.
-      os << fp_log_str << this -> err_log << '\n';
+      os << fp_log_str << *(this -> err_log) << '\n';
       os << dt_var_allow << (this -> allow_variable ? dt_yes_str : dt_no_str);
     }
 
