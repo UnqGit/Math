@@ -460,14 +460,14 @@ class expression {
       std::string &unmodified = this -> entered_expression;
       if(unmodified.empty()) {
         this -> anomaly = true;
-        this -> err_log = err_empty_string;
+        this -> err_log = &err_empty_string;
         return *this;
       }
       std::string &input = this -> modified_expression;
       input = unmodified;
       bool flag = false;
       if(input_validation_normalisation(input)) {
-        this -> err_log = err_invalid_characters;
+        this -> err_log = &err_invalid_characters;
         this -> anomaly = true;
         return *this;
       }
@@ -477,7 +477,7 @@ class expression {
       if(input.find(empty_paren) != std::string::npos) remove_empt(input, flag);
       if(input.empty()) {
         this -> anomaly = true;
-        this -> err_log = err_incorrect_paren_use;
+        this -> err_log = &err_incorrect_paren_use;
         return *this;
       }
       // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
@@ -509,12 +509,12 @@ class expression {
       //final flag to check if string is empty(or was made empty using
       //the "()" removal block earlier)
       if(input.empty()) {
-        this -> err_log = flag ? err_invalid_parenthesis : err_empty_string;
+        this -> err_log = flag ? &err_invalid_parenthesis : &err_empty_string;
         this -> anomaly = true;
         return *this;
       }
       // Log if successfully updated.
-      this -> err_log = done_modified;
+      this -> err_log = &done_modified;
       // Should be able to parse in less than 20µs for most input strings.
       return *this;
     }
@@ -531,12 +531,12 @@ class expression {
 
     // Return the error log member.
     std::string log() const noexcept {
-      return this -> err_log;
+      return *(this -> err_log);
     }
 
     // Resturn the error message or the modified expression depending on if it was parsed correctly.
     std::string result() const noexcept {
-      return this -> anomaly ? this -> err_log : this -> modified_expression;
+      return this -> anomaly ? *(this -> err_log) : this -> modified_expression;
     }
 
     // Provide all the details of the class.
@@ -545,7 +545,7 @@ class expression {
       result += fp_org_str + this -> entered_expression;
       result += fp_mod_str + this -> modified_expression;
       result += fp_status_str + (this -> anomaly ? empty_string : fp_no_str) + fp_anomaly_detected;
-      result += fp_log_str + this -> err_log + new_line;
+      result += fp_log_str + *(this -> err_log) + new_line;
       result += dt_var_allow + (this -> allow_variable ? dt_yes_str : dt_no_str);
       return result;
     }
@@ -560,7 +560,7 @@ class expression {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anomaly = true;
-      this -> err_log = err_not_modified;
+      this -> err_log = &err_not_modified;
       this -> parse();
       return *this;
     }
@@ -570,7 +570,7 @@ class expression {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anomaly = true;
-      this -> err_log = err_not_modified;
+      this -> err_log = &err_not_modified;
       this -> parse();
       return *this;
     }
@@ -931,7 +931,7 @@ class expression {
       this -> modified_expression.clear();
       this -> anomaly = true;
       this -> allow_variable = true;
-      this -> err_log = err_not_modified;
+      this -> err_log = &err_not_modified;
       return *this;
     }
 
@@ -940,7 +940,7 @@ class expression {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anomaly = true;
-      this -> err_log = err_not_modified;
+      this -> err_log = &err_not_modified;
       this -> parse();
       return *this;
     }
@@ -951,7 +951,7 @@ class expression {
       this -> entered_expression = new_expr;
       this -> modified_expression.clear();
       this -> anomaly = true;
-      this -> err_log = err_not_modified;
+      this -> err_log = &err_not_modified;
       this -> parse();
       return *this;
     }
@@ -987,7 +987,7 @@ class expression {
       }
       if(this -> allow_variable) {
         if(this -> is_function()) {
-          this -> err_log = err_var_where_not_allowed;
+          this -> err_log = &err_var_where_not_allowed;
           this -> anomaly = true;
         }
         this -> allow_variable = false;
@@ -1212,7 +1212,7 @@ class expression {
               k += j;
               it += j;
               if(it != end && *it == '.') {
-                this -> err_log = err_mul_dec;
+                this -> err_log = &err_mul_dec;
                 this -> anomaly = true;
                 return;
               }
@@ -1296,19 +1296,20 @@ class expression {
           // * Max function length is 4 letters.
           while(j < 5 && it + j != end && is_lower(*(it + j))) j++;
           if(j == 5 || !is_allowed_function(it, j)) {
-            this -> err_log = err_invalid_char_stream + std::string(it, j) + apostrophe_dot;
+            this -> temp_err_locality = err_invalid_char_stream + std::string(it, j) + apostrophe_dot;
+            this -> err_log = &this -> temp_err_locality;
             this -> anomaly = true;
             return;
           }
           // If function is not followed by a '(' (don't include "pi" (check for 'p')).
           if(j != 1 && ((it + j) == end || *(it + j) != '(') && !(j == 2 && *it == 'p')) {
-            this -> err_log = flag ? err_no_arg_func : err_func_not_called;
+            this -> err_log = flag ? &err_no_arg_func : &err_func_not_called;
             this -> anomaly = true;
             return;
           }
           // If it's x and variables aren't allowed.
           if(j == 1 && *it == 'x' && !this -> allow_variable) {
-            this -> err_log = err_var_where_not_allowed;
+            this -> err_log = &err_var_where_not_allowed;
             this -> anomaly = true;
             return;
           }
@@ -1345,7 +1346,7 @@ class expression {
             parenthesis--; // Coming back up a level of nesting.
             // If we have more closing parens than opening: oops!
             if(parenthesis < 0) {
-              this -> err_log = err_incorrect_paren_use;
+              this -> err_log = &err_incorrect_paren_use;
               this -> anomaly = true;
               return;
             }
@@ -1353,7 +1354,7 @@ class expression {
             if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
               // If no comma was found inside a binary function: that's a problem.
               if(!parenthesis_count.top().second) {
-                this -> err_log = err_no_comma;
+                this -> err_log = &err_no_comma;
                 this -> anomaly = true;
                 return;
               }
@@ -1363,25 +1364,25 @@ class expression {
           else if(input[i] == ',') {
             // Check if we are even inside a binary function at all.
             if(parenthesis_count.empty() || parenthesis_count.top().first != parenthesis - 1) {
-              this -> err_log = err_used_comma; // Rogue comma with no binary function.
+              this -> err_log = &err_used_comma; // Rogue comma with no binary function.
               this -> anomaly = true;
               return;
             }
             // A second comma in the same binary function.
             if(parenthesis_count.top().second) {
-              this -> err_log = err_mul_comma;
+              this -> err_log = &err_mul_comma;
               this -> anomaly = true;
               return;
             }
             // Ensure the comma is not preceded by an operator or other junk.
             if((i == 0) || is_invalid_precedence(input[i - 1])) {
-              this -> err_log = err_no_first_arg; // Comma with no first argument? That's suspicious.
+              this -> err_log = &err_no_first_arg; // Comma with no first argument? That's suspicious.
               this -> anomaly = true;
               return;
             }
             // Ensure the comma is not followed by an operator or invalid symbol.
             if((i == input.size() - 1) || is_invalid_subsidence(input[i + 1])) {
-              this -> err_log = err_no_second_arg; // Comma with no second argument? Even more suspicious.
+              this -> err_log = &err_no_second_arg; // Comma with no second argument? Even more suspicious.
               this -> anomaly = true;
               return;
             }
@@ -1400,7 +1401,7 @@ class expression {
       size_t t = input.find('!');
       // Error: '!' at the very beginning is invalid as there's nothing to apply it to.
       if(t == 0) {
-        this -> err_log = invalid_fact_place;
+        this -> err_log = &invalid_fact_place;
         this -> anomaly = true;
         return;
       }
@@ -1411,7 +1412,7 @@ class expression {
         // Error: If the character before '!' is an operator or an opening parenthesis,
         // there's no valid operand for the factorial.
         if(is_op(input[t - 1]) || input[t - 1] == '(') {
-          this -> err_log = err_no_arg_fact;
+          this -> err_log = &err_no_arg_fact;
           this -> anomaly = true;
           return;
         }
@@ -1425,7 +1426,7 @@ class expression {
             parenthesis--;
             if(parenthesis < 0) {
               // More closing than opening parens while walking back — invalid structure.
-              this -> err_log = err_incorrect_paren_use;
+              this -> err_log = &err_incorrect_paren_use;
               this -> anomaly = true;
               return;
             }
@@ -1437,7 +1438,7 @@ class expression {
             }
             else {
               // Found an operator while parentheses were still open — invalid location.
-              this -> err_log = invalid_fact_place;
+              this -> err_log = &invalid_fact_place;
               this -> anomaly = true;
               return;
             }
@@ -1470,20 +1471,20 @@ class expression {
         for(h = t + 1; h >= 0; h--)
           if(input[h] == '#') { t = h; break; }
         if(t == input.size() - 1) {
-          this -> err_log = err_no_arg_sqrt;
+          this -> err_log = &err_no_arg_sqrt;
           this -> anomaly = true;
           return;
         }
         else if(delimiter_map(input[t + 1])) {
           if(is_sign(input[t + 1])) {
             if(t + 1 == input.size() || delimiter_map(input[t + 2])) {
-              this -> err_log = err_no_arg_sqrt;
+              this -> err_log = &err_no_arg_sqrt;
               this -> anomaly = true;
               return;
             }
           }
           else {
-            this -> err_log = err_no_arg_sqrt;
+            this -> err_log = &err_no_arg_sqrt;
             this -> anomaly = true;
             return;
           }
@@ -1569,16 +1570,15 @@ class expression {
           // If the operator cannot have a missing first argument (e.g., `*`, `/`, `^`),
           // log an error and mark the expression as anomalous.
           if(check_hang) {
-            this -> err_log = err_hanging;
-            this -> err_log += *error_name;
-            this -> err_log += err_operator;
+            this -> temp_err_locality = err_hanging + *error_name + err_operator;
+            this -> err_log = &this -> temp_err_locality;
             this -> anomaly = true;
             return; // Terminate processing due to error.
           }
           // Special handling for unary '+' operator: it can simply be removed if it has valid arguments.
           if(delimiter == '+') {
             if(input.size() == 1 || index == input.size() - 1 || primary_op_second_delimiter(input[index + 1])) {
-              this -> err_log = err_no_func_op;
+              this -> err_log = &err_no_func_op;
               this -> anomaly = true;
               return;
             }
@@ -1628,9 +1628,8 @@ class expression {
         }
         // Trailing error check: If the end of the right operand is immediately after the comma.
         if(j - index == 1 || index == input.length() - 1) {
-          this -> err_log = err_trailing;
-          this -> err_log += *error_name;
-          this -> err_log += err_operator;
+          this -> temp_err_locality = err_trailing + *error_name + err_operator;
+          this -> err_log = &this -> temp_err_locality;
           this -> anomaly = true;
           return;
         }
@@ -1694,7 +1693,7 @@ class expression {
       if(!anomaly && this -> modified_expression.find(open_paren) != std::string::npos) {
         os << '\n'; // Add a newline for better formatting of the structured output.
         int parenthesis = 0; // Initialize a counter for parenthesis nesting level.
-        std::string string = this -> modified_expression; // Create a local copy of the modified expression.
+        const std::string &string = this -> modified_expression; // Create a local copy of the modified expression.
         // Iterate through each character of the modified expression.
         for(int i = 0; i < string.size(); i++) {
           // If an opening parenthesis is encountered,
@@ -1727,9 +1726,10 @@ class expression {
       else os << this -> modified_expression;
       // Output the status of the expression, indicating if an anomaly was detected.
       // If an anomaly exists and it's not "not modified", print an empty string; otherwise, print "no anomaly".
-      os << fp_status_str << ((anomaly && this -> err_log != err_not_modified) ? empty_string : fp_no_str) << fp_anomaly_detected;
+      os << fp_status_str << ((anomaly && this -> err_log != &err_not_modified) ? empty_string : fp_no_str) << fp_anomaly_detected;
       // Output the error log, which provides details about any detected anomalies or issues.
       os << fp_log_str << this -> err_log << '\n';
+      os << dt_var_allow << (this -> allow_variable ? dt_yes_str : dt_no_str);
     }
 
     // Output stream operator to print all the useful information.
@@ -1783,7 +1783,9 @@ class expression {
     std::string modified_expression;
     bool anomaly = true;
     bool allow_variable = true;
-    std::string err_log = err_not_modified;
+    const std::string *err_log = &err_not_modified;
+    std::string temp_err_locality; // Because err_log is a pointer and some error messages need
+    // to be created so we create them in this and take it's address as pointer for err_log.
 };
 
 }
