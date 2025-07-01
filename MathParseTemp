@@ -480,7 +480,7 @@ class expression {
         this -> err_log = &err_incorrect_paren_use;
         return *this;
       }
-      // Clean basic decimal mistake and continuous chain of [+-] and convert unicode to ASCII characters.
+      // Clean basic decimal mistakes and continuous chain of [+-] and convert unicode to ASCII characters.
       basic_cleanup(input);
       if(this -> anomaly) return *this;
       // Convert implicit multiplication to explicit.
@@ -1326,7 +1326,7 @@ class expression {
       // Stack holds pairs: 
       //   - the parenthesis depth when a binary function starts,
       //   - a bool flag to track if a comma has been seen inside that function's arguments.
-      std::stack<std::pair<int, bool>> parenthesis_count;
+      std::vector<std::pair<int, bool>> parenthesis_count;
       for(int i = 0; i < input.size(); i++) {
         if(is_lower(input[i])) {
           // Collect lowercase letters into 'temp' to form potential function names.
@@ -1337,7 +1337,7 @@ class expression {
             // If we just finished reading a binary function name...
             if(!temp.empty() && is_binary_func(temp)) {
               // Push the current parenthesis depth and a "comma-not-yet-found" flag.
-              parenthesis_count.push({parenthesis, false});
+              parenthesis_count.push_back({parenthesis, false});
             }
             parenthesis++; // We just opened a parenthesis, diving deeper!
           }
@@ -1350,25 +1350,25 @@ class expression {
               return;
             }
             // Check if we're closing a binary function's parentheses.
-            if(!parenthesis_count.empty() && parenthesis_count.top().first == parenthesis) {
+            if(!parenthesis_count.empty() && parenthesis_count.back().first == parenthesis) {
               // If no comma was found inside a binary function: that's a problem.
-              if(!parenthesis_count.top().second) {
+              if(!parenthesis_count.back().second) {
                 this -> err_log = &err_no_comma;
                 this -> anomaly = true;
                 return;
               }
-              parenthesis_count.pop(); // Remove this function from the stack.
+              parenthesis_count.pop_back(); // Remove this function from the stack.
             }
           }
           else if(input[i] == ',') {
             // Check if we are even inside a binary function at all.
-            if(parenthesis_count.empty() || parenthesis_count.top().first != parenthesis - 1) {
+            if(parenthesis_count.empty() || parenthesis_count.back().first != parenthesis - 1) {
               this -> err_log = &err_used_comma; // Rogue comma with no binary function.
               this -> anomaly = true;
               return;
             }
             // A second comma in the same binary function.
-            if(parenthesis_count.top().second) {
+            if(parenthesis_count.back().second) {
               this -> err_log = &err_mul_comma;
               this -> anomaly = true;
               return;
@@ -1386,7 +1386,7 @@ class expression {
               return;
             }
             // Mark that we've seen a valid comma inside this binary function.
-            parenthesis_count.top().second = true;
+            parenthesis_count.back().second = true;
           }
           temp.clear(); // Reset temp since we're done processing a token.
         }
