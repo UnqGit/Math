@@ -48,7 +48,7 @@ class RectangularMatrix {
     }
     
     // Move assignment operator.
-    RectangularMatrix& operator=(RectangularMatrix &&other) {
+    RectangularMatrix& operator=(RectangularMatrix &&other) noexcept {
       if(this != &other) swap(other);
       return *this;
     }
@@ -69,6 +69,35 @@ class RectangularMatrix {
       return *this;
     }
     
+    // Fill the matrix with a single element copied in the full matrix.
+    RectangularMatrix& fill(const T &to_fill) noexcept {
+      for(size_t i = 0; i < order(); i++) m_entries[i] = to_fill;
+      return *this;
+    }
+    
+    // Fill a single row with the copies of T type, not noexcept because at can throw errors.
+    RectangularMatrix& fill_row(size_t row, const T &to_fill) {
+      for(size_t i = 0; i < m_columns; i++) at(row, i) = to_fill;
+      return *this;
+    }
+
+    // Fill a single column with the copies of T type, not noexcept because at can throw errors.
+    RectangularMatrix& fill_column(size_t column, const T &to_fill) {
+      for(size_t i = 0; i < m_rows; i++) at(i, column) = to_fill;
+      return *this;
+    }
+    
+    // Provides the number of rows present.
+    size_t n_rows() const noexcept {
+      return m_rows;
+    }
+    
+    // Provides the number of columns present.
+    size_t n_columns() const noexcept {
+      return m_columns;
+    }
+    
+    // Number of entries in the matrix.
     size_t order() const noexcept {
       return m_rows * m_columns;
     }
@@ -76,13 +105,13 @@ class RectangularMatrix {
     // Index starts from 1, instead of 0 accounting for general representation of matrix elements but can be changed by changing the boolean in this header file.
     T& at(size_t row, size_t column) {
       if(OFFSET_INDEX && row * column == 0) throw std::runtime_error("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
-      if(row > m_rows + OFFSET_INDEX || column > m_columns + OFFSET_INDEX) throw std::runtime_error("Index used to access the elements can't be greater than the row/column present.");
+      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::runtime_error("Index used to access the elements can't be greater than the row/column present.");
       return *(m_entries + m_columns * (row - OFFSET_INDEX) + (column - OFFSET_INDEX));
     }
     
     const T& at(size_t row, size_t column) const {
       if(OFFSET_INDEX && row * column == 0) throw std::runtime_error("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
-      if(row > m_rows + OFFSET_INDEX || column > m_columns + OFFSET_INDEX) throw std::runtime_error("Index used to access the elements can't be greater than the row/column present.");
+      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::runtime_error("Index used to access the elements can't be greater than the row/column present.");
       return *(m_entries + m_columns * (row - OFFSET_INDEX) + (column - OFFSET_INDEX));
     }
     
@@ -101,9 +130,9 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
 }
 
 int main() {
-  RectangularMatrix<std::string> my_matrix(2,1,"Hello");
+  mat::RectangularMatrix<std::string> my_matrix(2,1,"Hello");
   std::cout << my_matrix.at(2,1) << std::endl;
   my_matrix.at(1,1) = "Woah";
-  std::cout << my_matrix.at(1,1);
+  std::cout << my_matrix.at(1,2);
   return 0;
 }
