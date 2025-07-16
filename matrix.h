@@ -57,7 +57,7 @@ class RectangularMatrix {
     }
     
     RectangularMatrix& operator=(const RectangularMatrix &other) {
-      if(order != other.order()) throw std::runtime_error("Copy assignment can't be done with different order-ed matrices.");
+      if(order() != other.order()) throw std::runtime_error("Copy assignment can't be done with different order-ed matrices.");
       if(this == &other) return *this;
       RectangularMatrix temp(other);
       swap(temp);
@@ -138,23 +138,23 @@ class RectangularMatrix {
     RectangularMatrix operator-() const {
       RectangularMatrix result(*this);
       for(size_t i = 0; i < n_entries(); i++) result.m_entries[i] = -m_entries[i];
-      return *this;
+      return result;
     }
     
     RectangularMatrix& negate() {
-      for(int i = 0; i < n_entries(); i++) m_entries[i] = -m_entries[i];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = -m_entries[i];
       return *this;
     }
     
     RectangularMatrix& operator+=(const RectangularMatrix &other) {
-      if(order != other.order()) throw std::runtime_error("Addition can't be done with different order-ed matrices.");
+      if(order() != other.order()) throw std::runtime_error("Addition can't be done with different order-ed matrices.");
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] += other.m_entries[i];
       return *this;
     }
     
     RectangularMatrix& operator-=(const RectangularMatrix &other) {
-      if(order != other.order()) throw std::runtime_error("Subtraction can't be done with different order-ed matrices.");
-      for(size_t i = 0; i < n_entries(); i++) m_entries[i] += other.m_entries[i];
+      if(order() != other.order()) throw std::runtime_error("Subtraction can't be done with different order-ed matrices.");
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] -= other.m_entries[i];
       return *this;
     }
     
