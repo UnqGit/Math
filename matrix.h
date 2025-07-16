@@ -80,13 +80,13 @@ class RectangularMatrix {
     
     // Fill a single row with the copies of T type, not noexcept because at can throw errors.
     RectangularMatrix& fill_row(size_t row, const T &to_fill) {
-      for(size_t i = 0; i < m_columns; i++) at(row, i) = to_fill;
+      for(size_t i = 0; i < m_columns; i++) at(row, i + OFFSET_INDEX) = to_fill;
       return *this;
     }
 
     // Fill a single column with the copies of T type, not noexcept because at can throw errors.
     RectangularMatrix& fill_column(size_t column, const T &to_fill) {
-      for(size_t i = 0; i < m_rows; i++) at(i, column) = to_fill;
+      for(size_t i = 0; i < m_rows; i++) at(i + OFFSET_INDEX, column) = to_fill;
       return *this;
     }
     
@@ -158,9 +158,14 @@ class RectangularMatrix {
       return *this;
     }
     
-    RectangularMatrix& operator*=(const RectangularMatrix &other) {
+    RectangularMatrix operator*(const RectangularMatrix &other) const {
       if(m_columns != other.m_rows) throw std::runtime_error("Multiplication can't be done when the number of columns in first matrix is different than number of rows in second matrix.");
-      
+      RectangularMatrix result(m_rows, other.m_columns);
+      for(size_t r = 0; r < m_rows; r++)
+        for(size_t c = 0; c < other.m_columns; c++)
+          for (int i = 0; i < m_columns; i++)
+            result.at(r + OFFSET_INDEX, c + OFFSET_INDEX) += at(r + OFFSET_INDEX, i + OFFSET_INDEX) * other.at(i + OFFSET_INDEX, c + OFFSET_INDEX);
+      return result;
     }
     
     RectangularMatrix operator+(const RectangularMatrix &other) const {
@@ -173,6 +178,12 @@ class RectangularMatrix {
       RectangularMatrix result(*this);
       result -= other;
       return result;
+    }
+    
+    RectangularMatrix& operator*=(const RectangularMatrix &other) {
+      RectangularMatrix result = (*this)*other;
+      swap(result);
+      return *this;
     }
     
     // Destructor....RAII.
@@ -194,9 +205,11 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
 }
 
 int main() {
-  mat::RectangularMatrix<std::string> my_matrix(2,1,"Hello");
+  mat::RectangularMatrix<int> my_matrix(2,1,8);
   std::cout << my_matrix.at(2,1) << std::endl;
-  my_matrix.at(1,1) = "Woah";
-  std::cout << my_matrix.at(1,2);
+  my_matrix.at(1,1) = 7;
+  std::cout << my_matrix.at(1,1) << std::endl;
+  my_matrix *= my_matrix;
+  std::cout << my_matrix.at(1,1) << std::endl;
   return 0;
 }
