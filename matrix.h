@@ -186,6 +186,33 @@ class RectangularMatrix {
       return *this;
     }
     
+    bool operator==(const RectangularMatrix &other) {
+      if(this = &other) return true;
+      if(order() != other.order()) return false;
+      for(size_t i = 0; i < order(); i++) if(m_entries[i] != other.m_entries[i]) return false;
+      return true;
+    }
+    
+    bool operator!=(const RectangularMatrix &other) const noexcept {
+      return !((*this) == other);
+    }
+    
+    RectangularMatrix flip_h() const {
+      RectangularMatrix result(*this);
+      for(size_t r = 0; r < m_rows / 2; r++)
+        for(size_t c = 0; c < m_columns; c++)
+          std::swap(result.m_entries[r*m_columns + c], result.m_entries[(m_rows - 1 - r)*m_columns + c]);
+      return result;
+    }
+    
+    RectangularMatrix flip_v() const {
+      RectangularMatrix result(*this);
+      for(size_t c = 0; c < m_columns / 2; c++)
+        for(size_t r = 0; r < m_rows; r++)
+          std::swap(result.m_entries[r*m_columns + c], result.m_entries[r*m_columns + (m_columns - 1 - c)]);
+      return result;
+    }
+    
     // Destructor....RAII.
     ~RectangularMatrix() {
       delete[] m_entries;
