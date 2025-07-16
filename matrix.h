@@ -5,6 +5,9 @@ namespace mat {
 
 static constexpr bool OFFSET_INDEX = true;
 
+template <typename T>
+class SquareMatrix;
+
 // Matrces don't usually grow in size, so it will not be a wrapper on std::vector.
 template <typename T>
 class RectangularMatrix {
@@ -12,25 +15,25 @@ class RectangularMatrix {
     T* m_entries = nullptr;
     size_t m_rows = 0;
     size_t m_columns = 0;
-  
+    
   public:
     // Dimension constructors.
     RectangularMatrix(size_t rows, size_t columns): m_rows(rows), m_columns(columns) {
-      if(order() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
-      m_entries = new T[order()]();
+      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      m_entries = new T[n_entries()]();
     }
     
     // Dimesion constructor with defualt value.
     RectangularMatrix(size_t rows, size_t columns, const T &to_copy): m_rows(rows), m_columns(columns) {
-      if(order() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
-      m_entries = new T[order()];
-      for(size_t i = 0; i < order(); i++) m_entries[i] = to_copy;
+      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      m_entries = new T[n_entries()];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = to_copy;
     }
     
     // Copy constructor.
     RectangularMatrix(const RectangularMatrix &other): m_rows(other.m_rows), m_columns(other.m_columns) {
-      m_entries = new T[order()];
-      for(size_t i = 0; i < order(); i++) m_entries[i] = other.m_entries[i];
+      m_entries = new T[n_entries()];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = other.m_entries[i];
     }
     
     // Move constructor.
@@ -54,7 +57,7 @@ class RectangularMatrix {
     }
     
     RectangularMatrix& operator=(const RectangularMatrix &other) {
-      if(this->m_rows != other.m_rows || this->m_columns != other.m_columns) throw std::runtime_error("Copy assignment can't be done with different order-ed matrices.");
+      if(order != other.order()) throw std::runtime_error("Copy assignment can't be done with different order-ed matrices.");
       if(this == &other) return *this;
       RectangularMatrix temp(other);
       swap(temp);
@@ -71,7 +74,7 @@ class RectangularMatrix {
     
     // Fill the matrix with a single element copied in the full matrix.
     RectangularMatrix& fill(const T &to_fill) noexcept {
-      for(size_t i = 0; i < order(); i++) m_entries[i] = to_fill;
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = to_fill;
       return *this;
     }
     
@@ -98,8 +101,25 @@ class RectangularMatrix {
     }
     
     // Number of entries in the matrix.
-    size_t order() const noexcept {
+    size_t n_entries() const noexcept {
       return m_rows * m_columns;
+    }
+    
+    // Returns the actual order of the matrix, i.e, m x n.
+    std::pair<size_t, size_t> order() const noexcept {
+      return {m_rows, m_columns};
+    }
+    
+    bool is_horizontal() const noexcept {
+      return m_columns > m_rows;
+    }
+    
+    bool is_vertical() const noexcept {
+      return m_rows < m_columns;
+    }
+    
+    bool is_square() const noexcept {
+      return m_rows == m_columns;
     }
     
     // Index starts from 1, instead of 0 accounting for general representation of matrix elements but can be changed by changing the boolean in this header file.
@@ -115,10 +135,54 @@ class RectangularMatrix {
       return *(m_entries + m_columns * (row - OFFSET_INDEX) + (column - OFFSET_INDEX));
     }
     
+    RectangularMatrix operator-() const {
+      RectangularMatrix result(*this);
+      for(size_t i = 0; i < n_entries(); i++) result.m_entries[i] = -m_entries[i];
+      return *this;
+    }
+    
+    RectangularMatrix& negate() {
+      for(int i = 0; i < n_entries(); i++) m_entries[i] = -m_entries[i];
+      return *this;
+    }
+    
+    RectangularMatrix& operator+=(const RectangularMatrix &other) {
+      if(order != other.order()) throw std::runtime_error("Addition can't be done with different order-ed matrices.");
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] += other.m_entries[i];
+      return *this;
+    }
+    
+    RectangularMatrix& operator-=(const RectangularMatrix &other) {
+      if(order != other.order()) throw std::runtime_error("Subtraction can't be done with different order-ed matrices.");
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] += other.m_entries[i];
+      return *this;
+    }
+    
+    RectangularMatrix& operator*=(const RectangularMatrix &other) {
+      if(m_columns != other.m_rows) throw std::runtime_error("Multiplication can't be done when the number of columns in first matrix is different than number of rows in second matrix.");
+      
+    }
+    
+    RectangularMatrix operator+(const RectangularMatrix &other) const {
+      RectangularMatrix result(*this);
+      result += other;
+      return result;
+    }
+    
+    RectangularMatrix operator-(const RectangularMatrix &other) const {
+      RectangularMatrix result(*this);
+      result -= other;
+      return result;
+    }
+    
     // Destructor....RAII.
     ~RectangularMatrix() {
       delete[] m_entries;
     }
+    
+  private:
+    operator SquareMatrix<T>() const;
+    friend class SquareMatrix<T>;
 };
 
 // To make swappable using std::swap.
