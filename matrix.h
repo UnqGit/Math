@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <initializer_list>
 
 namespace mat {
 
@@ -34,6 +35,14 @@ class RectangularMatrix {
     RectangularMatrix(const RectangularMatrix &other): m_rows(other.m_rows), m_columns(other.m_columns) {
       m_entries = new T[n_entries()];
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] = other.m_entries[i];
+    }
+    
+    // constructor using an initializer_list.
+    RectangularMatrix(size_t rows, size_t columns, const std::initializer_list<T> &il): m_rows(rows), m_columns(columns) {
+      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      if(n_entries() != il.size()) throw std::runtime_error("While making a matrix from an initializer_list, list and dimensions provided for matrix creation should give the same number of entries.");
+      m_entries = new T[n_entries()];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = *(il.begin()+i);
     }
     
     // Move constructor.
@@ -187,7 +196,7 @@ class RectangularMatrix {
     }
     
     bool operator==(const RectangularMatrix &other) {
-      if(this = &other) return true;
+      if(this == &other) return true;
       if(order() != other.order()) return false;
       for(size_t i = 0; i < order(); i++) if(m_entries[i] != other.m_entries[i]) return false;
       return true;
@@ -197,7 +206,9 @@ class RectangularMatrix {
       return !((*this) == other);
     }
     
+    // Mirror about x-axis.
     RectangularMatrix flip_h() const {
+      if(m_rows == 1) return *this;
       RectangularMatrix result(*this);
       for(size_t r = 0; r < m_rows / 2; r++)
         for(size_t c = 0; c < m_columns; c++)
@@ -205,11 +216,30 @@ class RectangularMatrix {
       return result;
     }
     
+    // Mirror about y-axis.
     RectangularMatrix flip_v() const {
+      if(m_columns == 1) return *this;
       RectangularMatrix result(*this);
       for(size_t c = 0; c < m_columns / 2; c++)
         for(size_t r = 0; r < m_rows; r++)
           std::swap(result.m_entries[r*m_columns + c], result.m_entries[r*m_columns + (m_columns - 1 - c)]);
+      return result;
+    }
+    
+    // Transpose of a matrix => a21(new) = a12(old).
+    RectangularMatrix transpose() const {
+      // Early returns.
+      if(n_entries() == 1) return *this;
+      if(m_rows == 1 || m_columns == 1) {
+        RectangularMatrix result(*this);
+        std::swap(result.m_rows, result.m_columns);
+        return result;
+      }
+      // Main work.
+      RectangularMatrix result(m_columns,m_rows); // Potentially slower but safer...let's just stay in our lane, shall we?
+      for(size_t r = 0; r < m_rows; r++)
+        for(size_t c = 0; c < m_columns; c++)
+          result.at(c + OFFSET_INDEX, r + OFFSET_INDEX) = at(r + OFFSET_INDEX, c + OFFSET_INDEX);
       return result;
     }
     
@@ -232,11 +262,7 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
 }
 
 int main() {
-  mat::RectangularMatrix<int> my_matrix(2,1,8);
+  mat::RectangularMatrix<int> my_matrix(2,1,{2,1});
   std::cout << my_matrix.at(2,1) << std::endl;
-  my_matrix.at(1,1) = 7;
-  std::cout << my_matrix.at(1,1) << std::endl;
-  my_matrix *= my_matrix;
-  std::cout << my_matrix.at(1,1) << std::endl;
   return 0;
 }
