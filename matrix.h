@@ -62,10 +62,9 @@ class RectangularMatrix {
       if(m_columns == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
       m_entries = new T[n_entries()];
       size_t index = 0;
-      for(const auto &column: matrix) {
-        if(column.size() != m_columns) throw std::invalid_argument("Number of entries in each row should be equal(construction error: type: initializer_list<initializer_list<>>).");
-        for(const auto &entry: column) m_entries[index] = entry;
-        index++;
+      for(const auto &vector: matrix) {
+        if(vector.size() != m_columns) throw std::invalid_argument("Number of entries in each row should be equal(construction error: type: initializer_list<initializer_list<>>).");
+        for(const auto &entry: vector) m_entries[index++] = entry;
       }
     }
     
@@ -285,7 +284,7 @@ class RectangularMatrix {
       RectangularMatrix result(m_columns, m_rows);
       for(size_t r = 0; r < m_rows; r++)
         for(size_t c = 0; c < m_columns - (m_rows - r); c++)
-          result.at(c + OFFSET_INDEX - r, r + OFFSET_INDEX) = at(r + OFFSET_INDEX, c + OFFSET_INDEX);
+          result.at(c + OFFSET_INDEX, r + OFFSET_INDEX) = at(r + OFFSET_INDEX, c + OFFSET_INDEX);
       return result;
     }
     
@@ -319,8 +318,9 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
 }
 
 int main() {
-  mat::RectangularMatrix<int> my_matrix = {{1,2},{1,1}};
-  std::cout << my_matrix.at(2,1);
-  std::cout << my_matrix;
+  mat::RectangularMatrix<int> my_matrix({{1,2},{1,1}});
+  // my_matrix.print(std::cout);
+  std::cout << my_matrix << "\n\n";
+  std::cout << my_matrix.rotate_cw();
   return 0;
 }
