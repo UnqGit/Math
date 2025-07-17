@@ -45,6 +45,21 @@ class RectangularMatrix {
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] = *(il.begin()+i);
     }
     
+    // Vectors, optionally lateral or longitudinal.
+    RectangularMatrix(const std::initializer_list<T> &il, bool single_column = false) {
+      if(il.size() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      m_rows = !single_column ? 1 : il.size();
+      m_columns = single_column ? 1 : il.size();
+      m_entries = new T[n_entries()];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = *(il.begin()+i);
+    }
+    
+    RectangularMatrix(const T[r][c] matrix): m_rows(r), m_columns(c) {
+      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      m_entries = new T[n_entries()];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = matrix[i/m_columns][i%m_columns];
+    }
+    
     // Move constructor.
     RectangularMatrix(RectangularMatrix &&other): m_rows(other.m_rows), m_columns(other.m_columns), m_entries(other.m_entries) {
       other.m_rows = 0; // Convert other to defualt.
