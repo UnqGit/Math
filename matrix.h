@@ -2,6 +2,7 @@
 #include <string>
 #include <initializer_list>
 #include <stdexcept>
+#include <iterator>
 
 namespace mat {
 
@@ -13,11 +14,6 @@ class SquareMatrix;
 // Matrces don't usually grow in size, so it will not be a wrapper on std::vector.
 template <typename T>
 class RectangularMatrix {
-  protected:
-    T* m_entries     = nullptr;
-    size_t m_rows    = 0;
-    size_t m_columns = 0;
-  
   // Constructors and move semantics.
   public:
     // Dimension constructors.
@@ -70,7 +66,7 @@ class RectangularMatrix {
     }
     
     // Move constructor.
-    RectangularMatrix(RectangularMatrix &&other): m_rows(other.m_rows), m_columns(other.m_columns), m_entries(other.m_entries) {
+    RectangularMatrix(RectangularMatrix &&other) noexcept : m_rows(other.m_rows), m_columns(other.m_columns), m_entries(other.m_entries) {
       other.m_rows    = 0; // Convert other to defualt.
       other.m_columns = 0;
       other.m_entries = nullptr;
@@ -95,7 +91,7 @@ class RectangularMatrix {
       if(order() != other.order()) throw std::invalid_argument("Copy assignment can't be done with different order-ed matrices.");
       if(this == &other) return *this;
       RectangularMatrix temp(other);
-      swap(temp);
+      this->swap(temp);
       return *this;
     }
     
@@ -200,7 +196,7 @@ class RectangularMatrix {
     
   // Comparison operators.
   public:
-    bool operator==(const RectangularMatrix &other) {
+    bool operator==(const RectangularMatrix &other) const noexcept {
       if(this == &other) return true;
       if(order() != other.order()) return false;
       for(size_t i = 0; i < order(); i++) if(m_entries[i] != other.m_entries[i]) return false;
@@ -228,24 +224,6 @@ class RectangularMatrix {
       return result;
     }
     
-    RectangularMatrix& operator+=(const RectangularMatrix &other) {
-      if(order() != other.order()) throw std::invalid_argument("Addition can't be done with different order-ed matrices.");
-      for(size_t i = 0; i < n_entries(); i++) m_entries[i] += other.m_entries[i];
-      return *this;
-    }
-    
-    RectangularMatrix& operator-=(const RectangularMatrix &other) {
-      if(order() != other.order()) throw std::invalid_argument("Subtraction can't be done with different order-ed matrices.");
-      for(size_t i = 0; i < n_entries(); i++) m_entries[i] -= other.m_entries[i];
-      return *this;
-    }
-    
-    RectangularMatrix& operator*=(const RectangularMatrix &other) {
-      RectangularMatrix result = (*this)*other;
-      this->swap(result);
-      return *this;
-    }
-    
     RectangularMatrix operator+(const RectangularMatrix &other) const {
       RectangularMatrix result(*this);
       result += other;
@@ -266,6 +244,24 @@ class RectangularMatrix {
           for (int i = 0; i < m_columns; i++)
             result.at(r + OFFSET_INDEX, c + OFFSET_INDEX) += this->at(r + OFFSET_INDEX, i + OFFSET_INDEX) * other.at(i + OFFSET_INDEX, c + OFFSET_INDEX);
       return result;
+    }
+    
+    RectangularMatrix& operator+=(const RectangularMatrix &other) {
+      if(order() != other.order()) throw std::invalid_argument("Addition can't be done with different order-ed matrices.");
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] += other.m_entries[i];
+      return *this;
+    }
+    
+    RectangularMatrix& operator-=(const RectangularMatrix &other) {
+      if(order() != other.order()) throw std::invalid_argument("Subtraction can't be done with different order-ed matrices.");
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] -= other.m_entries[i];
+      return *this;
+    }
+    
+    RectangularMatrix& operator*=(const RectangularMatrix &other) {
+      RectangularMatrix result = (*this)*other;
+      this->swap(result);
+      return *this;
     }
     
     // Mirror about x-axis.
@@ -333,12 +329,12 @@ class RectangularMatrix {
       return result;
     }
     
-    void print(std::ostream &os, const std::string &start = "\n") const {
-      os << start;
-      os << "{\n";
+    void print(std::ostream &os, bool newline_start = true) const {
+      if(newline_start) os << '\n';
+      os << "{\n  ";
       for(size_t r = 0; r < m_rows; r++)
         for(size_t c = 0; c < m_columns; c++)
-          os << at(r + OFFSET_INDEX, c + OFFSET_INDEX) << (c < m_columns - 1 ? ", " : (r < m_rows - 1 ? "\n" : "\n}"));
+          os << at(r + OFFSET_INDEX, c + OFFSET_INDEX) << (c < m_columns - 1 ? ", " : (r < m_rows - 1 ? "\n  " : "\n}"));
     }
     
     friend std::ostream& operator<<(std::ostream &os, const RectangularMatrix &matrix) {
@@ -356,6 +352,96 @@ class RectangularMatrix {
   private:
     operator SquareMatrix<T>() const;
     friend class SquareMatrix<T>;
+    
+  protected:
+    T* m_entries     = nullptr;
+    size_t m_rows    = 0;
+    size_t m_columns = 0;
+  
+};
+
+// TODO - SquareMatrix.
+template<typename T>
+class SquareMatrix {
+  public:
+    SquareMatrix(size_t len): m_len(len) {
+      if(len == 0) throw std::invalid_argument("Dimensions of a matrix can't be 0.");
+      m_entries = new T[n_entries()]();
+    }
+    
+    SquareMatrix(size_t len, const T &to_copy) : m_len(len) {
+      if(len == 0) throw std::invalid_argument("Dimensions of a matrix can't be 0.");
+      m_entries = new T[n_entries()];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = to_copy;
+    }
+    
+    SquareMatrix(const SquareMatrix &other): m_len(other.m_len) {
+      m_entries = new T[n_entries()];
+      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = other.m_entries[i];
+    }
+    
+    SquareMatrix(SquareMatrix &&other) noexcept : m_len(other.m_len), m_entries(other.m_entries) {
+      other.m_len     = 0;
+      other.m_entries = nullptr;
+    }
+    
+    SquareMatrix(const std::initializer_list<T> &il): m_len(il.size()) {
+      if(m_len == 0) throw std::invalid_argument("Dimensions of a matrix can't be 0.");
+      
+    }
+    
+    SquareMatrix(const std::initializer_list<std::initializer_list<T>> &matrix): m_len(matrix.size()) {
+      if(m_len == 0) throw std::invalid_argument("Dimensions of a matrix can't be 0.");
+      m_entries = new T[n_entries()];
+      size_t index = 0;
+      for(const auto &vector: matrix) {
+        if(vector.size() != n_len) throw std::invalid_argument("Number of entries in each row should be equal(construction error: type: initializer_list<initializer_list<>>).");
+        for(const auto &entry: vector) m_entries[index++] = entry;
+      }
+    }
+    
+    SquareMatrix& operator=(SquareMatrix &&other) noexcept {
+      swap(other);
+      return *this;
+    }
+    
+  public:
+    SquareMatrix& swap(SquareMatrix &other) noexcept {
+      std::swap(m_len, other.m_len);
+      std::swap(m_entries, other.m_entries);
+      return *this;
+    }
+    
+    SquareMatrix& operator=(const SquareMatrix &other) {
+      if(m_len != other.m_len) throw std::invalid_argument("Copy assignment can't be done with different order-ed matrices.");
+      if(this == &other) return *this;
+      SquareMatrix temp(other);
+      this->swap(temp);
+      return *this;
+    }
+    
+    RectangularMatrix& copy(const RectangularMatrix &other) {
+      if(this == &other) return *this;
+      RectangularMatrix temp(other);
+      this->swap(temp);
+      return *this;
+    }
+    
+  public:
+    size_t n_len() const noexcept {return m_len;}
+    
+    size_t n_entries() const noexcept {return m_len*m_len;}
+    
+    const T* data() const noexcept {return m_entries;}
+    
+  public:
+    ~SquareMatrix() {
+      delete[] m_entries;
+    }
+    
+  protected:
+    T* m_entries = nullptr;
+    size_t m_len = 0;
 };
 
 // To make swappable using std::swap.
@@ -364,14 +450,34 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
   lfs.swap(rhs);
 }
 
-// TODO - SquareMatrix.
+template<typename T>
+void swap(SquareMatrix<T> &lfs, SquareMatrix<T> &rhs) noexcept {
+  lfs.swap(rhs);
+}
 
 }
 
+
 int main() {
-  mat::RectangularMatrix<int> my_matrix({{2,2},{1,1}});
-  my_matrix.print(std::cout, ""); // <- This works too.
+  mat::RectangularMatrix<char> my_matrix({{'a','b'},{'c','d'},{'e','f'}});
+  // my_matrix(3, 2, {'a','b','c','d','e','f'}) <- This works too.
+  // my_matrix(3, 2); for(size_t i = 0; i < my_matrix.n_entries(); i++) my_matrix.at(i/2 + mat::OFFSET_INDEX, i%2 + mat::OFFSET_INDEX) = 97+i; <- This works too.
+  // my_matrix(3, 2) <- This is valid but would make all characters '\0' as the default value.
+  // my_matrix(3, 2, 'a') <- This would make each entry 'a'.
+  // mat::RectangularMatrix<char> my_other_matrix = my_matrix; <- This works too.
+  
+  my_matrix.print(std::cout, false); // <- This works too. // By default it prints a newline character before the matrix(which explains the 'false' here, which makes it not do that).
   std::cout << my_matrix;
   std::cout << my_matrix.rotate_cw();
+  std::cout << my_matrix.rotate_acw();
+  std::cout << my_matrix.transpose();
+  std::cout << my_matrix.flip_h();
+  std::cout << my_matrix.flip_v();
+  std::cout << '\n' << my_matrix.at(1,1); // 1 Based index, unless you change the variable at the top of this header file named 'OFFSET_INDEX' to false.
+  // Has mathematical functions too but those can't work on a character since it can't be multiplied with another character...it can be, but that would produce another character
+  // Which when printed would't make any sense.
+  
+  // Every thing is safe, exceptions are placed aptly to not break anything like bound checks, no dimension can be zero, every initializer_list inside the main initializer_list
+  // should be of the same size which is not 0.
   return 0;
 }
