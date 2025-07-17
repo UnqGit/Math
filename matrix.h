@@ -269,10 +269,11 @@ class RectangularMatrix {
     // Rotate the matrix clockwise.
     RectangularMatrix rotate_cw() const {
       // Early returns.
+      if(n_entries()) return *this;
       if(m_columns == 1) {
         RectangularMatrix result(*this);
         std::swap(result.m_columns, result.m_rows);
-        for(size_t i = 0; i < n_entries() / 2; i++) std::swap(m_entries[i], m_entries[n_entries() - 1 - i]); // Reverse the order.
+        for(size_t i = 0; i < n_entries() / 2; i++) std::swap(result.m_entries[i], result.m_entries[m_rows - 1 - i]); // Reverse the order.
         return result;
       }
       if(m_rows == 1) {
@@ -282,17 +283,17 @@ class RectangularMatrix {
       }
       // Main work.
       RectangularMatrix result(m_columns, m_rows);
-      for(size_t r = 0; r < m_rows; r++)
-        for(size_t c = 0; c < m_columns - (m_rows - r); c++)
-          result.at(c + OFFSET_INDEX, r + OFFSET_INDEX) = at(r + OFFSET_INDEX, c + OFFSET_INDEX);
+      for(size_t r = 0; r < result.m_rows; r++)
+        for(size_t c = 0; c < result.m_columns; c++)
+          result.at(r + OFFSET_INDEX, c + OFFSET_INDEX) = at(m_rows - 1 - c + OFFSET_INDEX, r);
       return result;
     }
     
     void print(std::ostream &os) const {
-      os << "\n|";
+      os << "\n{";
       for(size_t r = 0; r < m_rows; r++)
         for(size_t c = 0; c < m_columns; c++)
-          os << at(r + OFFSET_INDEX, c + OFFSET_INDEX) << (c < m_columns - 1 ? ", " : (r < m_rows - 1 ? "|\n|" : "|"));
+          os << at(r + OFFSET_INDEX, c + OFFSET_INDEX) << (c < m_columns - 1 ? ", " : (r < m_rows - 1 ? "\n" : "\n}"));
     }
     friend std::ostream& operator<<(std::ostream &os, const RectangularMatrix &matrix) {
       matrix.print(os);
