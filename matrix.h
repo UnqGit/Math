@@ -161,7 +161,7 @@ class RectangularMatrix {
     }
     
     bool is_vertical() const noexcept {
-      return m_rows < m_columns;
+      return m_rows > m_columns;
     }
     
     bool is_square() const noexcept {
