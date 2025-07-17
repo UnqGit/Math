@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <initializer_list>
+#include <stdexcept>
 
 namespace mat {
 
@@ -156,14 +157,14 @@ class RectangularMatrix {
     
     // Index starts from 1, instead of 0 accounting for general representation of matrix elements but can be changed by changing the boolean in this header file.
     T& at(size_t row, size_t column) {
-      if(OFFSET_INDEX && row * column == 0) throw std::invalid_argument("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
-      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::invalid_argument("Index used to access the elements can't be greater than the row/column present.");
+      if(OFFSET_INDEX && row * column == 0) throw std::out_of_range("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
+      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::out_of_range("Index used to access the elements can't be greater than the row/column present.");
       return *(m_entries + m_columns * (row - OFFSET_INDEX) + (column - OFFSET_INDEX));
     }
     
     const T& at(size_t row, size_t column) const {
-      if(OFFSET_INDEX && row * column == 0) throw std::invalid_argument("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
-      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::invalid_argument("Index used to access the elements can't be greater than the row/column present.");
+      if(OFFSET_INDEX && row * column == 0) throw std::out_of_range("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
+      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::out_of_range("Index used to access the elements can't be greater than the row/column present.");
       return *(m_entries + m_columns * (row - OFFSET_INDEX) + (column - OFFSET_INDEX));
     }
     
@@ -285,6 +286,7 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
 }
 
 int main() {
-  mat::RectangularMatrix<int> my_matrix = {{1,1},{1,1}};
+  mat::RectangularMatrix<int> my_matrix = {{1,2},{1,1}};
+  std::cout << my_matrix.at(1,1);
   return 0;
 }
