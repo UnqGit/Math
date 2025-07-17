@@ -267,6 +267,39 @@ class RectangularMatrix {
       return result;
     }
     
+    // Rotate the matrix clockwise.
+    RectangularMatrix rotate_cw() const {
+      // Early returns.
+      if(m_columns == 1) {
+        RectangularMatrix result(*this);
+        std::swap(result.m_columns, result.m_rows);
+        for(size_t i = 0; i < n_entries() / 2; i++) std::swap(m_entries[i], m_entries[n_entries() - 1 - i]); // Reverse the order.
+        return result;
+      }
+      if(m_rows == 1) {
+        RectangularMatrix result(*this);
+        std::swap(result.m_columns, result.m_rows);
+        return result;
+      }
+      // Main work.
+      RectangularMatrix result(m_columns, m_rows);
+      for(size_t r = 0; r < m_rows; r++)
+        for(size_t c = 0; c < m_columns - (m_rows - r); c++)
+          result.at(c + OFFSET_INDEX - r, r + OFFSET_INDEX) = at(r + OFFSET_INDEX, c + OFFSET_INDEX);
+      return result;
+    }
+    
+    void print(std::ostream &os) const {
+      os << "\n|";
+      for(size_t r = 0; r < m_rows; r++)
+        for(size_t c = 0; c < m_columns; c++)
+          os << at(r + OFFSET_INDEX, c + OFFSET_INDEX) << (c < m_columns - 1 ? ", " : (r < m_rows - 1 ? "|\n|" : "|"));
+    }
+    friend std::ostream& operator<<(std::ostream &os, const RectangularMatrix &matrix) {
+      matrix.print(os);
+      return os;
+    }
+    
     // Destructor....RAII.
     ~RectangularMatrix() {
       delete[] m_entries;
@@ -287,6 +320,7 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
 
 int main() {
   mat::RectangularMatrix<int> my_matrix = {{1,2},{1,1}};
-  std::cout << my_matrix.at(1,1);
+  std::cout << my_matrix.at(2,1);
+  std::cout << my_matrix;
   return 0;
 }
