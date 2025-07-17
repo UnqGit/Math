@@ -20,13 +20,13 @@ class RectangularMatrix {
   public:
     // Dimension constructors.
     RectangularMatrix(size_t rows, size_t columns): m_rows(rows), m_columns(columns) {
-      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      if(n_entries() == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
       m_entries = new T[n_entries()]();
     }
     
     // Dimesion constructor with defualt value.
     RectangularMatrix(size_t rows, size_t columns, const T &to_copy): m_rows(rows), m_columns(columns) {
-      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      if(n_entries() == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
       m_entries = new T[n_entries()];
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] = to_copy;
     }
@@ -39,25 +39,33 @@ class RectangularMatrix {
     
     // constructor using an initializer_list.
     RectangularMatrix(size_t rows, size_t columns, const std::initializer_list<T> &il): m_rows(rows), m_columns(columns) {
-      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
-      if(n_entries() != il.size()) throw std::runtime_error("While making a matrix from an initializer_list, list and dimensions provided for matrix creation should give the same number of entries.");
+      if(n_entries() == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
+      if(n_entries() != il.size()) throw std::invalid_argument("While making a matrix from an initializer_list, list and dimensions provided for matrix creation should give the same number of entries.");
       m_entries = new T[n_entries()];
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] = *(il.begin()+i);
     }
     
     // Vectors, optionally lateral or longitudinal.
     RectangularMatrix(const std::initializer_list<T> &il, bool single_column = false) {
-      if(il.size() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+      if(il.size() == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
       m_rows = !single_column ? 1 : il.size();
       m_columns = single_column ? 1 : il.size();
       m_entries = new T[n_entries()];
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] = *(il.begin()+i);
     }
     
-    RectangularMatrix(const T[r][c] matrix): m_rows(r), m_columns(c) {
-      if(n_entries() == 0) throw std::runtime_error("Any dimension of the matrix can't be 0.");
+    RectangularMatrix(const std::initializer_list<std::initializer_list<T>> &matrix) {
+      m_rows = matrix.size();
+      if(m_rows == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
+      m_columns = matrix.begin()->size();
+      if(m_columns == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
       m_entries = new T[n_entries()];
-      for(size_t i = 0; i < n_entries(); i++) m_entries[i] = matrix[i/m_columns][i%m_columns];
+      size_t index = 0;
+      for(const auto &column: matrix) {
+        if(column.size() != m_columns) throw std::invalid_argument("Number of entries in each row should be equal(construction error: type: initializer_list<initializer_list<>>).");
+        for(const auto &entry: column) m_entries[index] = entry;
+        index++;
+      }
     }
     
     // Move constructor.
@@ -76,12 +84,12 @@ class RectangularMatrix {
     
     // Move assignment operator.
     RectangularMatrix& operator=(RectangularMatrix &&other) noexcept {
-      if(this != &other) swap(other);
+      swap(other);
       return *this;
     }
     
     RectangularMatrix& operator=(const RectangularMatrix &other) {
-      if(order() != other.order()) throw std::runtime_error("Copy assignment can't be done with different order-ed matrices.");
+      if(order() != other.order()) throw std::invalid_argument("Copy assignment can't be done with different order-ed matrices.");
       if(this == &other) return *this;
       RectangularMatrix temp(other);
       swap(temp);
@@ -89,7 +97,7 @@ class RectangularMatrix {
     }
     
     // No check for sizes unlike operator=(), so the size can change if different sized matrix is used.
-    RectangularMatrix& copy(const RectangularMatrix& other) {
+    RectangularMatrix& copy(const RectangularMatrix &other) {
       if(this == &other) return *this;
       RectangularMatrix temp(other);
       swap(temp);
@@ -148,14 +156,14 @@ class RectangularMatrix {
     
     // Index starts from 1, instead of 0 accounting for general representation of matrix elements but can be changed by changing the boolean in this header file.
     T& at(size_t row, size_t column) {
-      if(OFFSET_INDEX && row * column == 0) throw std::runtime_error("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
-      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::runtime_error("Index used to access the elements can't be greater than the row/column present.");
+      if(OFFSET_INDEX && row * column == 0) throw std::invalid_argument("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
+      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::invalid_argument("Index used to access the elements can't be greater than the row/column present.");
       return *(m_entries + m_columns * (row - OFFSET_INDEX) + (column - OFFSET_INDEX));
     }
     
     const T& at(size_t row, size_t column) const {
-      if(OFFSET_INDEX && row * column == 0) throw std::runtime_error("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
-      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::runtime_error("Index used to access the elements can't be greater than the row/column present.");
+      if(OFFSET_INDEX && row * column == 0) throw std::invalid_argument("Index of matrices start at 1,1. Please start with 1, not 0 (or change the offset to false in header file).");
+      if(row > m_rows - !OFFSET_INDEX || column > m_columns - !OFFSET_INDEX) throw std::invalid_argument("Index used to access the elements can't be greater than the row/column present.");
       return *(m_entries + m_columns * (row - OFFSET_INDEX) + (column - OFFSET_INDEX));
     }
     
@@ -171,19 +179,19 @@ class RectangularMatrix {
     }
     
     RectangularMatrix& operator+=(const RectangularMatrix &other) {
-      if(order() != other.order()) throw std::runtime_error("Addition can't be done with different order-ed matrices.");
+      if(order() != other.order()) throw std::invalid_argument("Addition can't be done with different order-ed matrices.");
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] += other.m_entries[i];
       return *this;
     }
     
     RectangularMatrix& operator-=(const RectangularMatrix &other) {
-      if(order() != other.order()) throw std::runtime_error("Subtraction can't be done with different order-ed matrices.");
+      if(order() != other.order()) throw std::invalid_argument("Subtraction can't be done with different order-ed matrices.");
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] -= other.m_entries[i];
       return *this;
     }
     
     RectangularMatrix operator*(const RectangularMatrix &other) const {
-      if(m_columns != other.m_rows) throw std::runtime_error("Multiplication can't be done when the number of columns in first matrix is different than number of rows in second matrix.");
+      if(m_columns != other.m_rows) throw std::invalid_argument("Multiplication can't be done when the number of columns in first matrix is different than number of rows in second matrix.");
       RectangularMatrix result(m_rows, other.m_columns);
       for(size_t r = 0; r < m_rows; r++)
         for(size_t c = 0; c < other.m_columns; c++)
@@ -277,7 +285,6 @@ void swap(RectangularMatrix<T> &lfs, RectangularMatrix<T> &rhs) noexcept {
 }
 
 int main() {
-  mat::RectangularMatrix<int> my_matrix(2,1,{2,1});
-  std::cout << my_matrix.at(2,1) << std::endl;
+  mat::RectangularMatrix<int> my_matrix = {{1,1},{1,1}};
   return 0;
 }
