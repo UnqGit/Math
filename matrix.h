@@ -269,7 +269,7 @@ class RectangularMatrix {
     // Rotate the matrix clockwise.
     RectangularMatrix rotate_cw() const {
       // Early returns.
-      if(n_entries()) return *this;
+      if(n_entries() == 1) return *this;
       if(m_columns == 1) {
         RectangularMatrix result(*this);
         std::swap(result.m_columns, result.m_rows);
@@ -285,12 +285,12 @@ class RectangularMatrix {
       RectangularMatrix result(m_columns, m_rows);
       for(size_t r = 0; r < result.m_rows; r++)
         for(size_t c = 0; c < result.m_columns; c++)
-          result.at(r + OFFSET_INDEX, c + OFFSET_INDEX) = at(m_rows - 1 - c + OFFSET_INDEX, r);
+          result.at(r + OFFSET_INDEX, c + OFFSET_INDEX) = at(m_rows - 1 - c + OFFSET_INDEX, r + OFFSET_INDEX);
       return result;
     }
     
     void print(std::ostream &os) const {
-      os << "\n{";
+      os << "\n{\n";
       for(size_t r = 0; r < m_rows; r++)
         for(size_t c = 0; c < m_columns; c++)
           os << at(r + OFFSET_INDEX, c + OFFSET_INDEX) << (c < m_columns - 1 ? ", " : (r < m_rows - 1 ? "\n" : "\n}"));
