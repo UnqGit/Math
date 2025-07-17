@@ -14,8 +14,8 @@ class SquareMatrix;
 template <typename T>
 class RectangularMatrix {
   protected:
-    T* m_entries = nullptr;
-    size_t m_rows = 0;
+    T* m_entries     = nullptr;
+    size_t m_rows    = 0;
     size_t m_columns = 0;
   
   // Constructors and move semantics.
@@ -50,7 +50,7 @@ class RectangularMatrix {
     // Vectors, optionally lateral or longitudinal.
     RectangularMatrix(const std::initializer_list<T> &il, bool single_column = false) {
       if(il.size() == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
-      m_rows = !single_column ? 1 : il.size();
+      m_rows    = !single_column ? 1 : il.size();
       m_columns = single_column ? 1 : il.size();
       m_entries = new T[n_entries()];
       for(size_t i = 0; i < n_entries(); i++) m_entries[i] = *(il.begin()+i);
@@ -58,12 +58,12 @@ class RectangularMatrix {
     
     RectangularMatrix(const std::initializer_list<std::initializer_list<T>> &matrix) {
       m_rows = matrix.size();
-      if(m_rows == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
+      if(m_rows == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0."); // Should be done before accessing the size of the first element.
       m_columns = matrix.begin()->size();
       if(m_columns == 0) throw std::invalid_argument("Any dimension of the matrix can't be 0.");
-      m_entries = new T[n_entries()];
+      m_entries    = new T[n_entries()];
       size_t index = 0;
-      for(const auto &vector: matrix) {
+      for(const auto &vector: matrix) { // The condition below also works with size == 0 since the m_columns isn't 0 because of the above error condition.
         if(vector.size() != m_columns) throw std::invalid_argument("Number of entries in each row should be equal(construction error: type: initializer_list<initializer_list<>>).");
         for(const auto &entry: vector) m_entries[index++] = entry;
       }
@@ -71,7 +71,7 @@ class RectangularMatrix {
     
     // Move constructor.
     RectangularMatrix(RectangularMatrix &&other): m_rows(other.m_rows), m_columns(other.m_columns), m_entries(other.m_entries) {
-      other.m_rows = 0; // Convert other to defualt.
+      other.m_rows    = 0; // Convert other to defualt.
       other.m_columns = 0;
       other.m_entries = nullptr;
     }
@@ -85,7 +85,7 @@ class RectangularMatrix {
   // Non-constructor assignment methods/operators.
   public:
     RectangularMatrix& swap(RectangularMatrix &other) noexcept {
-      std::swap(m_rows, other.m_rows);
+      std::swap(m_rows,    other.m_rows);
       std::swap(m_columns, other.m_columns);
       std::swap(m_entries, other.m_entries);
       return *this;
@@ -103,7 +103,7 @@ class RectangularMatrix {
     RectangularMatrix& copy(const RectangularMatrix &other) {
       if(this == &other) return *this;
       RectangularMatrix temp(other);
-      swap(temp);
+      this->swap(temp);
       return *this;
     }
     
@@ -117,13 +117,13 @@ class RectangularMatrix {
     
     // Fill a single row with the copies of T type, not noexcept because at can throw errors.
     RectangularMatrix& fill_row(size_t row, const T &to_fill) {
-      for(size_t i = 0; i < m_columns; i++) at(row, i + OFFSET_INDEX) = to_fill;
+      for(size_t i = 0; i < m_columns; i++) this->at(row, i + OFFSET_INDEX) = to_fill;
       return *this;
     }
 
     // Fill a single column with the copies of T type, not noexcept because at can throw errors.
     RectangularMatrix& fill_column(size_t column, const T &to_fill) {
-      for(size_t i = 0; i < m_rows; i++) at(i + OFFSET_INDEX, column) = to_fill;
+      for(size_t i = 0; i < m_rows; i++) this->at(i + OFFSET_INDEX, column) = to_fill;
       return *this;
     }
     
@@ -194,7 +194,7 @@ class RectangularMatrix {
       RectangularMatrix result(m_columns,m_rows); // Potentially slower but safer...let's just stay in our lane, shall we?
       for(size_t r = 0; r < m_rows; r++)
         for(size_t c = 0; c < m_columns; c++)
-          result.at(c + OFFSET_INDEX, r + OFFSET_INDEX) = at(r + OFFSET_INDEX, c + OFFSET_INDEX);
+          result.at(c + OFFSET_INDEX, r + OFFSET_INDEX) = this->at(r + OFFSET_INDEX, c + OFFSET_INDEX);
       return result;
     }
     
@@ -218,6 +218,10 @@ class RectangularMatrix {
       return *this;
     }
     
+    RectangularMatrix operator+() const {
+      return *this;
+    }
+    
     RectangularMatrix operator-() const {
       RectangularMatrix result(*this);
       for(size_t i = 0; i < n_entries(); i++) result.m_entries[i] = -m_entries[i];
@@ -236,14 +240,10 @@ class RectangularMatrix {
       return *this;
     }
     
-    RectangularMatrix operator*(const RectangularMatrix &other) const {
-      if(m_columns != other.m_rows) throw std::invalid_argument("Multiplication can't be done when the number of columns in first matrix is different than number of rows in second matrix.");
-      RectangularMatrix result(m_rows, other.m_columns);
-      for(size_t r = 0; r < m_rows; r++)
-        for(size_t c = 0; c < other.m_columns; c++)
-          for (int i = 0; i < m_columns; i++)
-            result.at(r + OFFSET_INDEX, c + OFFSET_INDEX) += at(r + OFFSET_INDEX, i + OFFSET_INDEX) * other.at(i + OFFSET_INDEX, c + OFFSET_INDEX);
-      return result;
+    RectangularMatrix& operator*=(const RectangularMatrix &other) {
+      RectangularMatrix result = (*this)*other;
+      this->swap(result);
+      return *this;
     }
     
     RectangularMatrix operator+(const RectangularMatrix &other) const {
@@ -258,10 +258,14 @@ class RectangularMatrix {
       return result;
     }
     
-    RectangularMatrix& operator*=(const RectangularMatrix &other) {
-      RectangularMatrix result = (*this)*other;
-      swap(result);
-      return *this;
+    RectangularMatrix operator*(const RectangularMatrix &other) const {
+      if(m_columns != other.m_rows) throw std::invalid_argument("Multiplication can't be done when the number of columns in first matrix is different than number of rows in second matrix.");
+      RectangularMatrix result(m_rows, other.m_columns);
+      for(size_t r = 0; r < m_rows; r++)
+        for(size_t c = 0; c < other.m_columns; c++)
+          for (int i = 0; i < m_columns; i++)
+            result.at(r + OFFSET_INDEX, c + OFFSET_INDEX) += this->at(r + OFFSET_INDEX, i + OFFSET_INDEX) * other.at(i + OFFSET_INDEX, c + OFFSET_INDEX);
+      return result;
     }
     
     // Mirror about x-axis.
