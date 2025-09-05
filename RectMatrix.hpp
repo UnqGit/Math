@@ -15,17 +15,58 @@ namespace Matrix {
         EXTEND, SHRINK, SAME_SIZE_MUST
     } MD;
 
+    typedef class Order {
+        private:
+            size_t m_rows;
+            size_t m_columns;
+        
+        public:
+            Order(size_t rows, size_t columns): m_rows(rows), m_columns(columns) {}
+
+        public:
+            inline size_t get_rows() const noexcept {
+                return m_rows;
+            }
+
+            inline size_t get_columns() const noexcept {
+                return m_columns;
+            }
+    } OR;
+
     template <typename Type>
     class Rect {
         private:
             size_t m_rows, m_columns;
             Type *m_data;
         
+        // CONSTRUCTORS.
         public:
             Rect() {
                 m_rows = 0;
                 m_columns = 0;
                 m_data = new Type[0]();
+            }
+
+            Rect(const Matrix::Order &ord): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
+                m_data = new Type[this->size()]();
+            }
+
+            Rect(const Matrix::Order &ord, const Type &to_copy): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
+                m_data = new Type[this->size()];
+                for (const auto &t: *this) {
+                    t = to_copy;
+                }
+            }
+            
+            Rect(const size_t rows, const size_t columns): m_rows(rows), m_columns(columns) {
+                m_data = new Type[this->size()]();
+            }
+
+            Rect(const size_t rows, const size_t columns, const Type &to_copy): m_rows(rows), m_columns(columns) {
+                m_data = new Type[this->size()];
+                for (const auto &t: *this) {
+                    t = to_copy;
+                }
             }
 
             Rect(const Type * const array, const size_t rows, const size_t columns): m_rows(rows), m_columns(columns) {
@@ -157,11 +198,57 @@ namespace Matrix {
                 return *this;
             }
 
+            ~Rect() {
+                if (m_data != nullptr) delete[] m_data;
+            }
+
+        // ACCESSING
+        public:
+            // No bounds checking.
+            inline Type& operator()(const size_t row, const size_t column) noexcept {
+                return m_data + row * m_columns + column;
+            }
+
+            const inline Type& operator()(const size_t row, const size_t column) const noexcept {
+                return m_data + row * m_columns + column;
+            }
+
+            inline Type& at(const size_t row, const size_t column) {
+                if (row >= m_rows || column >= m_columns) throw std::logic_error("Cannot access the outside bounds of matrix.");
+                return m_data + row * m_columns + column;
+            }
+            
+            const inline Type& at(const size_t row, const size_t column) const {
+                if (row >= m_rows || column >= m_columns) throw std::logic_error("Cannot access the outside bounds of matrix.");
+                return m_data + row * m_columns + column;
+            }
+
+            inline Type *begin() noexcept {
+                return m_data;
+            }
+
+            const inline *begin() const noexcept {
+                return m_data;
+            }
+
+            inline Type *end() noexcept {
+                return m_data + m_rows * m_columns;
+            }
+            
+            const inline Type *end() const noexcept {
+                return m_data + m_rows * m_columns;
+            }
+
+            inline size_t size() const noexcept {
+                return m_rows * m_columns;
+            }
+
+            inline Matrix::OR order() const noexcept {
+                return Matrix::OR(m_rows, m_columns);
+            }            
             // TO-DO: Under Construction
 
-            ~Rect() {
-                delete[] m_data;
-            }
+
     };
 
 }
