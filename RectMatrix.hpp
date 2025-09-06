@@ -4,6 +4,28 @@
 #include <limits>
 #include <initializer_list>
 #include <algorithm>
+#include <concepts>
+#include <cmath>
+
+namespace {
+    template <std::integral T> // Just becuase it's better to send numbers by value instead of const&.
+    inline bool is_equal(T a, T b) {
+        return a == b;
+    }
+
+    template <std::floating_point T>
+    inline bool is_equal(T a, T b) {
+        T diff = std::fabs(a - b);
+        T tol = std::numeric_limits<T>::epsilon() * std::max(std::fabs(a), std::fabs(b));
+        return diff < tol;
+    }
+
+    template <typename T>
+    requires ((!std::floating_point<T>) && (!std::integral<T>))
+    inline bool is_equal(const T &a, const T &b) {
+        return a == b;
+    }
+}
 
 namespace Matrix {
 
@@ -14,6 +36,10 @@ namespace Matrix {
     typedef enum class Modifier : char {
         EXTEND, SHRINK, SAME_SIZE_MUST
     } MD;
+
+    typedef enum class Initialize : char {
+        DEFAULT_INITIALIZE, THROW
+    } IT;
 
     typedef class Order {
         private:
@@ -30,6 +56,19 @@ namespace Matrix {
 
             inline size_t get_columns() const noexcept {
                 return m_columns;
+            }
+
+            inline bool operator==(const Order &other) const noexcept {
+                return ((m_rows == other.m_rows) && (m_columns == other.m_columns));
+            }
+
+            inline bool operator!=(const Order &other) const noexcept {
+                return !(*this == other);
+            }
+        
+        public:
+            inline Order opp() const noexcept {
+                return Order(m_columns, m_rows);
             }
     } OR;
 
@@ -53,7 +92,7 @@ namespace Matrix {
 
             Rect(const Matrix::Order &ord, const Type &to_copy): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
                 m_data = new Type[this->size()];
-                for (const auto &t: *this) {
+                for (Type &t: *this) {
                     t = to_copy;
                 }
             }
@@ -64,7 +103,7 @@ namespace Matrix {
 
             Rect(const size_t rows, const size_t columns, const Type &to_copy): m_rows(rows), m_columns(columns) {
                 m_data = new Type[this->size()];
-                for (const auto &t: *this) {
+                for (Type &t: *this) {
                     t = to_copy;
                 }
             }
@@ -77,16 +116,31 @@ namespace Matrix {
                 m_data = new Type[rows * columns];
                 std::copy(array, array + rows * columns, m_data);
             }
-
-            Rect(const std::initializer_list<Type> &il, const size_t rows, const size_t columns): m_rows(rows), m_columns(columns) {
-                if (rows * columns == 0) {
+            
+            Rect(const std::initializer_list<Type> &il, const size_t rows, const size_t columns, const Matrix::Initialize init = Matrix::IT::DEFAULT_INITIALIZE): m_rows(rows), m_columns(columns) {
+                if (this->size() == 0) {
                     m_rows = 0;
                     m_columns = 0;
                 }
-                if (rows * columns != il.size()) m_data = new Type[il.size()]();
-                else m_data = new Type[il.size()];
-                size_t min = std::min(rows * columns, il.size());
-                std::copy(il.begin(), il.end(), m_data);
+                if constexpr (std::default_initializable<Type>) {
+                    size_t min = std::min(this->size(), il.size());
+                    if (this->size() > il.size()) {
+                        switch (init) {
+                            case Matrix::IT::DEFAULT_INITIALIZE:
+                                m_data = new Type[this->size()]();
+                                break;
+                            case Matrix::IT::THROW:
+                                throw std::invalid_argument("Size of matrix can't be greater than initializer list size(Throw enabled).");
+                        }
+                    }
+                    else m_data = new Type[this->size()];
+                    std::copy(il.begin(), il.begin() + min, m_data);
+                }
+                else {
+                    if (this->size() > il.size()) throw std::invalid_argument("Size of matrix can't be greater than initializer list(only for non-default_initializable objects.)");
+                    else m_data = new Type[this->size()];
+                    std::copy(il.begin(), il.end(), m_data);
+                }
             }
 
             Rect(const std::initializer_list<Type> &il, const Matrix::Direction dir = Matrix::DR::HORIZONTAL) {
@@ -125,7 +179,7 @@ namespace Matrix {
                         m_data = new Type[ill.size() * max_size]();
                         size_t row_num = 0;
                         for (const std::initializer_list<Type> &il: ill) {
-                            std::copy(il.begin(), il.begin() + il.size(), m_data + (i++) * max_size);
+                            std::copy(il.begin(), il.end(), m_data + (i++) * max_size);
                         }
                         break;
                     case Matrix::MD::SHRINK:
@@ -176,7 +230,7 @@ namespace Matrix {
                 other.m_columns = 0;
             }
 
-            Rect& operator=(const Rect &other) {
+            Rect &operator=(const Rect &other) {
                 if (this == &other) return *this;
                 m_rows = other.m_rows;
                 m_columns = other.m_columns;
@@ -186,7 +240,7 @@ namespace Matrix {
                 return *this;
             }
 
-            Rect& operator=(Rect &&other) {
+            Rect &operator=(Rect &&other) {
                 if (this == &other) return *this;
                 if (m_data != nullptr) delete[] m_data;
                 m_rows = other.m_rows;
@@ -205,29 +259,29 @@ namespace Matrix {
         // ACCESSING
         public:
             // No bounds checking.
-            inline Type& operator()(const size_t row, const size_t column) noexcept {
-                return m_data + row * m_columns + column;
+            inline Type &operator()(const size_t row, const size_t column) noexcept {
+                return m_data[row * m_columns + column];
             }
 
-            const inline Type& operator()(const size_t row, const size_t column) const noexcept {
-                return m_data + row * m_columns + column;
+            const inline Type &operator()(const size_t row, const size_t column) const noexcept {
+                return m_data[row * m_columns + column];
             }
 
-            inline Type& at(const size_t row, const size_t column) {
+            inline Type &at(const size_t row, const size_t column) {
                 if (row >= m_rows || column >= m_columns) throw std::logic_error("Cannot access the outside bounds of matrix.");
-                return m_data + row * m_columns + column;
+                return m_data[row * m_columns + column];
             }
             
-            const inline Type& at(const size_t row, const size_t column) const {
+            const inline Type &at(const size_t row, const size_t column) const {
                 if (row >= m_rows || column >= m_columns) throw std::logic_error("Cannot access the outside bounds of matrix.");
-                return m_data + row * m_columns + column;
+                return m_data[row * m_columns + column];
             }
 
             inline Type *begin() noexcept {
                 return m_data;
             }
 
-            const inline *begin() const noexcept {
+            const inline Type *begin() const noexcept {
                 return m_data;
             }
 
@@ -245,10 +299,105 @@ namespace Matrix {
 
             inline Matrix::OR order() const noexcept {
                 return Matrix::OR(m_rows, m_columns);
-            }            
+            }
+
+            inline size_t column_len() const noexcept {
+                return m_columns;
+            }
+
+            inline size_t row_len() const noexcept {
+                return m_rows;
+            }
+            
+        // MATH OPERATIONS.
+        public:
+            Rect &operator+=(const Rect &other) {
+                if (!is_sum_possible(other)) throw std::logic_error("Cannot add matrices of different order with each other.");
+                for (size_t i = 0; i < other.size(); i++) {
+                    m_data[i] += other.m_data[i];
+                }
+                return *this;
+            }
+            
+            Rect &operator-=(const Rect &other) {
+                if (!is_sum_possible(other)) throw std::logic_error("Cannot add matrices of different order with each other.");
+                if (this == &other) {
+                    *this = Rect(other.order());
+                    return *this;
+                }
+                for (size_t i = 0; i < this->size(); i++) {
+                    m_data[i] -= other.m_data[i];
+                }
+                return *this;
+            }
+            
+            Rect operator+(const Rect &other) {
+                Rect newer(*this);
+                newer += other;
+                return newer;
+            }
+            
+            Rect operator-(const Rect &other) {
+                Rect newer(*this);
+                newer -= other;
+                return newer;
+            }
+
+            inline Rect &negate() noexcept {
+                for (Type &t : *this) t = -t;
+                return *this;
+            }
+
+            inline Rect operator-() const noexcept {
+                Rect newer(*this);
+                return newer.negate();
+            }
+
+            Rect operator*(const Rect &other) const {
+                if (m_columns != other.m_rows) throw std::logic_error("Can only multiply matrices if the number of columns of first and the number of rows of second are same.\n");
+                Rect result(m_rows, other.m_columns);
+                for (size_t i = 0; i < m_rows; i++) {
+                    for (size_t j = 0; j < other.m_columns; j++) {
+                        for (size_t k = 0; k < m_columns; k++) {
+                            result(i, j) += (*this)(i, k) * other(k, j);
+                        }
+                    }
+                }
+                return result;
+            }
+
+            Rect &operator*=(const Rect &other) {
+                *this = *this * other;
+                return *this;
+            }
+
+        // TOOLKIT.
+        public:
+            inline bool is_sum_possible(const Rect &other) const noexcept {
+                return this->order() == other.order();
+            }
+
+            inline bool is_prod_possible(const Rect &other) const noexcept {
+                return m_columns == other.m_rows;
+            }
+
+            inline bool is_square() const noexcept {
+                return m_rows == m_columns;
+            }
+
+            bool operator==(const Rect &other) const noexcept {
+                if (this == &other) return true;
+                if (this->order() != other.order()) return false;
+                for (size_t i = 0; i < this->size(); i++) if (!(::is_equal(m_data[i], other.m_data[i]))) return false;
+                return true;
+            }
+            
+            bool operator!=(const Rect &other) const noexcept {
+                return !(*this == other);
+            }
+
+
             // TO-DO: Under Construction
-
-
-    };
-
+        };
+        
 }
