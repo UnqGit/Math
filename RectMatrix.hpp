@@ -17,9 +17,9 @@ namespace {
 
     template <std::floating_point T>
     inline bool is_equal(const T a, const T b) {
-        T diff = std::fabs(a - b);
-        T tol = std::numeric_limits<T>::epsilon() * std::max(std::fabs(a), std::fabs(b));
-        return diff < tol;
+        const T rel_tol = std::numeric_limits<T>::epsilon();
+        const T abs_tol = static_cast<T>(0.0);
+        return (std::fabs(a - b) <= std::max(rel_tol * std::max(std::fabs(a), std::fabs(b)), abs_tol));
     }
 
     template <typename T>
@@ -466,13 +466,13 @@ namespace Matrix {
             Rect operator+(const Rect &other) const {
                 Rect newer(*this);
                 newer += other;
-                return std::move(newer);
+                return newer;
             }
             
             Rect operator-(const Rect &other) const {
                 Rect newer(*this);
                 newer -= other;
-                return std::move(newer);
+                return newer;
             }
 
             inline Rect &negate(void) noexcept {
@@ -482,7 +482,7 @@ namespace Matrix {
 
             inline Rect operator-(void) const noexcept {
                 Rect newer(*this);
-                return std::move(newer.negate());
+                return newer.negate();
             }
 
             Rect operator*(const Rect &other) const {
@@ -496,7 +496,7 @@ namespace Matrix {
                         }
                     }
                 }
-                return std::move(result);
+                return result;
             }
 
             Rect &operator*=(const Rect &other) {
