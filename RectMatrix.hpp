@@ -5,16 +5,18 @@
 #include <initializer_list>
 #include <algorithm>
 #include <concepts>
+#include <memory>
+#include <type_traits>
 #include <cmath>
 
 namespace {
-    template <std::integral T> // Just becuase it's better to send numbers by value instead of const&.
-    inline bool is_equal(T a, T b) {
+    template <std::integral T> // Just because it's better to send numbers by value instead of const T&.
+    inline bool is_equal(const T a, const T b) {
         return a == b;
     }
 
     template <std::floating_point T>
-    inline bool is_equal(T a, T b) {
+    inline bool is_equal(const T a, const T b) {
         T diff = std::fabs(a - b);
         T tol = std::numeric_limits<T>::epsilon() * std::max(std::fabs(a), std::fabs(b));
         return diff < tol;
@@ -28,6 +30,10 @@ namespace {
 }
 
 namespace Matrix {
+
+    typedef enum class Restrict : char {
+        ALLOW_GARBAGEV, NO_GARBAGEV, NO_CONSTRUCT
+    } RT;
 
     typedef enum class Direction : char {
         VERTICAL, HORIZONTAL
@@ -47,7 +53,7 @@ namespace Matrix {
             size_t m_columns;
         
         public:
-            Order(size_t rows, size_t columns): m_rows(rows), m_columns(columns) {}
+            Order(const size_t rows, const size_t columns): m_rows(rows), m_columns(columns) {}
 
         public:
             inline size_t get_rows(void) const noexcept {
@@ -86,30 +92,31 @@ namespace Matrix {
                 m_data = static_cast<Type*>(::operator new[](0));
             }
 
-            Rect(const Matrix::Order &ord): m_rows(ord.get_rows()), m_columns(ord.get_columns()) requires std::default_initializable<Type> {
+            Rect(const Matrix::Order &ord, Matrix::Restrict res = Matrix::RT::NO_GARBAGEV): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
                 m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                for (Type &t : (*this)) t = to_copy;
+                switch (res) {
+                    case Matrix::RT::NO_GARBAGEV:
+                        if (std::default_initializable<Type>)                 std::uninitialized_value_construct_n(m_data, this->size());
+                        else throw std::invalid_argument("Cannot do 'No garbage' if default constructor doesn't exist.");
+                        break;
+                    case Matrix::RT::ALLOW_GARBAGEV:
+                        if (std::is_fundamental_v<Type>) return;
+                        if (std::default_initializable<Type>)                 std::uninitialized_value_construct_n(m_data, this->size());
+                        else throw std::logic_error("Cannot allow garbage value for non-trivially constructible types.");
+                        break;
+                    case Matrix::RT::NO_CONSTRUCT:
+                        return; 
+                }
             }
 
             Rect(const Matrix::Order &ord, const Type &to_copy): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
                 m_data = static_cast<Type*>(::operator new[](this->size() * sizeof(Type)));
-                for (Type &t: *this) {
-                    t = to_copy;
-                }
+                std::uninitialized_fill_n(m_data, this->size(), to_copy);
             }
             
-            Rect(const size_t rows, const size_t columns): m_rows(rows), m_columns(columns) requires std::default_initializable<Type> {
-                m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                Type to_copy;
-                for (Type &t : (*this)) t = to_copy;
-            }
+            Rect(const size_t rows, const size_t columns, Matrix::Restrict res = Matrix::RT::NO_GARBAGEV): Rect(Matrix::Order(rows, columns), res) {}
 
-            Rect(const size_t rows, const size_t columns, const Type &to_copy): m_rows(rows), m_columns(columns) {
-                m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                for (Type &t: *this) {
-                    t = to_copy;
-                }
-            }
+            Rect(const size_t rows, const size_t columns, const Type &to_copy): Rect(Matrix::Order(rows, columns), to_copy) {}
 
             Rect(const Type * const array, const size_t rows, const size_t columns): m_rows(rows), m_columns(columns) {
                 if (this->size() == 0) {
@@ -138,10 +145,7 @@ namespace Matrix {
                     }
                     else m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
                     std::uninitialized_copy(il.begin(), il.begin() + min, m_data);
-                    Type to_copy;
-                    for (size_t i = min; i < this->size(); i++) {
-                        m_data[i] = to_copy;
-                    }
+                    std::uninitialized_value_construct_n(m_data + min, this->size() - min);
                 }
                 else {
                     if (this->size() > il.size()) throw std::invalid_argument("Size of matrix can't be greater than initializer list(only for non-default_initializable objects.)");
@@ -165,15 +169,13 @@ namespace Matrix {
                 std::uninitialized_copy(il.begin(), il.end(), m_data);
             }
             
-            Rect(const std::initializer_list<std::initializer_list<Type>> &ill, const  Matrix::Modifier modi = Matrix::MD::EXTEND) {
+            Rect(const std::initializer_list<std::initializer_list<Type>> &ill, const  Matrix::Modifier modi = Matrix::MD::SAME_SIZE_MUST) {
                 auto FALLBACK = [&]() -> void {
                     m_rows = 0;
                     m_columns = 0;
-                    if constexpr (std::default_initializable<Type>) {
-                        m_data = new Type[0]();
-                    }
-                    else m_data = static_cast<Type*>(::operator new[](0));
+                    m_data = static_cast<Type*>(::operator new[](0));
                 };
+                size_t row_num = 0;
                 switch (modi) {
                     case Matrix::MD::EXTEND:
                         size_t max_size = 0;
@@ -186,18 +188,12 @@ namespace Matrix {
                         m_rows = ill.size();
                         m_columns = max_size;
                         m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                        size_t row_num = 0;
                         for (const std::initializer_list<Type> &il: ill) {
-                            std::uninitialized_copy(il.begin(), il.end(), m_data + (i++) * max_size);
-                        }
-                        if (il.size() != max_size && (!std::default_initializable<Type>)) {
-                            throw std::logic_error("Cannot create default value for the type inside Rect; Hence, cannot extend on creation.");
-                        }
-                        else {
-                            const Type to_copy();
-                            for (size_t i = il.size(); i < max_size; i++) {
-                                m_data[i] = to_copy;
-                            }
+                            std::uninitialized_copy(il.begin(), il.end(), m_data + row_num * max_size);
+                            if (il.size() != max_size && (!std::default_initializable<Type>))
+                                throw std::logic_error("Cannot create default value for the type inside Rect; Hence, cannot extend on creation.");
+                            else
+                                std::uninitialized_value_construct_n(m_data + row_num * max_size + il.size(), max_size - il.size());
                         }
                         break;
                     case Matrix::MD::SHRINK:
@@ -211,24 +207,26 @@ namespace Matrix {
                             return;
                         }
                         m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                        size_t i = 0;
-                        for (const std::initializer_list<Type> &il: ill) {
-                            std::uninitialized_copy(il.begin(), il.begin() + min_size, m_data + (i++) * min_size);
-                        }
+                        for (const std::initializer_list<Type> &il: ill)
+                            std::uninitialized_copy(il.begin(), il.begin() + min_size, m_data + (row_num++) * min_size);
                         break;
                     case Matrix::MD::SAME_SIZE_MUST:
                         if (ill.size() != 0) {
-                            size_t col_size = ill[0].size();
-                            for (const std::initializer_list<Type> &il: ill) {
+                            size_t col_size = (*(ill.begin())).size();
+                            for (const std::initializer_list<Type> &il: ill)
                                 if (il.size() != col_size) throw std::logic_error("Every row doesn't contain the same number of columns. Err: at Rect construction.");
-                            }
                             m_rows = ill.size();
-                            m_columns = (*(ill.begin())).size();
+                            m_columns = col_size;
+                            if (col_size == 0) {
+                                FALLBACK();
+                                return;
+                            }
                             m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
                             size_t i = 0;
-                            for (const std::initializer_list<Type> &il : ill)
-                                for (const Type &tp : il)
-                                    m_data[i++] = tp;
+                            for (const std::initializer_list<Type> &il : ill) {
+                                std::uninitialized_copy(il.begin(), col_size, m_data + i);
+                                i += col_size;
+                            }
                         }
                         else {
                             FALLBACK();
@@ -237,10 +235,7 @@ namespace Matrix {
                 }
             }
 
-            Rect(const Rect &other): m_rows(other.m_rows), m_columns(other.m_columns) {
-                m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                std::uninitialized_copy(other.m_data, other.m_data + m_rows * m_columns, m_data);
-            }
+            Rect(const Rect &other): Rect(other.m_data, other.m_rows, other.m_columns) {}
 
             Rect(Rect &&other): m_rows(other.m_rows), m_columns(other.m_columns), m_data(other.m_data) {
                 other.m_data = nullptr;
@@ -252,7 +247,10 @@ namespace Matrix {
                 if (this == &other) return *this;
                 m_rows = other.m_rows;
                 m_columns = other.m_columns;
-                if (m_data != nullptr) ::operator delete[](m_data);
+                if (m_data != nullptr) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy((*this).begin(), (*this).end());
+                    ::operator delete[](m_data);
+                }
                 m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
                 std::uninitialized_copy(other.m_data, other.m_data + m_rows * other.m_columns, m_data);
                 return *this;
@@ -260,7 +258,10 @@ namespace Matrix {
 
             Rect &operator=(Rect &&other) {
                 if (this == &other) return *this;
-                if (m_data != nullptr) ::operator delete[](m_data);
+                if (m_data != nullptr) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy((*this).begin(), (*this).end());
+                    ::operator delete[](m_data);
+                }
                 m_rows = other.m_rows;
                 m_columns = other.m_columns;
                 m_data = other.m_data;
@@ -271,7 +272,10 @@ namespace Matrix {
             }
 
             ~Rect(void) {
-                if (m_data != nullptr) ::operator delete[](m_data);
+                if (m_data != nullptr) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy((*this).begin(), (*this).end());
+                    ::operator delete[](m_data);
+                }
             }
 
         // ACCESSING
@@ -286,12 +290,12 @@ namespace Matrix {
             }
 
             inline Type &at(const size_t row, const size_t column) {
-                if (row >= m_rows || column >= m_columns) throw std::logic_error("Cannot access the outside bounds of matrix.");
+                if (row >= m_rows || column >= m_columns) throw std::out_of_range("Cannot access the outside bounds of matrix.");
                 return m_data[row * m_columns + column];
             }
             
             const inline Type &at(const size_t row, const size_t column) const {
-                if (row >= m_rows || column >= m_columns) throw std::logic_error("Cannot access the outside bounds of matrix.");
+                if (row >= m_rows || column >= m_columns) throw std::out_of_range("Cannot access the outside bounds of matrix.");
                 return m_data[row * m_columns + column];
             }
 
@@ -349,16 +353,16 @@ namespace Matrix {
                 return *this;
             }
             
-            Rect operator+(const Rect &other) {
+            Rect operator+(const Rect &other) const {
                 Rect newer(*this);
                 newer += other;
-                return newer;
+                return std::move(newer);
             }
             
-            Rect operator-(const Rect &other) {
+            Rect operator-(const Rect &other) const {
                 Rect newer(*this);
                 newer -= other;
-                return newer;
+                return std::move(newer);
             }
 
             inline Rect &negate(void) noexcept {
@@ -368,11 +372,12 @@ namespace Matrix {
 
             inline Rect operator-(void) const noexcept {
                 Rect newer(*this);
-                return newer.negate();
+                return std::move(newer.negate());
             }
 
             Rect operator*(const Rect &other) const {
                 if (m_columns != other.m_rows) throw std::logic_error("Can only multiply matrices if the number of columns of first and the number of rows of second are same.\n");
+                // TO-DO: change this function to something more generic.
                 Rect result(m_rows, other.m_columns);
                 for (size_t i = 0; i < m_rows; i++) {
                     for (size_t j = 0; j < other.m_columns; j++) {
@@ -381,7 +386,7 @@ namespace Matrix {
                         }
                     }
                 }
-                return result;
+                return std::move(result);
             }
 
             Rect &operator*=(const Rect &other) {
@@ -414,8 +419,8 @@ namespace Matrix {
                 return !(*this == other);
             }
 
-            bool is_zero(void) requires (std::default_initializable<Type>) const noexcept {
-                const Type zero();
+            bool is_zero(void) const noexcept requires std::default_initializable<Type> {
+                const Type zero{};
                 for (const Type &t: (*this)) if (!( ::is_equal(t, zero))) return false;
                 return true;
             }
@@ -425,27 +430,38 @@ namespace Matrix {
                 return true;
             }
 
-            bool is_rzero(const size_t row) requires (std::default_initializable<Type>) const noexcept {
-                const Type zero();
-                for (size_t i = 0; i < m_columns; i++) if (!( ::is_equal(m_data[row * m_columns + i], zero))) return false;
+            bool is_rzero(const size_t row) const requires std::default_initializable<Type> {
+                if (row >= m_rows) throw std::out_of_range("Cannot access row outside the range of matrix rows.");
+                const Type zero{};
+                for (size_t i = 0; i < m_columns; i++) if (!( ::is_equal((*this)(row, i), zero))) return false;
                 return true;
             }
             
-            bool is_czero(const size_t column) requires (std::default_initializable<Type>) const noexcept {
-                const Type zero();
-                for (size_t i = 0; i < m_rows; i++) if (!( ::is_equal(m_data[m_rows * i + column], zero))) return false;
+            bool is_czero(const size_t column) const requires std::default_initializable<Type> {
+                if (column >= m_columns) throw std::out_of_range("Cannot access column outside the range of matrix columns.");
+                const Type zero{};
+                for (size_t i = 0; i < m_rows; i++) if (!( ::is_equal((*this)(i, column), zero))) return false;
                 return true;
             }
 
-            bool is_rsamev(const size_t row, const Type &val) const noexcept {
-                for (size_t i = 0; i < m_columns; i++) if (!( ::is_equal(m_data[row * m_columns + i], val))) return false;
+            bool is_rsamev(const size_t row, const Type &val) const {
+                if (row >= m_rows) throw std::out_of_range("Cannot access row outside the range of matrix rows.");
+                for (size_t i = 0; i < m_columns; i++) if (!( ::is_equal((*this)(row, i), val))) return false;
                 return true;
             }
             
-            bool is_csamev(const size_t column, const Type &val) const noexcept {
-                for (size_t i = 0; i < m_rows; i++) if (!( ::is_equal(m_data[m_rows * i + column], val))) return false;
+            bool is_csamev(const size_t column, const Type &val) const {
+                if (column >= m_columns) throw std::out_of_range("Cannot access column outside the range of matrix columns.");
+                for (size_t i = 0; i < m_rows; i++) if (!( ::is_equal((*this)(i, column), val))) return false;
                 return true;
             }
+        
+            void swap(Rect &other) noexcept {
+                std::swap(m_data, other.m_data);
+                std::swap(m_rows, other.m_rows);
+                std::swap(m_columns, other.m_columns);
+            }
+
         public:
             
             // TO-DO: Under Construction

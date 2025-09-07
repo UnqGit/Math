@@ -1,36 +1,26 @@
 #include <iostream>
 #include "RectMatrix.hpp"
-#include <vector>
-#include <chrono>
+
+template <typename T>
+void print_matrix(const Matrix::Rect<T> &mt) {
+    for (size_t row = 0; row < mt.row_len(); row++) {
+        for (size_t col = 0; col < mt.column_len(); col++) {
+            std::cout << mt.at(row, col) << ' ';
+        }
+        std::cout << '\n';
+    }
+}
 
 int main(void) {
-    int z = 0;
-    while(z++ < 30) {
-        int m, n;
-        std::cout << "Enter rows and columns: ";
-        std::cin >> m >> n;
-        Matrix::Rect<int> rectMatrix(Matrix::Order(m, n), 4);
-
-        auto start = std::chrono::high_resolution_clock::now();
-        decltype(start) stop;
-        long long iterations = 1e4;
-        std::vector<double> times(iterations);
-
-        for (long long i = 0; i < iterations; i++) {
-            for (long long j = 0; j < iterations; j++) {
-                Matrix::Rect copy(rectMatrix);
-                start = std::chrono::high_resolution_clock::now();
-                copy += copy;
-                stop = std::chrono::high_resolution_clock::now();
-                times[i] += std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
-            }
-            times[i] /= iterations;
-        }
-
-        std::sort(times.begin(), times.end());
-        std::cout << "For m and n of: " << m << ' ' << n << '\n';
-        std::cout << "The minimum time taken was: " << times.front() << "ns.\n";
-        std::cout << "The median time taken was: " << times.at(iterations / 2) << "ns.\n";
-        std::cout << "The maximum time taken was: " << times.back() << "ns.\n\n";
+    Matrix::Rect<int> mt(4, 6);
+    Matrix::Rect<int> mt2;
+    print_matrix(mt);
+    mt2 = mt;
+    try {
+        std::cout << mt.is_rzero(34) << '\n';
     }
+    catch(const std::exception &e) {
+        std::cout << "Tried to access elements outside the matrix range; err_msg: " << e.what() << '\n';
+    }
+    print_matrix(mt2);
 }
