@@ -7,9 +7,10 @@
 #include <concepts>
 #include <memory>
 #include <type_traits>
+#include <stdexcept>
 #include <cmath>
 
-namespace {
+namespace Matrix::impl {
     template <std::integral T> // Just because it's better to send numbers by value instead of const T&.
     inline bool is_equal(const T a, const T b) {
         return a == b;
@@ -17,8 +18,8 @@ namespace {
 
     template <std::floating_point T>
     inline bool is_equal(const T a, const T b) {
-        const T rel_tol = std::numeric_limits<T>::epsilon();
-        const T abs_tol = static_cast<T>(0.0);
+        const T rel_tol = static_cast<T>(4) * std::numeric_limits<T>::epsilon();
+        const T abs_tol = std::numeric_limits<T>::denorm_min();
         return (std::fabs(a - b) <= std::max(rel_tol * std::max(std::fabs(a), std::fabs(b)), abs_tol));
     }
 
@@ -31,23 +32,27 @@ namespace {
 
 namespace Matrix {
 
-    typedef enum class Restrict : char {
-        ALLOW_GARBAGEV, NO_GARBAGEV, NO_CONSTRUCT
-    } RT;
+    enum class Restrict : char {
+        OPTIONAL_GARBAGEV, NO_GARBAGEV, NO_CONSTRUCT
+    };
+    using RT = Restrict;
 
-    typedef enum class Direction : char {
+    enum class Direction : char {
         VERTICAL, HORIZONTAL
-    } DR;
+    };
+    using DR = Direction;
 
-    typedef enum class Modifier : char {
+    enum class Modifier : char {
         EXTEND, SHRINK, SAME_SIZE_MUST
-    } MD;
+    };
+    using MD = Modifier;
 
-    typedef enum class Initialize : char {
+    enum class Initialize : char {
         DEFAULT_INITIALIZE, THROW
-    } IT;
+    };
+    using IT = Initialize;
 
-    typedef class Order {
+    class Order {
         private:
             size_t m_rows;
             size_t m_columns;
@@ -76,7 +81,8 @@ namespace Matrix {
             inline Order opp(void) const noexcept {
                 return Order(m_columns, m_rows);
             }
-    } OR;
+    };
+    using OR = Order;
 
     template <typename Type>
     class Rect {
@@ -92,12 +98,12 @@ namespace Matrix {
                 m_data = nullptr;
             }
 
-            Rect(const Matrix::Order &ord, Matrix::Restrict res = Matrix::RT::NO_GARBAGEV): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
+            Rect(const Matrix::Order &ord, Matrix::Restrict res = Matrix::RT::OPTIONAL_GARBAGEV): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
                 m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
                 Type *end = m_data;
                 switch (res) {
                     case Matrix::RT::NO_GARBAGEV:
-                        if (std::default_initializable<Type>) {
+                        if constexpr (std::default_initializable<Type>) {
                             try {
                                 end = std::uninitialized_value_construct_n(m_data, this->size());
                             }
@@ -109,9 +115,10 @@ namespace Matrix {
                         }
                         else throw std::invalid_argument("Cannot do 'No garbage' if default constructor doesn't exist.");
                         break;
-                    case Matrix::RT::ALLOW_GARBAGEV:
+
+                    case Matrix::RT::OPTIONAL_GARBAGEV:
                         if (std::is_fundamental_v<Type>) return;
-                        if (std::default_initializable<Type>){
+                        if constexpr (std::default_initializable<Type>){
                             try {
                                 end = std::uninitialized_value_construct_n(m_data, this->size());
                             }
@@ -123,7 +130,8 @@ namespace Matrix {
                         }
                         else throw std::logic_error("Cannot allow garbage value for non-trivially constructible types.");
                         break;
-                    case Matrix::RT::NO_CONSTRUCT:
+
+                    case Matrix::RT::NO_CONSTRUCT: // The user must create all the elements before the destructor is called for non-trivial types or you'll blow up.
                         return; 
                 }
             }
@@ -171,7 +179,7 @@ namespace Matrix {
                     m_data = nullptr;
                     return;
                 }
-                if constexpr (std::default_initializable_v<Type>) {
+                if constexpr (std::default_initializable<Type>) {
                     size_t min = std::min(this->size(), il.size());
                     if (this->size() > il.size()) {
                         switch (init) {
@@ -258,6 +266,16 @@ namespace Matrix {
                         m_columns = max_size;
                         m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
                         Type *end = m_data;
+                        auto allocate = [&](const std::initializer_list<Type> &il) {
+                            try {
+                                end = std::uninitialized_value_construct_n(m_data + row_num * max_size + il.size(), max_size - il.size());
+                            }
+                            catch(...) {
+                                if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                                ::operator delete[](m_data);
+                                throw;
+                            }
+                        };
                         for (const std::initializer_list<Type> &il: ill) {
                             try {
                                 std::uninitialized_copy(il.begin(), il.end(), m_data + row_num * max_size);
@@ -267,19 +285,12 @@ namespace Matrix {
                                 ::operator delete[](m_data);
                                 throw;
                             }
-                            if (il.size() != max_size && (!std::default_initializable<Type>))
-                                throw std::logic_error("Cannot create default value for the type inside Rect; Hence, cannot extend on creation.");
-                            else {
-                                try {
-                                    end = std::uninitialized_value_construct_n(m_data + row_num * max_size + il.size(), max_size - il.size());
-                                }
-                                catch(...) {
-                                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
-                                    ::operator delete[](m_data);
-                                    throw;
-                                }
-
+                            if constexpr (!std::default_initializable<Type>) {
+                                if (il.size() != max_size) 
+                                    throw std::logic_error("Cannot create default value for the type inside Rect; Hence, cannot extend on creation.");
+                                else allocate(il);
                             }
+                            else allocate(il);
                             row_num++;
                         }
                         break;
@@ -327,7 +338,7 @@ namespace Matrix {
                                     std::uninitialized_copy(il.begin(), il.begin() + col_size, m_data + i);
                                 }
                                 catch(...) {
-                                    if constexpr (!std::is_trivially_constructible_v<Type>) std::destroy(m_data, end);
+                                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
                                     ::operator delete[](m_data);
                                     throw;
                                 }
@@ -343,34 +354,19 @@ namespace Matrix {
 
             Rect(const Rect &other): Rect(other.m_data, other.m_rows, other.m_columns) {}
 
-            Rect(Rect &&other): m_rows(other.m_rows), m_columns(other.m_columns), m_data(other.m_data) {
+            Rect(Rect &&other) noexcept: m_rows(other.m_rows), m_columns(other.m_columns), m_data(other.m_data) {
                 other.m_data = nullptr;
                 other.m_rows = 0;
                 other.m_columns = 0;
             }
 
             Rect &operator=(const Rect &other) {
-                if (this == &other) return *this;
-                m_rows = other.m_rows;
-                m_columns = other.m_columns;
-                if (m_data != nullptr) {
-                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy((*this).begin(), (*this).end());
-                    ::operator delete[](m_data);
-                }
-                m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                Type *end = m_data;
-                try {
-                    end = std::uninitialized_copy(other.m_data, other.m_data + m_rows * other.m_columns, m_data);
-                }
-                catch(...) {
-                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
-                    operator:: delete[](m_data);
-                    throw;
-                }
+                Rect tmp(other);
+                (*this).swap(tmp);
                 return *this;
             }
 
-            Rect &operator=(Rect &&other) {
+            Rect &operator=(Rect &&other) noexcept {
                 if (this == &other) return *this;
                 m_rows = other.m_rows;
                 m_columns = other.m_columns;
@@ -385,7 +381,7 @@ namespace Matrix {
                 return *this;
             }
 
-            ~Rect(void) {
+            ~Rect(void) noexcept {
                 if (m_data != nullptr) {
                     if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy((*this).begin(), (*this).end());
                     ::operator delete[](m_data);
@@ -404,12 +400,12 @@ namespace Matrix {
             }
 
             inline Type &at(const size_t row, const size_t column) {
-                if (row >= m_rows || column >= m_columns) throw std::out_of_range("Cannot access the outside bounds of matrix.");
+                if (is_out_of_range(row, column)) throw std::out_of_range("Cannot access the outside bounds of matrix.");
                 return m_data[row * m_columns + column];
             }
             
             const inline Type &at(const size_t row, const size_t column) const {
-                if (row >= m_rows || column >= m_columns) throw std::out_of_range("Cannot access the outside bounds of matrix.");
+                if (is_out_of_range(row, column)) throw std::out_of_range("Cannot access the outside bounds of matrix.");
                 return m_data[row * m_columns + column];
             }
 
@@ -422,29 +418,21 @@ namespace Matrix {
             }
 
             inline Type *end(void) noexcept {
-                return m_data + m_rows * m_columns;
+                return m_data ? m_data + m_rows * m_columns : m_data;
             }
             
             const inline Type *end(void) const noexcept {
-                return m_data + m_rows * m_columns;
-            }
-
-            inline size_t size(void) const noexcept {
-                return m_rows * m_columns;
-            }
-
-            inline Matrix::OR order(void) const noexcept {
-                return Matrix::OR(m_rows, m_columns);
-            }
-
-            inline size_t column_len(void) const noexcept {
-                return m_columns;
-            }
-
-            inline size_t row_len(void) const noexcept {
-                return m_rows;
+                return m_data ? m_data + m_rows * m_columns : m_data;
             }
             
+            inline Type *data(void) noexcept {
+                return m_data;
+            }
+
+            inline const Type *data(void) const noexcept {
+                return m_data;
+            }
+        
         // MATH OPERATIONS.
         public:
             Rect &operator+=(const Rect &other) {
@@ -456,7 +444,7 @@ namespace Matrix {
             }
             
             Rect &operator-=(const Rect &other) {
-                if (!is_sum_possible(other)) throw std::logic_error("Cannot add matrices of different order with each other.");
+                if (!is_sum_possible(other)) throw std::logic_error("Cannot subtract matrices of different order with each other.");
                 for (size_t i = 0; i < this->size(); i++) {
                     m_data[i] -= other.m_data[i];
                 }
@@ -481,8 +469,19 @@ namespace Matrix {
             }
 
             inline Rect operator-(void) const noexcept {
-                Rect newer(*this);
-                return newer.negate();
+                Rect newer(this->order(), Matrix::RT::NO_CONSTRUCT);
+                size_t curr = 0;
+                try {
+                    for(; curr < this->size(); curr++) {
+                        std::construct_at(newer.m_data + curr, -m_data[curr]);
+                    }
+                }
+                catch(...) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(newer.m_data, newer.m_data + curr);
+                    ::operator delete[](newer.m_data);
+                    throw;
+                }
+                return newer;
             }
 
             Rect operator*(const Rect &other) const {
@@ -504,14 +503,38 @@ namespace Matrix {
                 return *this;
             }
 
-        // TOOLKIT.
+        // UTILITIES.
         public:
+            inline size_t size(void) const noexcept {
+                return m_rows * m_columns;
+            }
+
+            inline Matrix::OR order(void) const noexcept {
+                return Matrix::OR(m_rows, m_columns);
+            }
+
+            inline size_t column_len(void) const noexcept {
+                return m_columns;
+            }
+
+            inline size_t row_len(void) const noexcept {
+                return m_rows;
+            }
+
             inline bool is_sum_possible(const Rect &other) const noexcept {
                 return this->order() == other.order();
             }
 
             inline bool is_prod_possible(const Rect &other) const noexcept {
                 return m_columns == other.m_rows;
+            }
+
+            inline bool is_out_of_range(const size_t r, const size_t c) const noexcept {
+                return (r >= m_rows || c >= m_columns);
+            }
+
+            inline bool is_in_range(const size_t r, const size_t c) const noexcept {
+                return (r < m_rows && c < m_columns);
             }
 
             inline bool is_square(void) const noexcept {
@@ -521,7 +544,7 @@ namespace Matrix {
             bool operator==(const Rect &other) const noexcept {
                 if (this == &other) return true;
                 if (this->order() != other.order()) return false;
-                for (size_t i = 0; i < this->size(); i++) if (!( ::is_equal(m_data[i], other.m_data[i]))) return false;
+                for (size_t i = 0; i < this->size(); i++) if (!( Matrix::impl::is_equal(m_data[i], other.m_data[i]))) return false;
                 return true;
             }
             
@@ -531,38 +554,38 @@ namespace Matrix {
 
             bool is_zero(void) const noexcept requires std::default_initializable<Type> {
                 const Type zero{};
-                for (const Type &t: (*this)) if (!( ::is_equal(t, zero))) return false;
+                for (const Type &t: (*this)) if (!( Matrix::impl::is_equal(t, zero))) return false;
                 return true;
             }
             
             bool is_samev(const Type &val) const noexcept {
-                for (const Type &t: (*this)) if (!( ::is_equal(t, val))) return false;
+                for (const Type &t: (*this)) if (!( Matrix::impl::is_equal(t, val))) return false;
                 return true;
             }
 
             bool is_rzero(const size_t row) const requires std::default_initializable<Type> {
                 if (row >= m_rows) throw std::out_of_range("Cannot access row outside the range of matrix rows.");
                 const Type zero{};
-                for (size_t i = 0; i < m_columns; i++) if (!( ::is_equal((*this)(row, i), zero))) return false;
+                for (size_t i = 0; i < m_columns; i++) if (!( Matrix::impl::is_equal((*this)(row, i), zero))) return false;
                 return true;
             }
             
             bool is_czero(const size_t column) const requires std::default_initializable<Type> {
                 if (column >= m_columns) throw std::out_of_range("Cannot access column outside the range of matrix columns.");
                 const Type zero{};
-                for (size_t i = 0; i < m_rows; i++) if (!( ::is_equal((*this)(i, column), zero))) return false;
+                for (size_t i = 0; i < m_rows; i++) if (!( Matrix::impl::is_equal((*this)(i, column), zero))) return false;
                 return true;
             }
 
             bool is_rsamev(const size_t row, const Type &val) const {
                 if (row >= m_rows) throw std::out_of_range("Cannot access row outside the range of matrix rows.");
-                for (size_t i = 0; i < m_columns; i++) if (!( ::is_equal((*this)(row, i), val))) return false;
+                for (size_t i = 0; i < m_columns; i++) if (!( Matrix::impl::is_equal((*this)(row, i), val))) return false;
                 return true;
             }
             
             bool is_csamev(const size_t column, const Type &val) const {
                 if (column >= m_columns) throw std::out_of_range("Cannot access column outside the range of matrix columns.");
-                for (size_t i = 0; i < m_rows; i++) if (!( ::is_equal((*this)(i, column), val))) return false;
+                for (size_t i = 0; i < m_rows; i++) if (!( Matrix::impl::is_equal((*this)(i, column), val))) return false;
                 return true;
             }
         
