@@ -89,19 +89,38 @@ namespace Matrix {
             Rect(void) {
                 m_rows = 0;
                 m_columns = 0;
-                m_data = static_cast<Type*>(::operator new[](0));
+                m_data = nullptr;
             }
 
             Rect(const Matrix::Order &ord, Matrix::Restrict res = Matrix::RT::NO_GARBAGEV): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
                 m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
+                Type *end = m_data;
                 switch (res) {
                     case Matrix::RT::NO_GARBAGEV:
-                        if (std::default_initializable<Type>)                 std::uninitialized_value_construct_n(m_data, this->size());
+                        if (std::default_initializable<Type>) {
+                            try {
+                                end = std::uninitialized_value_construct_n(m_data, this->size());
+                            }
+                            catch(...) {
+                                if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                                ::operator delete[](m_data);
+                                throw;
+                            }
+                        }
                         else throw std::invalid_argument("Cannot do 'No garbage' if default constructor doesn't exist.");
                         break;
                     case Matrix::RT::ALLOW_GARBAGEV:
                         if (std::is_fundamental_v<Type>) return;
-                        if (std::default_initializable<Type>)                 std::uninitialized_value_construct_n(m_data, this->size());
+                        if (std::default_initializable<Type>){
+                            try {
+                                end = std::uninitialized_value_construct_n(m_data, this->size());
+                            }
+                            catch(...) {
+                                if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                                ::operator delete[](m_data);
+                                throw;
+                            }
+                        }
                         else throw std::logic_error("Cannot allow garbage value for non-trivially constructible types.");
                         break;
                     case Matrix::RT::NO_CONSTRUCT:
@@ -111,7 +130,15 @@ namespace Matrix {
 
             Rect(const Matrix::Order &ord, const Type &to_copy): m_rows(ord.get_rows()), m_columns(ord.get_columns()) {
                 m_data = static_cast<Type*>(::operator new[](this->size() * sizeof(Type)));
-                std::uninitialized_fill_n(m_data, this->size(), to_copy);
+                Type *end = m_data;
+                try {
+                    end = std::uninitialized_fill_n(m_data, this->size(), to_copy);
+                }
+                catch(...) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                    ::operator delete[](m_data);
+                    throw;
+                }
             }
             
             Rect(const size_t rows, const size_t columns, Matrix::Restrict res = Matrix::RT::NO_GARBAGEV): Rect(Matrix::Order(rows, columns), res) {}
@@ -122,17 +149,29 @@ namespace Matrix {
                 if (this->size() == 0) {
                     m_rows = 0;
                     m_columns = 0;
+                    m_data = nullptr;
+                    return;
                 }
                 m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                std::uninitialized_copy(array, array + this->size(), m_data);
+                Type *end = m_data;
+                try {
+                    end = std::uninitialized_copy(array, array + this->size(), m_data);
+                }
+                catch(...) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                    ::operator delete[](m_data);
+                    throw;
+                }
             }
             
             Rect(const std::initializer_list<Type> &il, const size_t rows, const size_t columns, const Matrix::Initialize init = Matrix::IT::DEFAULT_INITIALIZE): m_rows(rows), m_columns(columns) {
                 if (this->size() == 0) {
                     m_rows = 0;
                     m_columns = 0;
+                    m_data = nullptr;
+                    return;
                 }
-                if constexpr (std::default_initializable<Type>) {
+                if constexpr (std::default_initializable_v<Type>) {
                     size_t min = std::min(this->size(), il.size());
                     if (this->size() > il.size()) {
                         switch (init) {
@@ -144,8 +183,24 @@ namespace Matrix {
                         }
                     }
                     else m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                    std::uninitialized_copy(il.begin(), il.begin() + min, m_data);
-                    std::uninitialized_value_construct_n(m_data + min, this->size() - min);
+                    Type *end = m_data;
+                    try {
+                        end = std::uninitialized_copy(il.begin(), il.begin() + min, m_data);
+                    }
+                    catch (...) {
+                        if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                        ::operator delete[](m_data);
+                        throw;
+                    }
+                    end = m_data + min;
+                    try {
+                        end = std::uninitialized_value_construct_n(m_data + min, this->size() - min);
+                    }
+                    catch(...) {
+                        if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data + min, end);
+                        ::operator delete[](m_data);
+                        throw;
+                    }
                 }
                 else {
                     if (this->size() > il.size()) throw std::invalid_argument("Size of matrix can't be greater than initializer list(only for non-default_initializable objects.)");
@@ -155,25 +210,39 @@ namespace Matrix {
             }
 
             Rect(const std::initializer_list<Type> &il, const Matrix::Direction dir = Matrix::DR::HORIZONTAL) {
+                if (il.size() == 0) {
+                    m_rows = 0;
+                    m_columns = 0;
+                    m_data = nullptr;
+                    return;
+                }
                 switch (dir) {
                     case Matrix::DR::HORIZONTAL:
-                        m_rows = il.size() != 0;
+                        m_rows = 1;
                         m_columns = il.size();
                         break;
                     case Matrix::DR::VERTICAL:
                         m_rows = il.size();
-                        m_columns = il.size() != 0;
+                        m_columns = 1;
                         break;
                 }
                 m_data = static_cast<Type*>(::operator new[](il.size() * sizeof(Type)));
-                std::uninitialized_copy(il.begin(), il.end(), m_data);
+                Type *end = m_data;
+                try {
+                    end = std::uninitialized_copy(il.begin(), il.end(), m_data);
+                }
+                catch (...) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                    ::operator delete[](m_data);
+                    throw;
+                }
             }
             
             Rect(const std::initializer_list<std::initializer_list<Type>> &ill, const  Matrix::Modifier modi = Matrix::MD::SAME_SIZE_MUST) {
                 auto FALLBACK = [&]() -> void {
                     m_rows = 0;
                     m_columns = 0;
-                    m_data = static_cast<Type*>(::operator new[](0));
+                    m_data = nullptr;
                 };
                 size_t row_num = 0;
                 switch (modi) {
@@ -188,14 +257,33 @@ namespace Matrix {
                         m_rows = ill.size();
                         m_columns = max_size;
                         m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
+                        Type *end = m_data;
                         for (const std::initializer_list<Type> &il: ill) {
-                            std::uninitialized_copy(il.begin(), il.end(), m_data + row_num * max_size);
+                            try {
+                                std::uninitialized_copy(il.begin(), il.end(), m_data + row_num * max_size);
+                            }
+                            catch(...) {
+                                if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                                ::operator delete[](m_data);
+                                throw;
+                            }
                             if (il.size() != max_size && (!std::default_initializable<Type>))
                                 throw std::logic_error("Cannot create default value for the type inside Rect; Hence, cannot extend on creation.");
-                            else
-                                std::uninitialized_value_construct_n(m_data + row_num * max_size + il.size(), max_size - il.size());
+                            else {
+                                try {
+                                    end = std::uninitialized_value_construct_n(m_data + row_num * max_size + il.size(), max_size - il.size());
+                                }
+                                catch(...) {
+                                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                                    ::operator delete[](m_data);
+                                    throw;
+                                }
+
+                            }
+                            row_num++;
                         }
                         break;
+
                     case Matrix::MD::SHRINK:
                         size_t min_size = std::numeric_limits<size_t>::max();
                         for (const std::initializer_list<Type> &il : ill) 
@@ -207,9 +295,19 @@ namespace Matrix {
                             return;
                         }
                         m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                        for (const std::initializer_list<Type> &il: ill)
-                            std::uninitialized_copy(il.begin(), il.begin() + min_size, m_data + (row_num++) * min_size);
+                        Type *end = m_data;
+                        for (const std::initializer_list<Type> &il: ill) {
+                            try {
+                                end = std::uninitialized_copy(il.begin(), il.begin() + min_size, m_data + (row_num++) * min_size);
+                            }
+                            catch(...) {
+                                if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                                ::operator delete[](m_data);
+                                throw;
+                            }
+                        }
                         break;
+
                     case Matrix::MD::SAME_SIZE_MUST:
                         if (ill.size() != 0) {
                             size_t col_size = (*(ill.begin())).size();
@@ -222,9 +320,17 @@ namespace Matrix {
                                 return;
                             }
                             m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
+                            Type *end = m_data;
                             size_t i = 0;
                             for (const std::initializer_list<Type> &il : ill) {
-                                std::uninitialized_copy(il.begin(), col_size, m_data + i);
+                                try {
+                                    std::uninitialized_copy(il.begin(), il.begin() + col_size, m_data + i);
+                                }
+                                catch(...) {
+                                    if constexpr (!std::is_trivially_constructible_v<Type>) std::destroy(m_data, end);
+                                    ::operator delete[](m_data);
+                                    throw;
+                                }
                                 i += col_size;
                             }
                         }
@@ -252,18 +358,26 @@ namespace Matrix {
                     ::operator delete[](m_data);
                 }
                 m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                std::uninitialized_copy(other.m_data, other.m_data + m_rows * other.m_columns, m_data);
+                Type *end = m_data;
+                try {
+                    end = std::uninitialized_copy(other.m_data, other.m_data + m_rows * other.m_columns, m_data);
+                }
+                catch(...) {
+                    if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy(m_data, end);
+                    operator:: delete[](m_data);
+                    throw;
+                }
                 return *this;
             }
 
             Rect &operator=(Rect &&other) {
                 if (this == &other) return *this;
+                m_rows = other.m_rows;
+                m_columns = other.m_columns;
                 if (m_data != nullptr) {
                     if constexpr (!std::is_trivially_destructible_v<Type>) std::destroy((*this).begin(), (*this).end());
                     ::operator delete[](m_data);
                 }
-                m_rows = other.m_rows;
-                m_columns = other.m_columns;
                 m_data = other.m_data;
                 other.m_data = nullptr;
                 other.m_rows = 0;
@@ -343,10 +457,6 @@ namespace Matrix {
             
             Rect &operator-=(const Rect &other) {
                 if (!is_sum_possible(other)) throw std::logic_error("Cannot add matrices of different order with each other.");
-                if (this == &other) {
-                    *this = Rect(other.order());
-                    return *this;
-                }
                 for (size_t i = 0; i < this->size(); i++) {
                     m_data[i] -= other.m_data[i];
                 }
