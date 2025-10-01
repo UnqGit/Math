@@ -64,6 +64,7 @@ namespace math::matrix
             bool is_zero() const noexcept {
                 return (m_rows == 0);
             }
+
         public:
             size_t size() const noexcept {
                 return m_rows * m_columns;
@@ -83,6 +84,117 @@ namespace math::matrix
 
             void set_column(const size_t column) noexcept {
                 m_columns = column;
+            }
+
+        public:
+            void swap(Order &other) noexcept {
+                std::swap(m_rows, other.m_rows);
+                std::swap(m_columns, other.m_columns);
+            }
+    };
+
+    template <typename T, size_t row_num>
+    class RowIterator {
+        private:
+            T* m_ptr;
+        
+        public:
+            RowIterator(const T* ptr) noexcept : m_ptr(ptr) {}
+            RowIterator(const RowIterator &other) noexcept : m_ptr(other.m_ptr) {}
+
+        public:
+            bool operator==(const RowIterator other) const noexcept {
+                return (m_ptr == other.m_ptr);
+            }
+            bool operator!=(const RowIterator other) const noexcept {
+                return (m_ptr != other.m_ptr);
+            }
+            bool operator>(const RowIterator other) const noexcept {
+                return (m_ptr > other.m_ptr);
+            }
+            bool operator<(const RowIterator other) const noexcept {
+                return (m_ptr < other.m_ptr);
+            }
+            bool operator>=(const RowIterator other) const noexcept {
+                return (m_ptr>=other.m_ptr);
+            }
+            bool operator<=(const RowIterator other) const noexcept {
+                return (m_ptr<=other.m_ptr);
+            }
+
+        public:
+            T operator*() noexcept {
+                return *m_ptr;
+            }
+            const T operator*() const noexcept {
+                return static_cast<const T*>(m_ptr);
+            }
+        
+        public:
+            RowIterator operator++() noexcept {
+                RowIterator prev(ptr++);
+                return prev;
+            }
+            RowIterator operator++(int) noexcept {
+                ++ptr;
+                return *this;
+            }
+            RowIterator operator--() noexcept {
+                RowIterator prev(ptr--);
+                return prev;
+            }
+            RowIterator operator--(int) noexcept {
+                --ptr;
+                return *this;
+            }
+
+        public:
+            RowIterator operator+(size_t add) const noexcept {
+                return RowIterator(m_ptr + add);
+            }
+            RowIterator operator-(size_t sub) const noexcept {
+                return RowIterator(m_ptr - sub);
+            }
+            RowIterator operator+=(size_t add) noexcept {
+                ptr += add;
+                return *this;
+            }
+            RowIterator operator-=(size_t sub) noexcept {
+                ptr -= sub;
+                return *this;
+            }
+            long long operator-(const RowIterator &other) const noexcept {
+                return (ptr - other.m_ptr);
+            }
+    };
+
+    template <typename T, size_t row_num>
+    class Row {
+        private:
+            T *m_data;
+            size_t m_col_size;
+        public:
+            T &at(size_t index) {
+                if (index >= col_size) throw std::invalid_argument("Index is greater than number of elements in the row and hence can't be accessed.");
+                return m_data[index];
+            }
+            const T &at(size_t index) const {
+                if (index >= col_size) throw std::invalid_argument("Index is greater than number of elements in the row and hence can't be accessed.");
+                return m_data[index];
+            }
+
+        public:
+            RowIterator begin() noexcept {
+                return RowIterator(m_data);
+            }
+            RowIterator end() noexcept {
+                return RowIterator(m_data + m_col_size);
+            }
+            const RowIterator begin() const noexcept {
+                return RowIterator(m_data);
+            }
+            const RowIterator end() const noexcept {
+                return RowIterator(m_data + m_col_size);
             }
     };
 
@@ -176,15 +288,53 @@ namespace math
             Matrix(const size_t row, const size_t column, const T &to_copy) : Matrix(math::matrix::Order(row, column), to_copy) {}
 
         public:
-            Matrix(const Matrix &other) : m_order(other.m_order) {
-                
+            Matrix(const T **const data, const math::matrix::Order &order) : m_order(order) {
+                const size_t row = m_order.row();
+                const size_t column = m_order.column();
+                m_data = ::operator new[](sizeof(T*) * row);
+                T* end = nullptr;
+                for (size_t i = 0; i < row; i++) {
+                    m_data[i] = ::operator new[](sizeof(T) * column);
+                }
+                for (size_t i = 0; i < row; i++) {
+                    try {
+                        end = std::uninitialized_copy(data[i], data[i] + column, m_data[i]);
+                    } catch(...) {
+                        math::matrix::impl::destroy_data<T>(m_data, i, end, row, column);
+                        throw;
+                    }
+                }
             }
-        public: // temporary.
-            const T **data() const noexcept {
-                return (const T**)m_data;
+            Matrix(const T **const data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
+
+        public:
+            Matrix(const Matrix &other) : Matrix(other.m_data, other.m_order) {}
+            Matrix(Matrix &&other) noexcept : m_order(other.m_order), m_data(other.m_data) {
+                other.m_data = nullptr;
+                other.m_order = math::matrix::Order();
             }
-            const math::matrix::Order order() const noexcept {
-                return m_order;
+            Matrix &operator=(const Matrix &other) {
+                if (this == &other) return *this;
+                Matrix temp(other);
+                (*this).swap(temp);
+                return *this;
+            }
+            Matrix &operator=(Matrix &&other) {
+                if (this == &other) return *this;
+                if (m_data != nullptr) std::destroy_at(this);
+                (*this).swap(other);
+                other.m_order = math::matrix::Order();
+            }
+
+        public:
+            ~Matrix() {
+                math::matrix::impl::destroy_data(m_data, m_order.m_rows(), m_data[m_order.m_rows()] + m_order.m_columns(), m_order.m_rows(), m_order.m_columns());
+            }
+
+        public:
+            void swap(Matrix &other) noexcept {
+                m_order.swap(other.m_order);
+                std::swap(m_data, other.m_data);
             }
     };
 }
