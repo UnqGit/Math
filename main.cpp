@@ -12,4 +12,8 @@ int main(void) {
     std::cout << sizeof(decltype(order)) << std::endl;
     std::cout << sizeof(math::Matrix<int>) << std::endl;
     std::cout << alignof(math::Matrix<int>) << std::endl;
+    math::Matrix<int> int_mat;
+    const math::matrix::Order &rorder = int_mat.order();
+    std::cout << int_mat.data() << std::endl;
+    std::cout << rorder.row() << ' ' << rorder.column() << std::endl;
 }

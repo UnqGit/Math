@@ -1,6 +1,6 @@
 #pragma once
 
-#include "headers.hpp"
+#include "Headers.hpp"
 
 namespace math::helper
 {
@@ -28,7 +28,64 @@ namespace math::helper
         private:
             std::unordered_map<std::type_index, std::any> m_vals;
         private:
-            ZeroValueHolder() {}; // Private default constructor.
+            ZeroValueHolder() { // Helping the file user by pre-saving some of the types' 0 val.
+                store_of<char>(static_cast<char>(0));
+                store_of<short>(static_cast<short>(0));
+                store_of<int>(static_cast<int>(0));
+                store_of<long>(static_cast<long>(0));
+                store_of<long long>(static_cast<long long>(0));
+                store_of<unsigned char>(static_cast<unsigned char>(0));
+                store_of<unsigned short>(static_cast<unsigned short>(0));
+                store_of<unsigned int>(static_cast<unsigned int>(0));
+                store_of<unsigned long>(static_cast<unsigned long>(0));
+                store_of<unsigned long long>(static_cast<unsigned long long>(0));
+                store_of<const char>(static_cast<const char>(0));
+                store_of<const short>(static_cast<const short>(0));
+                store_of<const int>(static_cast<const int>(0));
+                store_of<const long>(static_cast<const long>(0));
+                store_of<const long long>(static_cast<const long long>(0));
+                store_of<const unsigned char>(static_cast<const unsigned char>(0));
+                store_of<const unsigned short>(static_cast<const unsigned short>(0));
+                store_of<const unsigned int>(static_cast<const unsigned int>(0));
+                store_of<const unsigned long>(static_cast<const unsigned long>(0));
+                store_of<const unsigned long long>(static_cast<const unsigned long long>(0));
+                store_of<float>(static_cast<float>(0));
+                store_of<double>(static_cast<double>(0));
+                store_of<long double>(static_cast<long double>(0));
+                store_of<const float>(static_cast<const float>(0));
+                store_of<const double>(static_cast<const double>(0));
+                store_of<const long double>(static_cast<const long double>(0));
+                
+                store_of<char*>(nullptr);
+                store_of<short*>(nullptr);
+                store_of<int*>(nullptr);
+                store_of<long*>(nullptr);
+                store_of<long long*>(nullptr);
+                store_of<unsigned char*>(nullptr);
+                store_of<unsigned short*>(nullptr);
+                store_of<unsigned int*>(nullptr);
+                store_of<unsigned long*>(nullptr);
+                store_of<unsigned long long*>(nullptr);
+                store_of<const char*>(nullptr);
+                store_of<const short*>(nullptr);
+                store_of<const int*>(nullptr);
+                store_of<const long*>(nullptr);
+                store_of<const long long*>(nullptr);
+                store_of<const unsigned char*>(nullptr);
+                store_of<const unsigned short*>(nullptr);
+                store_of<const unsigned int*>(nullptr);
+                store_of<const unsigned long*>(nullptr);
+                store_of<const unsigned long long*>(nullptr);
+                store_of<float*>(nullptr);
+                store_of<double*>(nullptr);
+                store_of<long double*>(nullptr);
+                store_of<const float*>(nullptr);
+                store_of<const double*>(nullptr);
+                store_of<const long double*>(nullptr);
+
+                store_of<void*>(nullptr);
+                store_of<const void*>(nullptr);
+            }; // Private default constructor.
             ZeroValueHolder(const ZeroValueHolder&) = delete;
             ZeroValueHolder& operator=(const ZeroValueHolder&) = delete;
         public:
@@ -40,6 +97,12 @@ namespace math::helper
             template <typename T>
             void store_of(const T &val) { // Cannot do noexcept because typeid can throw.
                 m_vals[std::type_index(typeid(T))] = val;
+            }
+
+            template <typename T>
+            bool exists_of() {
+                auto loc = m_vals.find(std::type_index(typeid(T)));
+                return (loc != m_vals.end());   
             }
 
             template <typename T>
