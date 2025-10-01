@@ -1,14 +1,6 @@
 #pragma once
 
-#include <stdint.h>
-#include <limits>
-#include <initializer_list>
-#include <algorithm>
-#include <concepts>
-#include <memory>
-#include <type_traits>
-#include <stdexcept>
-#include <cmath>
+#include "Headers.hpp"
 
 namespace Matrix::impl {
     template <std::integral T> // Just because it's better to send numbers by value instead of const T&.
@@ -306,7 +298,6 @@ namespace Matrix {
                             return;
                         }
                         m_data = static_cast<Type*>(::operator new[](sizeof(Type) * this->size()));
-                        Type *end = m_data;
                         for (const std::initializer_list<Type> &il: ill) {
                             try {
                                 end = std::uninitialized_copy(il.begin(), il.begin() + min_size, m_data + (row_num++) * min_size);

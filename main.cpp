@@ -1,26 +1,15 @@
+#include "Math.hpp"
 #include <iostream>
-#include "RectMatrix.hpp"
 
-template <typename T>
-void print_matrix(const Matrix::Rect<T> &mt) {
-    for (size_t row = 0; row < mt.row_len(); row++) {
-        for (size_t col = 0; col < mt.column_len(); col++) {
-            std::cout << mt.at(row, col) << ' ';
-        }
-        std::cout << '\n';
-    }
-}
+using namespace math::helper;
 
 int main(void) {
-    Matrix::Rect<int> mt(4, 6);
-    Matrix::Rect<int> mt2;
-    print_matrix(mt);
-    mt2 = mt;
-    try {
-        std::cout << mt.is_rzero(34) << '\n';
-    }
-    catch(const std::exception &e) {
-        std::cout << "Tried to access elements outside the matrix range; err_msg: " << e.what() << '\n';
-    }
-    print_matrix(mt2);
+    zero_vals.store_of(0);
+    zero_vals.store_of(10.0f);
+    math::matrix::Order order(30, 30);
+    std::cout << zero_vals.get_of<int>() << ' ' << zero_vals.get_of<float>() << std::endl;
+    std::cout << (order == math::matrix::Order(90, 20)) << std::endl;
+    std::cout << sizeof(decltype(order)) << std::endl;
+    std::cout << sizeof(math::Matrix<int>) << std::endl;
+    std::cout << alignof(math::Matrix<int>) << std::endl;
 }
