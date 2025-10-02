@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "concepts": "cpp"
+        "concepts": "cpp",
+        "utility": "cpp",
+        "xutility": "cpp"
     }
 }

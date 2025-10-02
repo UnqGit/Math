@@ -34,9 +34,9 @@ int main(void) {
     math::Matrix<int> my_matrix3(10, 10, 9);
     math::Matrix<int> my_matrix4(matrix, 4);
     math::Matrix<int> my_matrix5(matrix2, 6, math::matrix::ConstructOrientationRule::off_diagonal);
-    print_matrix<int>(my_matrix);
-    print_matrix<int>(my_matrix2);
-    print_matrix<int>(my_matrix3);
-    print_matrix<int>(my_matrix4);
-    print_matrix<int>(my_matrix5);
+    print_matrix(my_matrix);
+    print_matrix(my_matrix2);
+    print_matrix(my_matrix4);
+    print_matrix(my_matrix3);
+    print_matrix(my_matrix5);
 }
