@@ -42,23 +42,6 @@ namespace math::matrix::impl
         ::operator delete[](data);
     }
 
-    // Not necessarily for an array, anything that supports size begin and end method and provide T as it's return value.
-    template <typename Container, typename RequiredData>
-    concept isOneDArr = requires(Container obj) {
-        { obj.size() } -> std::integral;
-        { *(obj.begin()) } -> std::same_as<RequiredData&>;
-        { obj.begin() } -> std::input_iterator;
-        { obj.end() } -> std::input_iterator;
-    };
-
-    template <typename Container, typename RequiredData>
-    concept isTwoDArr = requires(Container obj) {
-        { obj.size() } -> std::integral;
-        { obj.begin() } -> std::input_iterator;
-        { obj.end() } -> std::input_iterator;
-
-        requires isOneDArr<std::remove_reference_t<decltype(*obj.begin())>, RequiredData>;
-    };
 }
 
 namespace math::matrix
@@ -378,7 +361,7 @@ namespace math
             Matrix(const size_t row, const size_t column, const T &to_copy) : Matrix(math::matrix::Order(row, column), to_copy) {}
             
         public:
-            Matrix(const T *data, const size_t size, math::matrix::COR construct_rule = math::matrix::COR::horizontal) {
+            Matrix(T *data, const size_t size, math::matrix::COR construct_rule = math::matrix::COR::horizontal) {
                 T *end = nullptr;
                 bool zero_exists = (math::helper::zero_vals.exists_of<T>());
                 switch (construct_rule) {
@@ -453,7 +436,7 @@ namespace math
                         return;
                 }
             }
-            Matrix(const T *data, const math::matrix::Order &order) : m_order(order) {
+            Matrix(T *data, const math::matrix::Order &order) : m_order(order) {
                 const size_t row = order.row();
                 const size_t column = order.column();
                 T *end = nullptr;
@@ -468,11 +451,11 @@ namespace math
                     }
                 }
             }
-            Matrix(const T *data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
+            Matrix(T *data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
 
         public:
             template <typename U>
-            requires math::matrix::impl::isOneDArr<U, T>
+            requires math::helper::isOneDArr<U, T>
             Matrix(const U &arr, math::matrix::COR construct_rule = math::matrix::COR::horizontal) {
                 T *end = nullptr;
                 const size_t size = arr.size();
@@ -555,7 +538,7 @@ namespace math
                 }
             }
             template <typename U>
-            requires math::matrix::impl::isOneDArr<U, T>
+            requires math::helper::isOneDArr<U, T>
             Matrix(const U &arr, const math::matrix::Order &order) : m_order(order) {
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
@@ -572,7 +555,7 @@ namespace math
                         m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
                         j = 0;
                         while (j < column && Iter != IterEnd) {
-                            std::contruct_at(m_data[i] + j, *Iter);
+                            std::construct_at(m_data[i] + j, *Iter);
                             ++Iter;
                             ++j;
                         }
@@ -593,11 +576,11 @@ namespace math
                 }
             }
             template <typename U>
-            requires math::matrix::impl::isOneDArr<U, T>
+            requires math::helper::isOneDArr<U, T>
             Matrix(const U &arr, const size_t row, const size_t column) : Matrix(arr, math::matrix::Order(row, column)) {}
 
         public:
-            Matrix(const T **data, const math::matrix::Order &order) : m_order(order) {
+            Matrix(T **data, const math::matrix::Order &order) : m_order(order) {
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
                 m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
@@ -612,11 +595,11 @@ namespace math
                     }
                 }
             }
-            Matrix(const T **data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
+            Matrix(T **data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
             
         public:
             template <typename U>
-            requires math::matrix::impl::isTwoDArr<U, T>
+            requires math::helper::isTwoDArr<U, T>
             Matrix(const U &arr, const math::matrix::ConstructContainerRule construct_rule = math::matrix::CCR::must_be_same) {
                 const size_t size = arr.size();
                 if (size == 0) return;
@@ -806,6 +789,25 @@ namespace math
                 return m_order.size();
             }
 
+        public:
+            const T **&data() const noexcept {
+                return m_data;
+            }
+
+            T **&data() noexcept {
+                return m_data;
+            }
+
+            math::matrix::Row<T> row(const size_t row) const {
+                if (row >= m_order.row()) throw std::out_of_range("Cannot provide row object for the provided row number.");
+                return math::matrix::Row<T>(m_data[row], m_order.column());
+            }
+            
+            math::matrix::Row<T> operator[](const size_t row) const noexcept {
+                return math::matrix::Row<T>(m_data[row], m_order.column());
+            }
+        
+        public:
             bool is_square() const noexcept {
                 return m_order.is_square();
             }
@@ -817,15 +819,104 @@ namespace math
             bool is_column() const noexcept {
                 return m_order.is_column();
             }
-
-        public:
-            math::matrix::Row<T> row(const size_t row) const {
-                if (row >= m_order.row()) throw std::out_of_range("Cannot provide row object for the provided row number.");
-                return math::matrix::Row<T>(m_data[row], m_order.column());
+        
+            bool is_same_dimension(const Matrix &other) const noexcept {
+                return (m_order == other.m_order);
             }
 
-            math::matrix::Row<T> operator[](const size_t row) const noexcept {
-                return math::matrix::Row<T>(m_data[row], m_order.column());
+            bool is_multipliable_dimension(const Matrix &other) const noexcept {
+                return (m_order.column() == m_order.row());
+            }
+
+            bool is_opposite_dimension(const Matrix &other) const noexcept {
+                return (m_order.transpose() == other.m_order);
+            }
+
+        public:
+            Matrix &operator+=(const Matrix &other) requires math::helper::isAdditionPossible<T> {
+                if (!is_same_dimension(other)) throw std::invalid_argument("Cannot add matrices of unequal order parameters.");
+                const size_t num_rows = m_order.row();
+                const size_t num_columns = m_order.column();
+                #pragma omp parallel for
+                for (size_t i = 0; i < num_rows; i++) {
+                    T* first_row = m_data[i];
+                    T* second_row = other.m_data[i];
+                    #pragma omp parallel for
+                    for (size_t j = 0; j < num_columns; j++) {
+                        first_row[j] += second_row[j];
+                    }
+                }
+                return *this;
+            }
+
+            Matrix operator+(const Matrix &other) const requires math::helper::isAdditionPossible<T> {
+                Matrix temp(*this);
+                temp += other;
+                return temp;
+            }
+
+            Matrix &operator-=(const Matrix &other) requires math::helper::isSubtractionPossible<T> {
+                if (!is_same_dimension(other)) throw std::invalid_argument("Cannot subtract matrices of unequal order parameters.");
+                const size_t num_rows = m_order.row();
+                const size_t num_columns = m_order.column();
+                #pragma omp parallel for
+                for (size_t i = 0; i < num_rows; i++) {
+                    T* first_row = m_data[i];
+                    T* second_row = other.m_data[i];
+                    #pragma omp parallel for
+                    for (size_t j = 0; j < num_columns; j++) {
+                        first_row[j] -= second_row[j];
+                    }
+                }
+                return *this;
+            }
+
+            Matrix operator-(const Matrix &other) const requires math::helper::isSubtractionPossible<T> {
+                Matrix temp(*this);
+                return (temp -= other);
+            }
+
+            Matrix operator*(const Matrix &other) const requires math::helper::isMultiplicationPossible<T> && math::helper::isAdditionPossible<T> {
+                if (!is_multipliable_dimension(other)) throw std::invalid_argument("Cannot multiply the matrices because the number of columns in first does not match the number of rows in the second.");
+                Matrix result;
+                if (m_order.is_zero()) return result;
+                const size_t row = m_order.row();
+                const size_t column = other.m_order.column();
+                const size_t this_column = m_order.column();
+                size_t j;
+                result.m_order = math::matrix::Order(row, column);
+                result.m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                #pragma omp parallel for
+                for (size_t i = 0; i < row; i++) {
+                    try {
+                        result.m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        T const* data = result.m_data[i];
+                        const T *const cache_data = m_data[i];
+                        j = 0;
+                        #pragma omp parallel for
+                        for (; j < column; j++) {
+                            std::construct_at(data + j, cache_data[j] * other.m_data[j][i]);
+                        }
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_continuous<T>(result.m_data, i, result.m_data[i] + j, column);
+                        throw;
+                    }
+                }
+                #pragma omp parallel for
+                for (size_t i = 0; i < row; i++) {
+                    const T *const this_i_row = m_data[i];
+                    const T *const result_i_row = result.m_data[i];
+                    #pragma omp parallel for
+                    for (size_t k = 0; k < this_column; k++) {
+                        T *const other_k_row = other.m_data[k];
+                        #pragma omp parallel for
+                        for (size_t j = 0; j < column; j++) {
+                            if ((i == k) && (k == j)) continue;
+                            result_i_row[j] += this_i_row[k] * other_k_row[j];
+                        }
+                    }
+                }
+                return result;
             }
     };
 }

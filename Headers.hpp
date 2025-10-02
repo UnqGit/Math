@@ -19,3 +19,5 @@
 
 #include <stdexcept>
 #include <exception>
+
+#include <omp.h>
