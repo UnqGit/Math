@@ -29,22 +29,20 @@ namespace math::helper
         return a == b;
     }
 
-    // Not necessarily for an array, anything that supports size, begin and end method and provide T as it's return value.
     template <typename Container, typename RequiredData>
     concept isOneDArr = requires(Container obj) {
         { obj.size() } -> std::integral;
-        { *(obj.begin()) } -> std::same_as<RequiredData&>;
         { obj.begin() } -> std::input_iterator;
         { obj.end() } -> std::input_iterator;
+
+        requires std::same_as<std::remove_reference_t<decltype((*obj.begin()))>, RequiredData>;
     };
 
     template <typename Container, typename RequiredData>
     concept isTwoDArr = requires(Container obj) {
         { obj.size() } -> std::integral;
-        { obj.begin() } -> std::input_iterator;
-        { obj.end() } -> std::input_iterator;
-
-        requires isOneDArr<std::remove_reference_t<decltype(*obj.begin())>, RequiredData>;
+        { obj.begin() } -> std::same_as<decltype(obj.end())>;
+        requires isOneDArr<std::remove_reference_t<decltype(*(obj.begin()))>, RequiredData>;
     };
 
     template <typename T>
@@ -149,10 +147,8 @@ namespace math::helper
 
             template <typename T>
             const T &get_of() const {
-                auto loc = m_vals.find(std::type_index(typeid(T)));
-                if (loc != m_vals.end()) {
-                    return std::any_cast<T>(loc->second);
-                }
+                const auto loc = m_vals.find(std::type_index(typeid(T)));
+                if (loc != m_vals.end()) return std::any_cast<const T&>(loc->second);
                 else throw std::logic_error("Cannot provide the zero value of a type that is not already stored in math::helper::zero_vals.\n");
             }
     };

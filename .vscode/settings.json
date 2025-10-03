@@ -2,6 +2,7 @@
     "files.associations": {
         "concepts": "cpp",
         "utility": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "memory": "cpp"
     }
 }

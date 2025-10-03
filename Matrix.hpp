@@ -1,9 +1,9 @@
 // Matrix.hpp
 #pragma once
 
-#include "Headers.hpp"
-#include "Helper.hpp"
-#include "_matrix_impl_.hpp"
+#include ".\impl\Headers.hpp"
+#include ".\impl\Helper.hpp"
+#include ".\impl\_matrix_impl_.hpp"
 
 namespace math
 {
@@ -16,7 +16,7 @@ namespace math
         public:
             Matrix() noexcept {}
 
-            Matrix(const math::matrix::Order &order, const math::matrix::CAR construct_rule = math::matrix::CAR::possible_garbage) : m_order(order) {
+            Matrix(const math::matrix::Order &order, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : m_order(order) {
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
                 m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
@@ -113,7 +113,7 @@ namespace math
                             math::matrix::impl::destroy_data_continuous<T>(m_data, 0, end, size);
                             throw;
                         }
-                        return;
+                        break;
                     case math::matrix::COR::vertical :
                         m_order = math::matrix::Order(size, 1);
                         m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
@@ -126,7 +126,7 @@ namespace math
                                 throw;
                             }
                         }
-                        return;
+                        break;
                     case math::matrix::COR::main_diagonal :
                         m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
                         m_order = math::matrix::Order(size, size);
@@ -149,7 +149,7 @@ namespace math
                                 throw;
                             }
                         }
-                        return;
+                        break;
                     case math::matrix::COR::off_diagonal :
                         m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
                         m_order = math::matrix::Order(size, size);
@@ -172,7 +172,7 @@ namespace math
                                 throw;
                             }
                         }
-                        return;
+                        break;
                 }
             }
             Matrix(T *data, const math::matrix::Order &order) : m_order(order) {
@@ -504,26 +504,21 @@ namespace math
             }
 
         public:
-            const math::matrix::Order &order() const noexcept {
+            math::matrix::Order order() const noexcept {
                 return m_order;
             }
-
             size_t num_rows() const noexcept {
                 return m_order.row();
             }
-
             size_t column_len() const noexcept {
                 return m_order.row();
             }
-
             size_t num_columns() const noexcept {
                 return m_order.column();
             }
-
             size_t row_len() const noexcept {
                 return m_order.column();
             }
-
             size_t size() const noexcept {
                 return m_order.size();
             }
@@ -532,12 +527,10 @@ namespace math
             const T **data() const noexcept {
                 return m_data;
             }
-
             math::matrix::Row<T> row(const size_t row) const {
                 if (row >= m_order.row()) throw std::out_of_range("Cannot provide row object for the provided row number.");
                 return math::matrix::Row<T>(m_data[row], m_order.column());
             }
-            
             math::matrix::Row<T> operator[](const size_t row) const noexcept {
                 return math::matrix::Row<T>(m_data[row], m_order.column());
             }
@@ -546,27 +539,22 @@ namespace math
             bool is_square() const noexcept {
                 return m_order.is_square();
             }
-
             bool is_row() const noexcept {
                 return m_order.is_row();
             }
-
             bool is_column() const noexcept {
                 return m_order.is_column();
             }
-        
             bool is_same_dimension(const Matrix &other) const noexcept {
                 return (m_order == other.m_order);
             }
-
             bool is_multipliable_dimension(const Matrix &other) const noexcept {
                 return (m_order.column() == other.m_order.row());
             }
-
             bool is_opposite_dimension(const Matrix &other) const noexcept {
                 return (m_order.transpose() == other.m_order);
             }
-
+        
         public:
             Matrix &operator+=(const Matrix &other) requires math::helper::isAdditionPossible<T> {
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot add matrices of unequal order parameters.");
@@ -660,29 +648,29 @@ namespace math
         
         public:
             math::matrix::MatrixOneDIterator<T> begin_one_d() noexcept {
-                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.row());
+                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.column());
             }
-            math::matrix::MatrixOneDIterator<T> end_on_d() noexcept {
-                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.row(), m_order.size());
+            math::matrix::MatrixOneDIterator<T> end_one_d() noexcept {
+                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.column(), m_order.size());
             }
             const math::matrix::MatrixOneDIterator<T> begin_one_d() const noexcept {
-                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.row());
+                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.column());
             }
-            const math::matrix::MatrixOneDIterator<T> end_on_d() const noexcept {
-                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.row(), m_order.size());
+            const math::matrix::MatrixOneDIterator<T> end_one_d() const noexcept {
+                return math::matrix::MatrixOneDIterator<T>(m_data, m_order.column(), m_order.size());
             }
 
             math::matrix::MatrixIterator<T> begin() noexcept {
-                return math::matrix::MatrixIterator<T>(m_data, m_order.row());
+                return math::matrix::MatrixIterator<T>(m_data, m_order.column());
             }
             math::matrix::MatrixIterator<T> end() noexcept {
-                return math::matrix::MatrixIterator<T>(m_data + m_order.row(), m_order.row());
+                return math::matrix::MatrixIterator<T>(m_data + m_order.row(), m_order.column());
             }
             const math::matrix::MatrixIterator<T> begin() const noexcept {
-                return math::matrix::MatrixIterator<T>(m_data, m_order.row());
+                return math::matrix::MatrixIterator<T>(m_data, m_order.column());
             }
             const math::matrix::MatrixIterator<T> end() const noexcept {
-                return math::matrix::MatrixIterator<T>(m_data + m_order.row(), m_order.row());
+                return math::matrix::MatrixIterator<T>(m_data + m_order.row(), m_order.column());
             }
     };
 }

@@ -89,11 +89,11 @@ namespace math::matrix
                 return (m_rows == 0);
             }
 
-            bool is_row_major() const noexcept {
+            bool is_tall() const noexcept {
                 return (m_rows > m_columns);
             }
 
-            bool is_column_major() const noexcept {
+            bool is_wide() const noexcept {
                 return (m_rows < m_columns);
             }
 
@@ -147,7 +147,7 @@ namespace math::matrix
         
         public:
             RowIterator(pointer ptr) noexcept : m_ptr(ptr) {}
-            RowIterator(const RowIterator &other) noexcept : m_ptr(other.m_ptr) {}
+            RowIterator(const RowIterator &other) noexcept = default;
 
         public:
             bool operator==(const RowIterator &other) const noexcept {
@@ -232,7 +232,7 @@ namespace math::matrix
 
         public:
             MatrixOneDIterator(T **data, const size_t row_len, const size_t index = 0) noexcept : m_data(data), m_row_size(row_len), m_index(index) {}
-            MatrixOneDIterator(const MatrixOneDIterator &other) noexcept : m_data(other.m_data), m_row_size(other.m_row_size), m_index(other.m_index) {}
+            MatrixOneDIterator(const MatrixOneDIterator &other) noexcept = default;
         
         public:
             bool operator==(const MatrixOneDIterator &other) const noexcept {
@@ -264,8 +264,7 @@ namespace math::matrix
 
         public:
             MatrixOneDIterator operator++(int) noexcept {
-                MatrixOneDIterator prev(*this);
-                ++m_index;
+                MatrixOneDIterator prev(m_data, m_row_size, m_index++);
                 return prev;
             }
             MatrixOneDIterator &operator++() noexcept {
@@ -273,8 +272,7 @@ namespace math::matrix
                 return *this;
             }
             MatrixOneDIterator operator--(int) noexcept {
-                MatrixOneDIterator prev(*this);
-                --m_index;
+                MatrixOneDIterator prev(m_data, m_row_size, m_index--);
                 return prev;
             }
             MatrixOneDIterator &operator--() noexcept {
@@ -302,15 +300,20 @@ namespace math::matrix
             }
     };
 
+    template <typename T>
+    class MatrixIterator;
+
     // A view type container.
     template <typename T>
     class Row {
+        friend class MatrixIterator<T>;
         private:
             T *m_data;
             size_t m_row_len;
 
         public:
             Row(T *data, const size_t row_len) noexcept : m_data(data), m_row_len(row_len) {}
+            Row(const Row &other) noexcept = default;
 
         public:
             T &at(const size_t index) {
@@ -343,9 +346,9 @@ namespace math::matrix
             }
 
         public:
-            size_t size() const noexcept {
-                return m_row_len;
-            }
+        size_t size() const noexcept {
+            return m_row_len;
+        }
     };
 
     template <typename T>
@@ -359,11 +362,11 @@ namespace math::matrix
         
         private:
             T** m_data;
-            const size_t m_row_size;
+            Row<T> m_cached_row;
         
         public:
-            MatrixIterator(T **data, const size_t row_size) noexcept : m_data(data), m_row_size(row_size) {}
-            MatrixIterator(const MatrixIterator &other) noexcept : m_data(other.m_data), m_row_size(other.m_row_size) {}
+            MatrixIterator(T **data, const size_t row_size) noexcept : m_data(data), m_cached_row(Row<T>(*m_data, row_size)) {}
+            MatrixIterator(const MatrixIterator &other) noexcept = default;
 
         public:
             bool operator==(const MatrixIterator &other) noexcept {
@@ -386,39 +389,50 @@ namespace math::matrix
             }
 
         public:
-            reference operator*() const noexcept {
-                return Row<T>(*m_data, m_row_size);
+            reference operator*() noexcept {
+                return m_cached_row;
+            }
+            pointer operator->() const noexcept {
+                return &m_cached_row;
             }
 
         public:
             MatrixIterator operator++(int) noexcept {
-                return MatrixIterator(m_data++, m_row_size);
+                MatrixIterator result(m_data++, m_cached_row.size());
+                m_cached_row.m_data = *m_data;
+                return result;
             }
             MatrixIterator &operator++() noexcept {
                 ++m_data;
+                m_cached_row.m_data = *m_data;
                 return *this;
             }
             MatrixIterator operator--(int) noexcept {
-                return MatrixIterator(m_data--, m_row_size);
+                MatrixIterator result(m_data--, m_cached_row.size());
+                m_cached_row.m_data = *m_data;
+                return result;
             }
-            MatrixIterator operator--() noexcept {
+            MatrixIterator &operator--() noexcept {
                 --m_data;
+                m_cached_row.m_data = *m_data;
                 return *this;
             }
 
         public:
             MatrixIterator operator+(const difference_type add) const noexcept {
-                return MatrixIterator(m_data + add, m_row_size);
+                return MatrixIterator(m_data + add, m_cached_row.size());
             }
             MatrixIterator operator-(const difference_type sub) const noexcept {
-                return MatrixIterator(m_data - sub, m_row_size);
+                return MatrixIterator(m_data - sub, m_cached_row.size());
             }
             MatrixIterator &operator+=(const difference_type add) noexcept {
                 m_data += add;
+                m_cached_row.m_data = *m_data;
                 return *this;
             }
-            MatrixIterator &operator-(const difference_type sub) noexcept {
+            MatrixIterator &operator-=(const difference_type sub) noexcept {
                 m_data -= sub;
+                m_cached_row.m_data = *m_data;
                 return *this;
             }
             difference_type operator-(const MatrixIterator &other) const noexcept {
