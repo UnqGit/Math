@@ -14,14 +14,17 @@ void print_matrix(const math::Matrix<T> &matrix) {
     std::cout << '\n';
 }
 
-
 int main(void) {
+    std::cout << "Hello World!\n";
     int matrix[6] {
         1, 2, 3, 4, 5, 6
     };
     math::Matrix<int> myMatrix(matrix, 6);
-    math::Matrix<int> myMatrix2(matrix, 6);
+    math::Matrix<int> myMatrix2(matrix, 6, math::matrix::COR::vertical);
     print_matrix<int> (myMatrix);
-    math::Matrix<int> addition = myMatrix + myMatrix2;
-    print_matrix<int> (addition);
+    print_matrix<int> (myMatrix2);
+    print_matrix<int> (myMatrix * myMatrix2);
+    print_matrix<int> (myMatrix2 * myMatrix);
+    print_matrix<int> (myMatrix + myMatrix2);
+    std::cout << "Bye World!\n";
 }

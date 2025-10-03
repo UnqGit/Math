@@ -1,9 +1,15 @@
+// Helper.hpp
 #pragma once
 
 #include "Headers.hpp"
 
 namespace math::helper
 {
+    template <typename T>
+    concept ProperEquality = requires(const T &a, const T &b) {
+        { a == b } -> std::same_as<bool>;
+    };
+
     // Equality checking functions.
     template <std::integral T> // Just because it's better to send numbers by value instead of const T&.
     inline bool is_equal(const T a, const T b) noexcept {
@@ -18,12 +24,12 @@ namespace math::helper
     }
 
     template <typename T>
-    requires ((!std::floating_point<T>) && (!std::integral<T>))
+    requires (((!std::floating_point<T>) && (!std::integral<T>)) && ProperEquality<T>)
     inline bool is_equal(const T &a, const T &b) {
         return a == b;
     }
 
-    // Not necessarily for an array, anything that supports size begin and end method and provide T as it's return value.
+    // Not necessarily for an array, anything that supports size, begin and end method and provide T as it's return value.
     template <typename Container, typename RequiredData>
     concept isOneDArr = requires(Container obj) {
         { obj.size() } -> std::integral;
@@ -142,7 +148,7 @@ namespace math::helper
             }
 
             template <typename T>
-            T get_of() const {
+            const T &get_of() const {
                 auto loc = m_vals.find(std::type_index(typeid(T)));
                 if (loc != m_vals.end()) {
                     return std::any_cast<T>(loc->second);
