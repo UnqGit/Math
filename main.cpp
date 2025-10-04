@@ -17,10 +17,8 @@ void print_matrix(const math::Matrix<T> &mat) noexcept {
 
 // template <typename T>
 // void print_matrix(const math::Matrix<T> &mat) noexcept {
-//     for (auto it = mat.begin_one_d(); it != mat.end_one_d(); ++it) {
-//         std::cout << *it << ' ';
-//     }
-//     std::cout << '\n';
+//     std::for_each(mat.begin_one_d(), mat.end_one_d(), [](const T &x){ std::cout << x << ' '; });
+//     std::cout << "\n\n";
 // }
 
 
@@ -34,19 +32,32 @@ void print_matrix(const math::Matrix<T> &mat) noexcept {
 // }
 
 int main(void) {
-    // static_assert(std::input_iterator<math::matrix::MatrixIterator<int>>);
-    // static_assert(math::helper::isOneDArr<math::matrix::Row<int>, int>);
-    // static_assert(math::helper::isOneDArr<const math::matrix::Row<int>, int>);
-    std::cout << "Hello World!\n";
+    std::cout << "Hello World!\n\n";
     int matrix[6] {
         1, 2, 3, 4, 5, 6
     };
     math::Matrix<int> myMatrix(matrix, 6, math::matrix::COR::horizontal);
     math::Matrix<int> myMatrix2(matrix, 6, math::matrix::COR::vertical);
     math::Matrix<int> multMatrix = (myMatrix2 * myMatrix);
+    print_matrix<int> (myMatrix);
+    print_matrix<int> (myMatrix2);
     print_matrix<int> (multMatrix);
     std::sort(multMatrix.begin_one_d(), multMatrix.end_one_d());
     print_matrix<int> (multMatrix);
-    print_matrix<int> (multMatrix.transpose());
+    print_matrix<int> (multMatrix.transpose_in_place());
+    math::Matrix<int> myMatrix3(std::initializer_list<std::initializer_list<int>>
+    {
+        {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0}        
+    });
+    print_matrix<int> (myMatrix3);
+    std::cout << myMatrix.is_null() << ' ' << myMatrix2.is_null() << ' ' << myMatrix3.is_null() << '\n';
+    std::cout << "Count of 0 in m3: " << myMatrix3.count(0) << '\n';
+    std::cout << myMatrix3.are_all_same() << '\n';
+    print_matrix<int> (myMatrix += myMatrix);
+    std::cout << (math::Matrix<int>(matrix, 6) == math::Matrix<int>(matrix, 6)) << "\n\n";
     std::cout << "Bye World!\n";
 }

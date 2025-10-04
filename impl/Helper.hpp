@@ -29,15 +29,19 @@ namespace math::helper
         return a == b;
     }
 
+    template <typename T>
+    concept isEqualityOperationPossible = requires(const T &a, const T &b) {
+        { math::helper::is_equal(a, b) } -> std::same_as<bool>;
+    };
+
     template <typename Container, typename RequiredData>
     concept isOneDArr = requires(Container obj) {
         { obj.size() } -> std::integral;
+        { obj.begin() } -> std::same_as<decltype(obj.end())>;
         { obj.begin() } -> std::input_iterator;
-        { obj.end() } -> std::input_iterator;
         
-        requires std::same_as<std::remove_reference_t<decltype(*(obj.begin()))>, RequiredData>;
+        requires std::same_as<std::decay_t<decltype(*(obj.begin()))>, RequiredData>;
     };
-    // { obj.begin() } -> std::same_as<decltype(obj.end())>;
 
     template <typename Container, typename RequiredData>
     concept isTwoDArr = requires(Container obj) {
@@ -45,7 +49,7 @@ namespace math::helper
         { obj.begin() } -> std::same_as<decltype(obj.end())>;
         { obj.begin() } -> std::input_iterator;
         
-        requires isOneDArr<std::remove_reference_t<decltype(*(obj.begin()))>, RequiredData>;
+        requires isOneDArr<std::decay_t<decltype(*(obj.begin()))>, RequiredData>;
     };
 
     template <typename T>

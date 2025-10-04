@@ -139,6 +139,7 @@ namespace math::matrix
         };
 
     // random access Iterator class.
+    // TO-DO modify for adjoint view.
     template <typename T>
     class RowIterator {
         public:
@@ -267,10 +268,16 @@ namespace math::matrix
             }
 
         public:
-            reference operator*() const noexcept {
+            reference operator*() noexcept {
                 return m_data[m_index / m_row_size][m_index % m_row_size];
             }
-            pointer operator->() const noexcept {
+            pointer operator->() noexcept {
+                return (m_data[m_index / m_row_size] + (m_index % m_row_size));
+            }
+            const reference operator*() const noexcept {
+                return m_data[m_index / m_row_size][m_index % m_row_size];
+            }
+            const pointer operator->() const noexcept {
                 return (m_data[m_index / m_row_size] + (m_index % m_row_size));
             }
 
@@ -344,23 +351,40 @@ namespace math::matrix
             }
 
         public:
-            RowIterator<T> begin() noexcept {
-                return RowIterator<T>(m_data);
+            T *begin() noexcept {
+                return m_data;
             }
-            RowIterator<T> end() noexcept {
-                return RowIterator<T>(m_data + m_row_len);
+            T *end() noexcept {
+                return m_data + m_row_len;
             }
-            const RowIterator<T> begin() const noexcept {
-                return RowIterator<T>(m_data);
+            const T *begin() const noexcept {
+                return m_data;
             }
-            const RowIterator<T> end() const noexcept {
-                return RowIterator<T>(m_data + m_row_len);
+            const T *end() const noexcept {
+                return m_data + m_row_len;
             }
-
+            
         public:
             size_t size() const noexcept {
-            return m_row_len;
-        }
+                return m_row_len;
+            }
+
+            bool is_same_as(const Row &other) const noexcept {
+                return ((this == &other) || ((m_data == other.m_data) && (m_row_len == other.m_row_len)));
+            }
+
+            bool operator==(const Row &other) const {
+                if (this == &other) return true;
+                if (this->is_same_as(other)) return true;
+                for (size_t i = 0; i < m_row_len; i++) {
+                    if (!math::helper::is_equal(m_data[i], other.m_data[i])) return false;
+                }
+                return true;
+            }
+
+            bool operator!=(const Row &other) const {
+                return !((*this)==other);
+            }
     };
 
     template <typename T>
@@ -472,4 +496,9 @@ namespace math::matrix
         shrink, expand, must_be_same
     };
     using CCR = ConstructContainerRule;
+
+    enum class ConstructSquareRule {
+        full, upper_half, lower_half, left_half, right_half, top_left_quarter, top_right_quarter, bottom_left_quarter, bottom_right_quarter, top_left_triangle, top_right_triangle, bottom_left_triangle, bottom_right_triangle, main_diagonal, off_diagonal
+    };
+    using CSR = ConstructSquareRule;
 }
