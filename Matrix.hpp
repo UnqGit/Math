@@ -21,7 +21,12 @@ namespace math
                 const size_t column = m_order.column();
                 m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
                 for (size_t i = 0; i < row; i++) {
-                    m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    try {
+                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err<T>(m_data, i);
+                        throw;
+                    }
                 }
                 if (construct_rule == math::matrix::CAR::possible_garbage) {
                     if constexpr (std::is_trivially_constructible_v<T>) return;
@@ -89,6 +94,11 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     try {
                         m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        throw;
+                    }
+                    try {
                         end = std::uninitialized_fill_n(m_data[i], column, to_copy);
                     } catch(...) {
                         math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
@@ -108,6 +118,11 @@ namespace math
                         m_data = static_cast<T**>(::operator new[](sizeof(T*)));
                         try {
                             m_data[0] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                        } catch(...) {
+                            math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
+                            throw;
+                        }
+                        try {
                             end = std::uninitialized_copy_n(data, size, m_data[0]);
                         } catch(...) {
                             math::matrix::impl::destroy_data_continuous<T>(m_data, 0, end, size);
@@ -120,6 +135,11 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T)));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
+                                throw;
+                            }
+                            try {
                                 std::construct_at(m_data[i], data[i]);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_continuous<T>(m_data, i, m_data[i], 1);
@@ -133,6 +153,11 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                throw;
+                            }
+                            try {
                                 if (zero_exists) {
                                     end = std::uninitialized_fill_n(m_data[i], i, math::helper::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + i, data[i]);
@@ -156,6 +181,11 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                throw;
+                            }
+                            try {
                                 if (zero_exists) {
                                     end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::helper::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + size - 1 - i, data[i]);
@@ -181,7 +211,12 @@ namespace math
                 T *end = nullptr;
                 m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
                 for (size_t i = 0; i < row; i++) {
-                    m_data = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    try {
+                        m_data = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        throw;
+                    }
                     try {
                         end = std::uninitialized_copy(data + i * column, data + (i + 1) * column, m_data[i]);
                     } catch(...) {
@@ -206,6 +241,11 @@ namespace math
                         m_data = static_cast<T**>(::operator new[](sizeof(T*)));
                         try {
                             m_data[0] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                        } catch(...) {
+                            math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
+                            throw;
+                        }
+                        try {
                             end = std::uninitialized_copy(arr.begin(), arr.end(), m_data[0]);
                         } catch(...) {
                             math::matrix::impl::destroy_data<T>(m_data, 0, end, 1, size);
@@ -218,10 +258,15 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T)));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
+                                throw;
+                            }
+                            try {
                                 end = std::construct_at(m_data[i], *Iter);
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, m_order.column());
+                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, 1);
                                 throw;
                             }
                         }
@@ -232,6 +277,11 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                throw;
+                            }
+                            try {
                                 if (zero_exists) {
                                     end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::helper::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + size - 1 - i, *Iter);
@@ -245,7 +295,7 @@ namespace math
                                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, m_order.column());
+                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
                             }
                         }
@@ -256,6 +306,11 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                throw;
+                            }
+                            try {
                                 if (zero_exists) {
                                     end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::helper::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + size - 1 - i, *Iter);
@@ -269,7 +324,7 @@ namespace math
                                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, m_order.row(), m_order.column());
+                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
                             }
                         }
@@ -292,6 +347,11 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     try {
                         m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        throw;
+                    }
+                    try {
                         j = 0;
                         while (j < column && Iter != IterEnd) {
                             std::construct_at(m_data[i] + j, *Iter);
@@ -327,6 +387,11 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     try {
                         m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        throw;
+                    }
+                    try {
                         end = std::uninitialized_copy(data[i], data[i] + column, m_data[i]);
                     } catch(...) {
                         math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
@@ -366,12 +431,17 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * row_size));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
+                                throw;
+                            }
+                            try {
                                 err_end = std::uninitialized_copy_n(Iter->begin(), row_size, m_data[i]);
+                                ++Iter;
                             } catch(...) {
                                 math::matrix::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
                                 throw;
                             }
-                            ++Iter;
                         }
                         return;
                     case math::matrix::CCR::must_be_same :
@@ -386,12 +456,17 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * row_size));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
+                                throw;
+                            }
+                            try {
                                 err_end = std::uninitialized_copy(Iter->begin(), Iter->end(), m_data[i]);
+                                ++Iter;
                             } catch(...) {
                                 math::matrix::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
                                 throw;
                             }
-                            ++Iter;
                         }
                         return;
                     case math::matrix::CCR::expand :
@@ -406,6 +481,11 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * row_size));
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
+                                throw;
+                            }
+                            try {
                                 end = std::uninitialized_copy(Iter->begin(), Iter->end(), m_data[i]);
                                 j = Iter->size();
                                 if (j != row_size) {
@@ -416,12 +496,12 @@ namespace math
                                         err_end = std::uninitialized_value_construct_n(m_data[i] + j, row_size - j);
                                     }
                                     else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                                    ++Iter;
                                 }
                             } catch(...) {
                                 math::matrix::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
                                 throw;
                             }
-                            ++Iter;
                         }
                         return;
                 }
@@ -435,6 +515,11 @@ namespace math
                 for (size_t i = 0; i < num_rows; i++) {
                     try {
                         m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * C));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, C);
+                        throw;
+                    }
+                    try {
                         end = std::uninitialized_copy(data[i], data[i] + C, m_data[i]);
                     } catch(...) {
                         math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, C);
@@ -545,6 +630,12 @@ namespace math
             bool is_column() const noexcept {
                 return m_order.is_column();
             }
+            bool is_tall() const noexcept {
+                return m_order.is_tall();
+            }
+            bool is_wide() const noexcept {
+                return m_order.is_wide();
+            }
             bool is_same_dimension(const Matrix &other) const noexcept {
                 return (m_order == other.m_order);
             }
@@ -560,13 +651,10 @@ namespace math
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot add matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
-                #pragma omp parallel for
+                #pragma omp parallel for collapse(2) schedule(static)
                 for (size_t i = 0; i < num_rows; i++) {
-                    T* first_row = m_data[i];
-                    T* second_row = other.m_data[i];
-                    #pragma omp parallel for
                     for (size_t j = 0; j < num_columns; j++) {
-                        first_row[j] += second_row[j];
+                        m_data[i][j] += other.m_data[i][j];
                     }
                 }
                 return *this;
@@ -582,13 +670,10 @@ namespace math
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot subtract matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
-                #pragma omp parallel for
+                #pragma omp parallel for collapse(2) schedule(static)
                 for (size_t i = 0; i < num_rows; i++) {
-                    T* first_row = m_data[i];
-                    T* second_row = other.m_data[i];
-                    #pragma omp parallel for
                     for (size_t j = 0; j < num_columns; j++) {
-                        first_row[j] -= second_row[j];
+                        m_data[i][j] -= other.m_data[i][j];
                     }
                 }
                 return *this;
@@ -614,14 +699,17 @@ namespace math
                 size_t d;
                 result.m_order = math::matrix::Order(row, column);
                 result.m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
-                #pragma omp parallel for
                 for (size_t i = 0; i < row; i++) {
                     try {
                         result.m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err_continuous<T>(result.m_data, i, column);
+                        throw;
+                    }
+                    try {
                         const T &cached = m_data[i][0];
                         const T *const cache_data = other.m_data[0];
                         T *const data = result.m_data[i];
-                        #pragma omp parallel for
                         for (d = 0; d < column; d++) {
                             std::construct_at(data + d, cached * cache_data[d]);
                         }
@@ -630,22 +718,35 @@ namespace math
                         throw;
                     }
                 }
-                #pragma omp parallel for
-                for (size_t i = 0; i < row; i++) {
-                    T *const data = result.m_data[i];
-                    #pragma omp parallel for
-                    for (size_t k = 1; k < this_column; k++) {
-                        const T &cached = m_data[i][k];
-                        const T *const other_cached = other.m_data[k];
-                        #pragma omp parallel for
-                        for (size_t j = 0; j < column; j++) {
-                            data[j] += cached * other_cached[j];
+                if (result.is_wide()) {
+                    for (size_t i = 0; i < row; i++) {
+                        T *const data = result.m_data[i];
+                        for (size_t k = 1; k < this_column; k++) {
+                            const T &cached = m_data[i][k];
+                            const T *const other_cached = other.m_data[k];
+                            #pragma omp parallel for
+                            for (size_t j = 0; j < column; j++) {
+                                data[j] += cached * other_cached[j];
+                            }
+                        }
+                    }
+                }
+                else {
+                    #pragma omp parallel for collapse(2)
+                    for (size_t i = 0; i < row; i++) {
+                        for (size_t k = 1; k < this_column; k++) {
+                            const T &cached = m_data[i][k];
+                            const T *other_cached = other.m_data[k];
+                            T *const data = result.m_data[i];
+                            for (size_t j = 0; j < column; j++) {
+                                data[j] += cached * other_cached[j];
+                            }
                         }
                     }
                 }
                 return result;
             }
-        
+
         public:
             math::matrix::MatrixOneDIterator<T> begin_one_d() noexcept {
                 return math::matrix::MatrixOneDIterator<T>(m_data, m_order.column());
@@ -671,6 +772,45 @@ namespace math
             }
             const math::matrix::MatrixIterator<T> end() const noexcept {
                 return math::matrix::MatrixIterator<T>(m_data + m_order.row(), m_order.column());
+            }
+    
+        public:
+            Matrix transpose() const {
+                Matrix result;
+                if (m_order.is_zero()) return result;
+                result.m_order = m_order.transpose();
+                const size_t row = m_order.column();
+                const size_t column = m_order.row();
+                result.m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                size_t j;
+                for (size_t i = 0; i < row; i++) {
+                    try {
+                        result.m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        T *data = result.m_data[i];
+                        for (j = 0; j < column; j++) {
+                            std::construct_at(data + j, m_data[j][i]);
+                        }
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_continuous<T>(result.m_data, i, result.m_data[i] + j, column);
+                        throw;
+                    }
+                }
+                return result;
+            }
+
+            Matrix &transpose_in_place() {
+                if (m_order.is_zero()) return *this;
+                if (m_order.is_square()) {
+                    const size_t size = m_order.row();
+                    #pragma omp parallel for collapse(2) schedule(static)
+                    for (size_t i = 0; i < size; i++) {
+                        for (size_t j = i + 1; j < size; j++) {
+                            std::swap(m_data[i][j], m_data[j][i]);
+                        }
+                    }
+                }
+                else *this = this->transpose();
+                return *this;
             }
     };
 }

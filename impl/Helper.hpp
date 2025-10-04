@@ -34,14 +34,17 @@ namespace math::helper
         { obj.size() } -> std::integral;
         { obj.begin() } -> std::input_iterator;
         { obj.end() } -> std::input_iterator;
-
-        requires std::same_as<std::remove_reference_t<decltype((*obj.begin()))>, RequiredData>;
+        
+        requires std::same_as<std::remove_reference_t<decltype(*(obj.begin()))>, RequiredData>;
     };
+    // { obj.begin() } -> std::same_as<decltype(obj.end())>;
 
     template <typename Container, typename RequiredData>
     concept isTwoDArr = requires(Container obj) {
         { obj.size() } -> std::integral;
         { obj.begin() } -> std::same_as<decltype(obj.end())>;
+        { obj.begin() } -> std::input_iterator;
+        
         requires isOneDArr<std::remove_reference_t<decltype(*(obj.begin()))>, RequiredData>;
     };
 

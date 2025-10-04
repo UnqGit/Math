@@ -3,6 +3,14 @@
         "concepts": "cpp",
         "utility": "cpp",
         "xutility": "cpp",
-        "memory": "cpp"
+        "memory": "cpp",
+        "any": "cpp",
+        "exception": "cpp",
+        "list": "cpp",
+        "optional": "cpp",
+        "tuple": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp"
     }
 }

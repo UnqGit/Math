@@ -7,19 +7,19 @@ namespace math::matrix::impl
 {
     // This is for when the memory is allocated in a separate loop and constructed in another.
     template <typename T>
-    void destroy_data(T **const data, const size_t curr_i, const T *const end_curr_i, const size_t row_size, const size_t col_size) {
+    void destroy_data(T **const data, const size_t curr_i, const T *const end_curr_i, const size_t num_row, const size_t row_size) {
         if constexpr (!std::is_trivially_destructible_v<T>) {
             for (size_t i = 0; i < curr_i; i++) {
-                std::destroy(data[i], data[i] + col_size);
+                std::destroy(data[i], data[i] + row_size);
                 ::operator delete[](data[i]);
             }
             std::destroy(data[curr_i], end_curr_i);
-            for (size_t i = curr_i; i < row_size; i++) {
+            for (size_t i = curr_i; i < num_row; i++) {
                 ::operator delete[](data[i]);
             }
         }
         else {
-            for (size_t i = 0; i < row_size; i++) {
+            for (size_t i = 0; i < num_row; i++) {
                 ::operator delete[](data[i]);
             }
         }
@@ -28,10 +28,10 @@ namespace math::matrix::impl
 
     // This is for when the memory is allocated and constructed in the same loop.
     template <typename T>
-    void destroy_data_continuous(T **const data, const size_t curr_i, const T *const end_curr_i, const size_t col_size) {
+    void destroy_data_continuous(T **const data, const size_t curr_i, const T *const end_curr_i, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) {
             if constexpr (!std::is_trivially_destructible_v<T>) {
-                std::destroy(data[i], data[i] + col_size);
+                std::destroy(data[i], data[i] + row_size);
             }
             ::operator delete[](data[i]);
         }
@@ -42,6 +42,24 @@ namespace math::matrix::impl
         ::operator delete[](data);
     }
 
+    // This is for when the error occurs in a pure memore allocation loop.
+    template <typename T>
+    void destroy_data_mem_err(T **const data, const size_t curr_i) {
+        for (size_t i = 0; i < curr_i; i++) {
+            ::operator delete[](data[i]);
+        }
+        ::operator delete[](data);
+    }
+
+    // This is for when the memory is being allocated continuously and is constructed in the same loop and the error occurs in the memory allocation.
+    template <typename T>
+    void destroy_data_mem_err_continuous(T **const data, const size_t curr_i, const size_t row_size) {
+        for (size_t i = 0; i < curr_i; i++) {
+            if constexpr (!std::is_trivially_destructible_v<T>) std::destroy(data[i], data[i] + row_size);
+            ::operator delete[](data[i]);
+        }
+        ::operator delete[](data);
+    }
 }
 
 namespace math::matrix
@@ -63,7 +81,6 @@ namespace math::matrix
             bool operator==(const Order &other) const noexcept {
                 return ((m_rows == other.m_rows) && (m_columns == other.m_columns));
             }
-
             bool operator!=(const Order &other) const noexcept {
                 return ((m_rows != other.m_rows) || (m_columns != other.m_columns));
             }
@@ -72,27 +89,21 @@ namespace math::matrix
             Order transpose() const noexcept {
                 return Order(m_columns, m_rows);
             }
-
             bool is_row() const noexcept {
                 return (m_columns == 1);
             }
-
             bool is_column() const noexcept {
                 return (m_rows == 1);
             }
-
             bool is_square() const noexcept {
                 return (m_rows == m_columns);
-            }
-        
+            }        
             bool is_zero() const noexcept {
                 return (m_rows == 0);
             }
-
             bool is_tall() const noexcept {
                 return (m_rows > m_columns);
             }
-
             bool is_wide() const noexcept {
                 return (m_rows < m_columns);
             }
@@ -101,11 +112,9 @@ namespace math::matrix
             size_t size() const noexcept {
                 return m_rows * m_columns;
             }
-
             size_t row() const noexcept {
                 return m_rows;
             }
-
             size_t column() const noexcept {
                 return m_columns;
             }
@@ -114,17 +123,14 @@ namespace math::matrix
             void flip() noexcept {
                 std::swap(m_rows, m_columns);
             }
-
             void swap(Order &other) noexcept {
                 std::swap(m_rows, other.m_rows);
                 std::swap(m_columns, other.m_columns);
             }
-
             void set_row(const size_t row) noexcept {
                 m_rows = row;
                 if (m_rows == 0) m_columns = 0;
-            }
-    
+            }  
             void set_column(const size_t column) noexcept {
                 m_columns = column;
                 if (m_columns == 0) m_rows = 0;
@@ -170,10 +176,16 @@ namespace math::matrix
             }
 
         public:
-            reference operator*() const noexcept {
+            reference operator*() noexcept {
                 return *m_ptr;
             }
-            pointer operator->() const noexcept {
+            pointer operator->() noexcept {
+                return m_ptr;
+            }
+            const reference operator*() const noexcept {
+                return *m_ptr;
+            }
+            const pointer operator->() const noexcept {
                 return m_ptr;
             }
             
@@ -227,7 +239,7 @@ namespace math::matrix
 
         private:
             T** m_data;
-            const size_t m_row_size;
+            size_t m_row_size;
             size_t m_index;
 
         public:
@@ -346,7 +358,7 @@ namespace math::matrix
             }
 
         public:
-        size_t size() const noexcept {
+            size_t size() const noexcept {
             return m_row_len;
         }
     };
@@ -362,7 +374,7 @@ namespace math::matrix
         
         private:
             T** m_data;
-            Row<T> m_cached_row;
+            value_type m_cached_row;
         
         public:
             MatrixIterator(T **data, const size_t row_size) noexcept : m_data(data), m_cached_row(Row<T>(*m_data, row_size)) {}
@@ -392,7 +404,13 @@ namespace math::matrix
             reference operator*() noexcept {
                 return m_cached_row;
             }
-            pointer operator->() const noexcept {
+            pointer operator->() noexcept {
+                return &m_cached_row;
+            }
+            const reference operator*() const noexcept {
+                return m_cached_row;
+            }
+            const pointer operator->() const noexcept {
                 return &m_cached_row;
             }
 
