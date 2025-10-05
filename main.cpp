@@ -15,11 +15,16 @@ int main(void) {
     using namespace math;
     using namespace math::matrix;
     std::cout << "Hello World!\n\n";
-    std::initializer_list<Matrix<int>> MatrixArr {
-        Matrix<int>(), Matrix<int>(Order(1, 2)), Matrix<int>(3), Matrix<int>(3, 5, CSR::right_half), Matrix<int>(Order(3, 2), CAR::possible_garbage), Matrix<int>(Order(3, 2), 4)
-    };
-    std::for_each(MatrixArr.begin(), MatrixArr.end(), [](const Matrix<int> &mat) {
-        print_matrix<int>(mat);
-    });
+    // std::initializer_list<Matrix<int>> MatrixArr {
+    //     Matrix<int>(), Matrix<int>(Order(1, 2)), Matrix<int>(3), Matrix<int>(3, 5, CSR::right_half), Matrix<int>(Order(3, 2), CAR::possible_garbage), Matrix<int>(Order(3, 2), 4)
+    // };
+    // std::for_each(MatrixArr.begin(), MatrixArr.end(), [](const Matrix<int> &mat) {
+    //     print_matrix<int>(mat);
+    // });
+    print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate));
+    print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate_row));
+    print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate_column));
+    print_matrix<int> (Matrix<int>(9, 7, 8));
+    std::cout << Matrix<int>(9, 7, 8).size() << "\n\n";
     std::cout << "Bye World!\n";
 }

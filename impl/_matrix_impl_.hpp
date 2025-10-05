@@ -330,7 +330,7 @@ namespace math::matrix
     };
 
     // Construction rules.
-    
+
     enum class ConstructAllocateRule {
         zero, possible_garbage
     };
@@ -347,7 +347,7 @@ namespace math::matrix
     using CCR = ConstructContainerRule;
 
     enum class ConstructSquareRule {
-        full, upper_half, lower_half, left_half, right_half, top_left_quarter, top_right_quarter, bottom_left_quarter, bottom_right_quarter, top_left_triangle, top_right_triangle, bottom_left_triangle, bottom_right_triangle, main_diagonal, off_diagonal
+        full, upper_half, lower_half, left_half, right_half, top_left_quarter, top_right_quarter, bottom_left_quarter, bottom_right_quarter, top_left_triangle, top_right_triangle, bottom_left_triangle, bottom_right_triangle, main_diagonal, off_diagonal, alternate, alternate_row, alternate_column
     };
     using CSR = ConstructSquareRule;
 }
