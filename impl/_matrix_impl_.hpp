@@ -288,7 +288,7 @@ namespace math::matrix
                 if (this == &other) return true;
                 if (this->is_same_as(other)) return true;
                 for (size_t i = 0; i < m_row_len; i++) {
-                    if (!math::helper::is_equal(m_data[i], other.m_data[i])) return false;
+                    if (!math::is_equal(m_data[i], other.m_data[i])) return false;
                 }
                 return true;
             }

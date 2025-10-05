@@ -17,7 +17,7 @@ namespace math
             Matrix() noexcept {}
             Matrix(const size_t size) : m_order(math::matrix::Order(size, size)) {
                 if (m_order.is_zero()) return;
-                const bool zero_exists = math::helper::zero_vals.exists_of<T>();
+                const bool zero_exists = math::zero_vals.exists_of<T>();
                 m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
                 T *end = nullptr;
                 if (zero_exists) {
@@ -29,7 +29,7 @@ namespace math
                             throw;
                         }
                         try{
-                            end = std::uninitialized_fill_n(m_data[i], size, math::helper::zero_vals.get_of<T>());
+                            end = std::uninitialized_fill_n(m_data[i], size, math::zero_vals.get_of<T>());
                         } catch(...) {
                             math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
                             throw;
@@ -242,9 +242,9 @@ namespace math
                 }
             }
             Matrix(const size_t size, const T &primary_value, const math::matrix::ConstructSquareRule construct_rule) {
-                const bool zero_exists = math::helper::zero_vals.exists_of<T>();
+                const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (zero_exists) {
-                    *this = Matrix(size, primary_value, math::helper::zero_vals.get_of<T>(), construct_rule);
+                    *this = Matrix(size, primary_value, math::zero_vals.get_of<T>(), construct_rule);
                     return;
                 }
                 else if constexpr (std::is_default_constructible_v<T>) {
@@ -281,8 +281,8 @@ namespace math
                         }
                         return;
                     }
-                    if (math::helper::zero_vals.exists_of<T>()) {
-                        const T zero_val(math::helper::zero_vals.get_of<T>());
+                    if (math::zero_vals.exists_of<T>()) {
+                        const T zero_val(math::zero_vals.get_of<T>());
                         T *end = nullptr;
                         for (size_t i = 0; i < row; i++) {
                             try {
@@ -308,8 +308,8 @@ namespace math
                     else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                 }
                 else {
-                    if (math::helper::zero_vals.exists_of<T>()) {
-                        T zero_val(math::helper::zero_vals.get_of<T>());
+                    if (math::zero_vals.exists_of<T>()) {
+                        T zero_val(math::zero_vals.get_of<T>());
                         T *end = nullptr;
                         for (size_t i = 0; i < row; i++) {
                             try {
@@ -320,7 +320,7 @@ namespace math
                             }
                         }
                     }
-                    else throw std::logic_error("The zero value is not stored of this type in math::helper::zero_vals hence can't zero construct the matrix.");
+                    else throw std::logic_error("The zero value is not stored of this type in math::zero_vals hence can't zero construct the matrix.");
                 }
             }
             Matrix(const size_t row, const size_t column, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : Matrix(math::matrix::Order(row, column), construct_rule) {}
@@ -351,7 +351,7 @@ namespace math
         public:
             Matrix(T *data, const size_t size, math::matrix::COR construct_rule = math::matrix::COR::horizontal) {
                 T *end = nullptr;
-                bool zero_exists = (math::helper::zero_vals.exists_of<T>());
+                bool zero_exists = (math::zero_vals.exists_of<T>());
                 switch (construct_rule) {
                     case math::matrix::COR::horizontal :
                         m_order = math::matrix::Order(1, size);
@@ -399,9 +399,9 @@ namespace math
                             }
                             try {
                                 if (zero_exists) {
-                                    end = std::uninitialized_fill_n(m_data[i], i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i], i, math::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + i, data[i]);
-                                    end = std::uninitialized_fill_n(m_data[i] + i + 1, size - 1 - i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i] + i + 1, size - 1 - i, math::zero_vals.get_of<T>());
                                 }
                                 else if constexpr (std::is_default_constructible_v<T>) {
                                     end = std::uninitialized_value_construct_n(m_data[i], i);
@@ -427,9 +427,9 @@ namespace math
                             }
                             try {
                                 if (zero_exists) {
-                                    end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + size - 1 - i, data[i]);
-                                    end = std::uninitialized_fill_n(m_data[i] + size - i, i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i] + size - i, i, math::zero_vals.get_of<T>());
                                 }
                                 else if constexpr (std::is_default_constructible_v<T>) {
                                     end = std::uninitialized_value_construct_n(m_data[i], size - 1 - i);
@@ -468,13 +468,67 @@ namespace math
             Matrix(T *data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
 
         public:
+            Matrix(T *data, const size_t size, const math::matrix::Order &order) : m_order(order) {
+                if (m_order.is_zero()) return;
+                if (size <= m_order.size()) {
+                    *this = Matrix(data, m_order);
+                    return;
+                }
+                const size_t row = m_order.row();
+                const size_t column = m_order.column();
+                T *end = nullptr;
+                const bool zero_exists = math::zero_vals.exists_of<T>();
+                size_t constructed_items = 0, j;
+                m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                for (size_t i = 0; i < row; i++) {
+                    try {
+                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                    } catch(...) {
+                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        throw;
+                    }
+                    j = 0;
+                    while (constructed_items <= size && j < column) {
+                        try {
+                            std::construct_at(m_data[i] + j, data[constructed_items]);
+                        } catch(...) {
+                            math::matrix::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
+                            throw;
+                        }
+                        ++j;
+                        ++constructed_items;
+                    }
+                    if (j < column) {
+                        if (zero_exists) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i] + j, column - j, math::zero_vals.get_of<T>());
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
+                                throw;
+                            }
+                        }
+                        else if constexpr (std::is_default_constructible_v<T>) {
+                            try {
+                                end = std::uninitialized_value_construct_n(m_data[i] + j, column - j, T{});
+                            } catch(...) {
+                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
+                                throw;
+                            }
+                        }
+                        else throw std::logic_error("Cannot construct using the array provided since it's size is smaller then the order provided and the type is not default constructible and it's zero value is not stored in the math::zero_vals.");
+                    }
+                }
+            }
+            Matrix(T *data, const size_t size, const size_t row, const size_t column) : Matrix(data, size, math::matrix::Order(row, column)) {}
+
+        public:
             template <typename U>
             requires math::helper::isOneDArr<U, T>
             Matrix(const U &arr, math::matrix::COR construct_rule = math::matrix::COR::horizontal) {
                 T *end = nullptr;
                 const size_t size = arr.size();
                 auto Iter = arr.begin();
-                bool zero_exists = math::helper::zero_vals.exists_of<T>();
+                bool zero_exists = math::zero_vals.exists_of<T>();
                 switch (construct_rule) {
                     case math::matrix::COR::horizontal :
                         m_order = math::matrix::Order(1, size);
@@ -523,9 +577,9 @@ namespace math
                             }
                             try {
                                 if (zero_exists) {
-                                    end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + size - 1 - i, *Iter);
-                                    end = std::uninitialized_fill_n(m_data[i] + size - i, i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i] + size - i, i, math::zero_vals.get_of<T>());
                                 }
                                 else if constexpr (std::is_default_constructible_v<T>) {
                                     end = std::uninitialized_value_construct_n(m_data[i], size - 1 - i);
@@ -552,9 +606,9 @@ namespace math
                             }
                             try {
                                 if (zero_exists) {
-                                    end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i], size - 1 - i, math::zero_vals.get_of<T>());
                                     end = std::construct_at(m_data[i] + size - 1 - i, *Iter);
-                                    end = std::uninitialized_fill_n(m_data[i] + size - i, i, math::helper::zero_vals.get_of<T>());
+                                    end = std::uninitialized_fill_n(m_data[i] + size - i, i, math::zero_vals.get_of<T>());
                                 }
                                 else if constexpr (std::is_default_constructible_v<T>) {
                                     end = std::uninitialized_value_construct_n(m_data[i], size - 1 - i);
@@ -578,7 +632,7 @@ namespace math
                 const size_t column = m_order.column();
                 const size_t size = arr.size();
                 const size_t min = std::min(size, m_order.size());
-                const bool zero_exists = math::helper::zero_vals.exists_of<T>();
+                const bool zero_exists = math::zero_vals.exists_of<T>();
                 auto Iter = arr.begin();
                 const auto IterEnd = arr.end();
                 T *end = nullptr;
@@ -601,7 +655,7 @@ namespace math
                         end = m_data[i] + j;
                         if (j != column) {
                             if (zero_exists) {
-                                end = std::uninitialized_fill_n(m_data[i] + j, column - j, math::helper::zero_vals.get_of<T>());
+                                end = std::uninitialized_fill_n(m_data[i] + j, column - j, math::zero_vals.get_of<T>());
                             }
                             else if constexpr (std::is_default_constructible_v<T>) {
                                 end = std::uninitialized_value_construct_n(m_data[i] + j, column - j);
@@ -654,7 +708,7 @@ namespace math
                 size_t row_size;
                 auto Iter = arr.begin();
                 auto end = arr.end();
-                const bool zero_exists = math::helper::zero_vals.exists_of<T>();
+                const bool zero_exists = math::zero_vals.exists_of<T>();
                 T *err_end = nullptr;
                 size_t j;
                 switch (construct_rule) {
@@ -730,7 +784,7 @@ namespace math
                                 j = Iter->size();
                                 if (j != row_size) {
                                     if (zero_exists) {
-                                        err_end = std::uninitialized_fill_n(m_data[i] + j, row_size - j, math::helper::zero_vals.get_of<T>());
+                                        err_end = std::uninitialized_fill_n(m_data[i] + j, row_size - j, math::zero_vals.get_of<T>());
                                     }
                                     else if constexpr (std::is_default_constructible_v<T>) {
                                         err_end = std::uninitialized_value_construct_n(m_data[i] + j, row_size - j);
@@ -887,7 +941,7 @@ namespace math
             }
         
         public:
-            Matrix &operator+=(const Matrix &other) requires math::helper::isAdditionPossible<T> {
+            Matrix &operator+=(const Matrix &other) requires math::isAdditionPossible<T> {
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot add matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
@@ -900,13 +954,13 @@ namespace math
                 return *this;
             }
 
-            Matrix operator+(const Matrix &other) const requires math::helper::isAdditionPossible<T> {
+            Matrix operator+(const Matrix &other) const requires math::isAdditionPossible<T> {
                 Matrix temp(*this);
                 temp += other;
                 return temp;
             }
 
-            Matrix &operator-=(const Matrix &other) requires math::helper::isSubtractionPossible<T> {
+            Matrix &operator-=(const Matrix &other) requires math::isSubtractionPossible<T> {
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot subtract matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
@@ -919,17 +973,17 @@ namespace math
                 return *this;
             }
 
-            Matrix operator-(const Matrix &other) const requires math::helper::isSubtractionPossible<T> {
+            Matrix operator-(const Matrix &other) const requires math::isSubtractionPossible<T> {
                 Matrix temp(*this);
                 return (temp -= other);
             }
 
-            Matrix &operator*=(const Matrix &other) requires math::helper::isMultiplicationPossible<T> && math::helper::isAdditionPossible<T> {
+            Matrix &operator*=(const Matrix &other) requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
                 *this = *this * other;
                 return *this;
             }
 
-            Matrix operator*(const Matrix &other) const requires math::helper::isMultiplicationPossible<T> && math::helper::isAdditionPossible<T> {
+            Matrix operator*(const Matrix &other) const requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
                 if (!is_multipliable_dimension(other)) throw std::invalid_argument("Cannot multiply the matrices because the number of columns in first does not match the number of rows in the second.");
                 Matrix result;
                 if (m_order.is_zero()) return result;
@@ -1063,12 +1117,12 @@ namespace math
             }
     
         public:
-            T trace() const requires math::helper::isAdditionPossible<T> {
+            T trace() const requires math::isAdditionPossible<T> {
                 if (!(this->is_square())) throw std::logic_error("Cannot find trace of a non square matrix.");
-                const bool zero_exists = math::helper::zero_vals.exists_of<T>();
+                const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (m_order.is_zero()) {
                     if (zero_exists) {
-                        return math::helper::zero_vals.get_of<T>();
+                        return math::zero_vals.get_of<T>();
                     }
                     else if constexpr (std::is_default_constructible_v<T>) {
                         return T{};
@@ -1078,7 +1132,7 @@ namespace math
                 const size_t size = m_order.row();
                 if constexpr (std::is_copy_constructible_v<T>) {
                     if (zero_exists) {
-                        T result(math::helper::zero_vals.get_of<T>());
+                        T result(math::zero_vals.get_of<T>());
                         for (size_t i = 0; i < size; i++) {
                             result += m_data[i][i];
                         }
@@ -1102,13 +1156,13 @@ namespace math
                 else throw std::logic_error("Cannot provide the trace of the matrix because it is not copy constructible for storing initial zero/default value and is neither default constructible.");
             }
 
-            bool is_null() const requires math::helper::isEqualityOperationPossible<T> {
-                const bool zero_exists = math::helper::zero_vals.exists_of<T>();
+            bool is_null() const requires math::isEqualityOperationPossible<T> {
+                const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (zero_exists) {
-                    const T &to_check_from = math::helper::zero_vals.get_of<T>();
+                    const T &to_check_from = math::zero_vals.get_of<T>();
                     for (const auto &row : *this) {
                         for (const auto &elem : row) {
-                            if (!math::helper::is_equal(to_check_from, elem)) return false;
+                            if (!math::is_equal(to_check_from, elem)) return false;
                         }
                     }
                     return true;
@@ -1117,40 +1171,40 @@ namespace math
                     T to_check_from{};
                     for (const auto &row : *this) {
                         for (const auto &elem : row) {
-                            if (!math::helper::is_equal(to_check_from, elem)) return false;
+                            if (!math::is_equal(to_check_from, elem)) return false;
                         }
                     }
                     return true;
                 }
-                else throw std::logic_error("Cannot check for is_null property of the matrix as the zero value(stored in math::helper::zero_vals or defautlt construction for the type) is not defined.");
+                else throw std::logic_error("Cannot check for is_null property of the matrix as the zero value(stored in math::zero_vals or defautlt construction for the type) is not defined.");
             }
             
-            bool are_all_same_as(const T &to_check_from) const requires math::helper::isEqualityOperationPossible<T> {
+            bool are_all_same_as(const T &to_check_from) const requires math::isEqualityOperationPossible<T> {
                 for (const auto &row : *this) {
                     for (const auto &elem : row) {
-                        if (!math::helper::is_equal(to_check_from, elem)) return false;
+                        if (!math::is_equal(to_check_from, elem)) return false;
                     }
                 }
                 return true;
             }
 
-            bool are_all_same() const requires math::helper::isEqualityOperationPossible<T> {
+            bool are_all_same() const requires math::isEqualityOperationPossible<T> {
                 if (m_order.size() < 2) return true;
                 const auto end = this->end_one_d() - 1;
                 for (auto it = this->begin_one_d(); it != end; ) {
-                    if (!math::helper::is_equal(*it, *(++it))) return false;
+                    if (!math::is_equal(*it, *(++it))) return false;
                 }
                 return true;
             }
 
-            size_t count(const T &to_find) const requires math::helper::isEqualityOperationPossible<T> {
+            size_t count(const T &to_find) const requires math::isEqualityOperationPossible<T> {
                 size_t result{};
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
                 #pragma omp parallel for collapse(2) schedule(static) reduction(+:result)
                 for (size_t i = 0; i < row; i++) {
                     for (size_t j = 0; j < column; j++) {
-                        result += math::helper::is_equal(to_find, m_data[i][j]);
+                        result += math::is_equal(to_find, m_data[i][j]);
                     }
                 }
                 return result;
@@ -1167,7 +1221,7 @@ namespace math
                     const T *const this_cache_data = m_data[r];
                     const T *const other_cache_data = other.m_data[r];
                     for (size_t c = 0; c < column; c++) {
-                        if (!math::helper::is_equal(this_cache_data[c], other_cache_data[c])) return false;
+                        if (!math::is_equal(this_cache_data[c], other_cache_data[c])) return false;
                     }
                 }
                 return true;

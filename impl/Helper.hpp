@@ -3,7 +3,7 @@
 
 #include "Headers.hpp"
 
-namespace math::helper
+namespace math
 {
     template <typename T>
     concept ProperEquality = requires(const T &a, const T &b) {
@@ -31,24 +31,8 @@ namespace math::helper
 
     template <typename T>
     concept isEqualityOperationPossible = requires(const T &a, const T &b) {
-        { math::helper::is_equal(a, b) } -> std::same_as<bool>;
+        { math::is_equal(a, b) } -> std::same_as<bool>;
     };
-
-    template <typename Container, typename RequiredData>
-    concept isOneDArr =
-        std::ranges::sized_range<Container> &&
-        std::same_as<
-            std::decay_t<std::ranges::range_value_t<Container>>,
-            std::decay_t<RequiredData>
-        >;
-
-    template <typename Container, typename RequiredData>
-    concept isTwoDArr =
-        std::ranges::sized_range<Container> &&
-        isOneDArr<
-            std::decay_t<std::ranges::range_value_t<Container>>,
-            RequiredData
-        >;
 
     template <typename T>
     concept isAdditionPossible = requires(T a, T b) {
@@ -158,4 +142,25 @@ namespace math::helper
             }
     };
     ZeroValueHolder& zero_vals = ZeroValueHolder::instance();
+}
+
+namespace math::helper
+{
+    
+    template <typename Container, typename RequiredData>
+    concept isOneDArr =
+        std::ranges::sized_range<Container> &&
+        std::same_as<
+            std::decay_t<std::ranges::range_value_t<Container>>,
+            std::decay_t<RequiredData>
+        >;
+
+    template <typename Container, typename RequiredData>
+    concept isTwoDArr =
+        std::ranges::sized_range<Container> &&
+        isOneDArr<
+            std::decay_t<std::ranges::range_value_t<Container>>,
+            RequiredData
+        >;
+
 }
