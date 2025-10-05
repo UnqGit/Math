@@ -67,14 +67,14 @@ namespace math::memory::impl
     template <typename T>
     void destroy_data_mem_err(T** &data, const size_t curr_i) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], 0);
-        free_memory<T>(data, 0);
+        free_memory<T*>(data, 0);
     }
 
     // This is for when the memory is being allocated continuously and is constructed in the same loop and the error occurs in the memory allocation.
     template <typename T>
     void destroy_data_mem_err_continuous(T** &data, const size_t curr_i, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
-        free_memory<T>(data, 0);
+        free_memory<T*>(data, 0);
     }
 
     // This is for when the memory is allocated in a separate loop and constructed in another.
@@ -83,7 +83,7 @@ namespace math::memory::impl
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
         free_memory<T>(data[curr_i], end_curr_i - data[curr_i]);
         for (size_t i = curr_i + 1; i < num_row; i++) free_memory<T>(data[i], row_size);
-        free_memory<T>(data, 0);
+        free_memory<T*>(data, 0);
     }
 
     // This is for when the memory is allocated and constructed in the same loop.
@@ -91,6 +91,6 @@ namespace math::memory::impl
     void destroy_data_continuous(T** &data, const size_t curr_i, const T *const end_curr_i, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
         free_memory<T>(data[curr_i], 0);
-        free_memory<T>(data, 0);
+        free_memory<T*>(data, 0);
     }
 }

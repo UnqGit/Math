@@ -4,6 +4,7 @@
 #include ".\impl\Headers.hpp"
 #include ".\impl\Helper.hpp"
 #include ".\impl\_matrix_impl_.hpp"
+#include ".\impl\_memory_alloc_.hpp"
 
 namespace math
 {
@@ -25,13 +26,13 @@ namespace math
                         try {
                             m_data[i] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
-                            math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                            math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                             throw;
                         }
                         try{
                             end = std::uninitialized_fill_n(m_data[i], size, math::zero_vals.get_of<T>());
                         } catch(...) {
-                            math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
+                            math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                             throw;
                         }
                     }
@@ -42,13 +43,13 @@ namespace math
                         try {
                             m_data[i] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
-                            math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                            math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                             throw;
                         }
                         try{
                             end = std::uninitialized_value_construct_n(m_data[i], size);
                         } catch(...) {
-                            math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
+                            math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                             throw;
                         }
                     }
@@ -74,7 +75,7 @@ namespace math
                     try {
                         m_data[i] = math::memory::impl::allocate_memory<T>(size);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err<T>(m_data, i);
+                        math::memory::impl::destroy_data_mem_err<T>(m_data, i);
                         throw;
                     }
                 }
@@ -84,7 +85,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size, primary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -94,7 +95,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size, primary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -102,7 +103,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -113,7 +114,7 @@ namespace math
                                 end = std::uninitialized_fill_n(m_data[i], size / 2, primary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T> (m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T> (m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -124,7 +125,7 @@ namespace math
                                 end = std::uninitialized_fill_n(m_data[i], size - i, primary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + size - i, i, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -135,7 +136,7 @@ namespace math
                                 end = std::uninitialized_fill_n(m_data[i] + i, size - i, primary_value);
                                 end = std::uninitialized_fill_n(m_data[i], i, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -147,7 +148,7 @@ namespace math
                                 end = std::construct_at(m_data[i] + i, primary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + i + 1, size - 1 - i, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -159,7 +160,7 @@ namespace math
                                 end = std::construct_at(m_data[i] + size - 1 - i, primary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + size - i, i, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                             }
                         }
                         return;
@@ -169,7 +170,7 @@ namespace math
                                 end = std::uninitialized_fill_n(m_data[i], size / 2, primary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -177,7 +178,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -188,7 +189,7 @@ namespace math
                                 end = std::uninitialized_fill_n(m_data[i], size / 2, secondary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, primary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -196,7 +197,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -206,7 +207,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -215,7 +216,7 @@ namespace math
                                 end = std::uninitialized_fill_n(m_data[i], size / 2, primary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -225,7 +226,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -234,7 +235,7 @@ namespace math
                                 end = std::uninitialized_fill_n(m_data[i], size / 2, secondary_value);
                                 end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, primary_value);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, size, size);
                                 throw;
                             }
                         }
@@ -263,7 +264,7 @@ namespace math
                     try {
                         m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err<T>(m_data, i);
+                        math::memory::impl::destroy_data_mem_err<T>(m_data, i);
                         throw;
                     }
                 }
@@ -275,7 +276,7 @@ namespace math
                             try {
                                 end = std::uninitialized_value_construct_n(m_data[i], column);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, row, column);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, row, column);
                                 throw;
                             }
                         }
@@ -288,7 +289,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], column, zero_val);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, row, column);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, row, column);
                                 throw;
                             }
                         }
@@ -300,7 +301,7 @@ namespace math
                             try {
                                 end = std::uninitialized_value_construct_n(m_data[i], column);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, row, column);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, row, column);
                                 throw;
                             }
                         }
@@ -315,7 +316,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], column, zero_val);
                             } catch(...) {
-                                math::matrix::impl::destroy_data<T>(m_data, i, end, row, column);
+                                math::memory::impl::destroy_data<T>(m_data, i, end, row, column);
                                 throw;
                             }
                         }
@@ -335,13 +336,13 @@ namespace math
                     try {
                         m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
                     }
                     try {
                         end = std::uninitialized_fill_n(m_data[i], column, to_copy);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
+                        math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
                         throw;
                     }
                 }
@@ -359,13 +360,13 @@ namespace math
                         try {
                             m_data[0] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
-                            math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
+                            math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
                             throw;
                         }
                         try {
                             end = std::uninitialized_copy_n(data, size, m_data[0]);
                         } catch(...) {
-                            math::matrix::impl::destroy_data_continuous<T>(m_data, 0, end, size);
+                            math::memory::impl::destroy_data_continuous<T>(m_data, 0, end, size);
                             throw;
                         }
                         break;
@@ -376,13 +377,13 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(1);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
                                 throw;
                             }
                             try {
                                 std::construct_at(m_data[i], data[i]);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, m_data[i], 1);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i], 1);
                                 throw;
                             }
                         }
@@ -394,7 +395,7 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
                             }
                             try {
@@ -410,7 +411,7 @@ namespace math
                                 }
                                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
                             }
                         }
@@ -422,7 +423,7 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
                             }
                             try {
@@ -438,7 +439,7 @@ namespace math
                                 }
                                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
                             }
                         }
@@ -454,13 +455,13 @@ namespace math
                     try {
                         m_data = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
                     }
                     try {
                         end = std::uninitialized_copy(data + i * column, data + (i + 1) * column, m_data[i]);
                     } catch(...) {
-                        math::matrix::impl::destroy_data<T>(m_data, i, end, row, column);
+                        math::memory::impl::destroy_data<T>(m_data, i, end, row, column);
                         throw;
                     }
                 }
@@ -484,7 +485,7 @@ namespace math
                     try {
                         m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
                     }
                     j = 0;
@@ -492,7 +493,7 @@ namespace math
                         try {
                             std::construct_at(m_data[i] + j, data[constructed_items]);
                         } catch(...) {
-                            math::matrix::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
+                            math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
                             throw;
                         }
                         ++j;
@@ -503,7 +504,7 @@ namespace math
                             try {
                                 end = std::uninitialized_fill_n(m_data[i] + j, column - j, math::zero_vals.get_of<T>());
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
                                 throw;
                             }
                         }
@@ -511,7 +512,7 @@ namespace math
                             try {
                                 end = std::uninitialized_value_construct_n(m_data[i] + j, column - j, T{});
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
                                 throw;
                             }
                         }
@@ -536,13 +537,13 @@ namespace math
                         try {
                             m_data[0] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
-                            math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
+                            math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
                             throw;
                         }
                         try {
                             end = std::uninitialized_copy(arr.begin(), arr.end(), m_data[0]);
                         } catch(...) {
-                            math::matrix::impl::destroy_data<T>(m_data, 0, end, 1, size);
+                            math::memory::impl::destroy_data<T>(m_data, 0, end, 1, size);
                             throw;
                         }
                         return;
@@ -553,14 +554,14 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(1);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
                                 throw;
                             }
                             try {
                                 end = std::construct_at(m_data[i], *Iter);
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, 1);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, 1);
                                 throw;
                             }
                         }
@@ -572,7 +573,7 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
                             }
                             try {
@@ -589,7 +590,7 @@ namespace math
                                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
                             }
                         }
@@ -601,7 +602,7 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
                             }
                             try {
@@ -618,7 +619,7 @@ namespace math
                                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, size);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
                             }
                         }
@@ -642,7 +643,7 @@ namespace math
                     try {
                         m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
                     }
                     try {
@@ -663,7 +664,7 @@ namespace math
                             else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
                         }
                     } catch(...) {
-                        math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
+                        math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
                         throw;
                     }
                 }
@@ -682,13 +683,13 @@ namespace math
                     try {
                         m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
                     }
                     try {
                         end = std::uninitialized_copy(data[i], data[i] + column, m_data[i]);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, column);
+                        math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
                         throw;
                     }
                 }
@@ -726,14 +727,14 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(row_size);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
                                 throw;
                             }
                             try {
                                 err_end = std::uninitialized_copy_n(Iter->begin(), row_size, m_data[i]);
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
                                 throw;
                             }
                         }
@@ -751,14 +752,14 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(row_size);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
                                 throw;
                             }
                             try {
                                 err_end = std::uninitialized_copy(Iter->begin(), Iter->end(), m_data[i]);
                                 ++Iter;
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
                                 throw;
                             }
                         }
@@ -776,7 +777,7 @@ namespace math
                             try {
                                 m_data[i] = math::memory::impl::allocate_memory<T>(row_size);
                             } catch(...) {
-                                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
                                 throw;
                             }
                             try {
@@ -793,7 +794,7 @@ namespace math
                                     ++Iter;
                                 }
                             } catch(...) {
-                                math::matrix::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
+                                math::memory::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
                                 throw;
                             }
                         }
@@ -810,13 +811,13 @@ namespace math
                     try {
                         m_data[i] = math::memory::impl::allocate_memory<T>(C);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, C);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, C);
                         throw;
                     }
                     try {
                         end = std::uninitialized_copy(data[i], data[i] + C, m_data[i]);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_continuous<T>(m_data, i, end, C);
+                        math::memory::impl::destroy_data_continuous<T>(m_data, i, end, C);
                         throw;
                     }
                 }
@@ -844,7 +845,7 @@ namespace math
 
         public:
             ~Matrix() {
-                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, m_order.row(), m_order.column());
+                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, m_order.row(), m_order.column());
             }
 
         public:
@@ -984,7 +985,7 @@ namespace math
                     try {
                         result.m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(result.m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(result.m_data, i, column);
                         throw;
                     }
                     try {
@@ -995,7 +996,7 @@ namespace math
                             std::construct_at(data + d, cached * cache_data[d]);
                         }
                     } catch(...) {
-                        math::matrix::impl::destroy_data_continuous<T>(result.m_data, i, result.m_data[i] + d, column);
+                        math::memory::impl::destroy_data_continuous<T>(result.m_data, i, result.m_data[i] + d, column);
                         throw;
                     }
                 }
@@ -1068,7 +1069,7 @@ namespace math
                     try {
                         result.m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
                     }
                     try {
@@ -1077,7 +1078,7 @@ namespace math
                             std::construct_at(data + j, m_data[j][i]);
                         }
                     } catch(...) {
-                        math::matrix::impl::destroy_data_continuous<T>(result.m_data, i, result.m_data[i] + j, column);
+                        math::memory::impl::destroy_data_continuous<T>(result.m_data, i, result.m_data[i] + j, column);
                         throw;
                     }
                 }

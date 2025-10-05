@@ -5,6 +5,7 @@
 
 namespace math::matrix
 {
+    // A lightweight wrapper on two size_t's.
     class Order {
         private:
             size_t m_rows, m_columns;
@@ -239,6 +240,7 @@ namespace math::matrix
             }
     };
 
+    // Iterator for the matrix class.
     template <typename T>
     class MatrixIterator {
         public:
@@ -327,6 +329,8 @@ namespace math::matrix
             }
     };
 
+    // Construction rules.
+    
     enum class ConstructAllocateRule {
         zero, possible_garbage
     };
