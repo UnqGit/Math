@@ -18,8 +18,8 @@ int main(void) {
     std::initializer_list<Matrix<int>> MatrixArr {
         Matrix<int>(), Matrix<int>(Order(1, 2)), Matrix<int>(3), Matrix<int>(3, 5, CSR::right_half), Matrix<int>(Order(3, 2), CAR::possible_garbage), Matrix<int>(Order(3, 2), 4)
     };
-    std::for_each(MatrixArr.begin(), MatrixArr.end(), [](const Matrix<int> &mat) {
-        print_matrix<int>(mat);
-    });
+    // std::for_each(MatrixArr.begin(), MatrixArr.end(), [](const Matrix<int> &mat) {
+    //     print_matrix<int>(mat);
+    // });
     std::cout << "Bye World!\n";
 }

@@ -3,65 +3,6 @@
 
 #include "Headers.hpp"
 
-namespace math::matrix::impl
-{
-    // This is for when the memory is allocated in a separate loop and constructed in another.
-    template <typename T>
-    void destroy_data(T **const data, const size_t curr_i, const T *const end_curr_i, const size_t num_row, const size_t row_size) {
-        if constexpr (!std::is_trivially_destructible_v<T>) {
-            for (size_t i = 0; i < curr_i; i++) {
-                std::destroy(data[i], data[i] + row_size);
-                ::operator delete[](data[i]);
-            }
-            std::destroy(data[curr_i], end_curr_i);
-            for (size_t i = curr_i; i < num_row; i++) {
-                ::operator delete[](data[i]);
-            }
-        }
-        else {
-            for (size_t i = 0; i < num_row; i++) {
-                ::operator delete[](data[i]);
-            }
-        }
-        ::operator delete[](data);
-    }
-
-    // This is for when the memory is allocated and constructed in the same loop.
-    template <typename T>
-    void destroy_data_continuous(T **const data, const size_t curr_i, const T *const end_curr_i, const size_t row_size) {
-        for (size_t i = 0; i < curr_i; i++) {
-            if constexpr (!std::is_trivially_destructible_v<T>) {
-                std::destroy(data[i], data[i] + row_size);
-            }
-            ::operator delete[](data[i]);
-        }
-        if constexpr (!std::is_trivially_destructible_v<T>) {
-            std::destroy(data[curr_i], end_curr_i);
-        }
-        ::operator delete[](data[curr_i]);
-        ::operator delete[](data);
-    }
-
-    // This is for when the error occurs in a pure memore allocation loop.
-    template <typename T>
-    void destroy_data_mem_err(T **const data, const size_t curr_i) {
-        for (size_t i = 0; i < curr_i; i++) {
-            ::operator delete[](data[i]);
-        }
-        ::operator delete[](data);
-    }
-
-    // This is for when the memory is being allocated continuously and is constructed in the same loop and the error occurs in the memory allocation.
-    template <typename T>
-    void destroy_data_mem_err_continuous(T **const data, const size_t curr_i, const size_t row_size) {
-        for (size_t i = 0; i < curr_i; i++) {
-            if constexpr (!std::is_trivially_destructible_v<T>) std::destroy(data[i], data[i] + row_size);
-            ::operator delete[](data[i]);
-        }
-        ::operator delete[](data);
-    }
-}
-
 namespace math::matrix
 {
     class Order {

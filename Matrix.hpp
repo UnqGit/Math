@@ -18,12 +18,12 @@ namespace math
             Matrix(const size_t size) : m_order(math::matrix::Order(size, size)) {
                 if (m_order.is_zero()) return;
                 const bool zero_exists = math::zero_vals.exists_of<T>();
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                m_data = math::memory::impl::allocate_memory<T*>(size);
                 T *end = nullptr;
                 if (zero_exists) {
                     for (size_t i = 0; i < size; i++) {
                         try {
-                            m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            m_data[i] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
                             math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                             throw;
@@ -40,7 +40,7 @@ namespace math
                 else if constexpr (std::is_default_constructible_v<T>) {
                     for (size_t i = 0; i < size; i++) {
                         try {
-                            m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            m_data[i] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
                             math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                             throw;
@@ -68,11 +68,11 @@ namespace math
                     case math::matrix::CSR::bottom_left_triangle :
                         *this = Matrix(size, secondary_value, primary_value, math::matrix::CSR::top_right_triangle); return;
                 }
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                m_data = math::memory::impl::allocate_memory<T*>(size);
                 T *end = nullptr;
                 for (size_t i = 0; i < size; i++) {
                     try {
-                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                        m_data[i] = math::memory::impl::allocate_memory<T>(size);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err<T>(m_data, i);
                         throw;
@@ -258,10 +258,10 @@ namespace math
             Matrix(const math::matrix::Order &order, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : m_order(order) {
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err<T>(m_data, i);
                         throw;
@@ -329,11 +329,11 @@ namespace math
             Matrix(const math::matrix::Order &order, const T &to_copy) : m_order(order) {
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                m_data = math::memory::impl::allocate_memory<T*>(row);
                 T *end = nullptr;
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
@@ -355,9 +355,9 @@ namespace math
                 switch (construct_rule) {
                     case math::matrix::COR::horizontal :
                         m_order = math::matrix::Order(1, size);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*)));
+                        m_data = math::memory::impl::allocate_memory<T*>(1);
                         try {
-                            m_data[0] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            m_data[0] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
                             math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
                             throw;
@@ -371,10 +371,10 @@ namespace math
                         break;
                     case math::matrix::COR::vertical :
                         m_order = math::matrix::Order(size, 1);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T)));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(1);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
                                 throw;
@@ -388,11 +388,11 @@ namespace math
                         }
                         break;
                     case math::matrix::COR::main_diagonal :
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         m_order = math::matrix::Order(size, size);
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
@@ -416,11 +416,11 @@ namespace math
                         }
                         break;
                     case math::matrix::COR::off_diagonal :
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         m_order = math::matrix::Order(size, size);
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
@@ -449,10 +449,10 @@ namespace math
                 const size_t row = order.row();
                 const size_t column = order.column();
                 T *end = nullptr;
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        m_data = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        m_data = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
@@ -479,10 +479,10 @@ namespace math
                 T *end = nullptr;
                 const bool zero_exists = math::zero_vals.exists_of<T>();
                 size_t constructed_items = 0, j;
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
@@ -532,9 +532,9 @@ namespace math
                 switch (construct_rule) {
                     case math::matrix::COR::horizontal :
                         m_order = math::matrix::Order(1, size);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*)));
+                        m_data = math::memory::impl::allocate_memory<T*>(1);
                         try {
-                            m_data[0] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                            m_data[0] = math::memory::impl::allocate_memory<T>(size);
                         } catch(...) {
                             math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, 0, size);
                             throw;
@@ -548,10 +548,10 @@ namespace math
                         return;
                     case math::matrix::COR::vertical :
                         m_order = math::matrix::Order(size, 1);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T)));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(1);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, 1);
                                 throw;
@@ -567,10 +567,10 @@ namespace math
                         return;
                     case math::matrix::COR::main_diagonal :
                         m_order = math::matrix::Order(size, size);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
@@ -595,11 +595,11 @@ namespace math
                         }
                         return;
                     case math::matrix::COR::off_diagonal :
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         m_order = math::matrix::Order(size, size);
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * size));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(size);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, size);
                                 throw;
@@ -636,11 +636,11 @@ namespace math
                 auto Iter = arr.begin();
                 const auto IterEnd = arr.end();
                 T *end = nullptr;
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                m_data = math::memory::impl::allocate_memory<T*>(row);
                 size_t j = 0;
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
@@ -676,11 +676,11 @@ namespace math
             Matrix(T **data, const math::matrix::Order &order) : m_order(order) {
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                m_data = math::memory::impl::allocate_memory<T*>(row);
                 T* end = nullptr;
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
@@ -720,11 +720,11 @@ namespace math
                         }
                         if (row_size == 0) return;
                         m_order = math::matrix::Order(size, row_size);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         Iter = arr.begin();
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * row_size));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(row_size);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
                                 throw;
@@ -745,11 +745,11 @@ namespace math
                             ++Iter;
                         }
                         m_order = math::matrix::Order(size, row_size);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         Iter = arr.begin();
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * row_size));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(row_size);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
                                 throw;
@@ -771,10 +771,10 @@ namespace math
                         }
                         Iter = arr.begin();
                         m_order = math::matrix::Order(size, row_size);
-                        m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
                         for (size_t i = 0; i < size; i++) {
                             try {
-                                m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * row_size));
+                                m_data[i] = math::memory::impl::allocate_memory<T>(row_size);
                             } catch(...) {
                                 math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
                                 throw;
@@ -805,10 +805,10 @@ namespace math
             template <size_t C>
             Matrix(const T (*data)[C], const size_t num_rows) : m_order(math::matrix::Order(num_rows, C)) {
                 T *end = nullptr;
-                m_data = static_cast<T**>(::operator new[](sizeof(T*) * num_rows));
+                m_data = math::memory::impl::allocate_memory<T*>(num_rows);
                 for (size_t i = 0; i < num_rows; i++) {
                     try {
-                        m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * C));
+                        m_data[i] = math::memory::impl::allocate_memory<T>(C);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, C);
                         throw;
@@ -844,20 +844,7 @@ namespace math
 
         public:
             ~Matrix() {
-                const size_t row = m_order.row();
-                const size_t col = m_order.column();
-                if constexpr (!std::is_trivially_destructible_v<T>) {
-                    for (size_t i = 0; i < row; i++) {
-                        std::destroy(m_data[i], m_data[i] + col);
-                        ::operator delete[](m_data[i]);
-                    }
-                }
-                else {
-                    for (size_t i = 0; i < row; i++) {
-                        ::operator delete[](m_data[i]);
-                    }
-                }
-                ::operator delete[](m_data);
+                math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, m_order.row(), m_order.column());
             }
 
         public:
@@ -992,10 +979,10 @@ namespace math
                 const size_t this_column = m_order.column();
                 size_t d;
                 result.m_order = math::matrix::Order(row, column);
-                result.m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                result.m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        result.m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        result.m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(result.m_data, i, column);
                         throw;
@@ -1075,11 +1062,11 @@ namespace math
                 result.m_order = m_order.transpose();
                 const size_t row = m_order.column();
                 const size_t column = m_order.row();
-                result.m_data = static_cast<T**>(::operator new[](sizeof(T*) * row));
+                result.m_data = math::memory::impl::allocate_memory<T*>(row);
                 size_t j;
                 for (size_t i = 0; i < row; i++) {
                     try {
-                        result.m_data[i] = static_cast<T*>(::operator new[](sizeof(T) * column));
+                        result.m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
                         math::matrix::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
                         throw;
