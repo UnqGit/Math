@@ -138,96 +138,6 @@ namespace math::matrix
 
         };
 
-    // random access Iterator class.
-    // TO-DO modify for adjoint view.
-    template <typename T>
-    class RowIterator {
-        public:
-            using iterator_category = std::random_access_iterator_tag;
-            using difference_type   = std::ptrdiff_t;
-            using value_type        = T;
-            using pointer           = T*;
-            using reference         = T&;
-
-        private:
-            pointer m_ptr;
-        
-        public:
-            RowIterator(pointer ptr) noexcept : m_ptr(ptr) {}
-            RowIterator(const RowIterator &other) noexcept = default;
-
-        public:
-            bool operator==(const RowIterator &other) const noexcept {
-                return (m_ptr == other.m_ptr);
-            }
-            bool operator!=(const RowIterator &other) const noexcept {
-                return (m_ptr != other.m_ptr);
-            }
-            bool operator>(const RowIterator &other) const noexcept {
-                return (m_ptr > other.m_ptr);
-            }
-            bool operator<(const RowIterator &other) const noexcept {
-                return (m_ptr < other.m_ptr);
-            }
-            bool operator>=(const RowIterator &other) const noexcept {
-                return (m_ptr >= other.m_ptr);
-            }
-            bool operator<=(const RowIterator &other) const noexcept {
-                return (m_ptr <= other.m_ptr);
-            }
-
-        public:
-            reference operator*() noexcept {
-                return *m_ptr;
-            }
-            pointer operator->() noexcept {
-                return m_ptr;
-            }
-            const reference operator*() const noexcept {
-                return *m_ptr;
-            }
-            const pointer operator->() const noexcept {
-                return m_ptr;
-            }
-            
-        public:
-            RowIterator operator++(int) noexcept {
-                RowIterator prev(m_ptr++);
-                return prev;
-            }
-            RowIterator &operator++() noexcept {
-                ++m_ptr;
-                return *this;
-            }
-            RowIterator operator--(int) noexcept {
-                RowIterator prev(m_ptr--);
-                return prev;
-            }
-            RowIterator &operator--() noexcept {
-                --m_ptr;
-                return *this;
-            }
-
-        public:
-            RowIterator operator+(const difference_type add) const noexcept {
-                return RowIterator(m_ptr + add);
-            }
-            RowIterator operator-(const difference_type sub) const noexcept {
-                return RowIterator(m_ptr - sub);
-            }
-            RowIterator &operator+=(const difference_type add) noexcept {
-                m_ptr += add;
-                return *this;
-            }
-            RowIterator &operator-=(const difference_type sub) noexcept {
-                m_ptr -= sub;
-                return *this;
-            }
-            difference_type operator-(const RowIterator &other) const noexcept {
-                return (m_ptr - other.m_ptr);
-            }
-    };
-
     // So we can use the matrix in STL functions like std::sort using begin_one_d and end_one_d.
     template <typename T>
     class MatrixOneDIterator {
@@ -282,6 +192,11 @@ namespace math::matrix
             }
 
         public:
+            reference operator[](const size_t index) const noexcept {
+                return m_data[(m_index + index) / m_row_size][(m_index + index) % m_row_size];
+            }
+
+        public:
             MatrixOneDIterator operator++(int) noexcept {
                 MatrixOneDIterator prev(m_data, m_row_size, m_index++);
                 return prev;
@@ -319,13 +234,9 @@ namespace math::matrix
             }
     };
 
-    template <typename T>
-    class MatrixIterator;
-
     // A view type container.
     template <typename T>
     class Row {
-        friend class MatrixIterator<T>;
         private:
             T *m_data;
             size_t m_row_len;
@@ -363,7 +274,7 @@ namespace math::matrix
             const T *end() const noexcept {
                 return m_data + m_row_len;
             }
-            
+
         public:
             size_t size() const noexcept {
                 return m_row_len;
@@ -394,14 +305,14 @@ namespace math::matrix
             using difference_type   = std::ptrdiff_t;
             using value_type        = Row<T>;
             using pointer           = Row<T>*;
-            using reference         = Row<T>&;
+            using reference         = Row<T>; // Proxy iterator.
         
         private:
             T** m_data;
-            value_type m_cached_row;
+            size_t m_row_len;
         
         public:
-            MatrixIterator(T **data, const size_t row_size) noexcept : m_data(data), m_cached_row(Row<T>(*m_data, row_size)) {}
+            MatrixIterator(T **data, const size_t row_len) noexcept : m_data(data), m_row_len(row_len) {}
             MatrixIterator(const MatrixIterator &other) noexcept = default;
 
         public:
@@ -426,55 +337,48 @@ namespace math::matrix
 
         public:
             reference operator*() noexcept {
-                return m_cached_row;
-            }
-            pointer operator->() noexcept {
-                return &m_cached_row;
+                return Row<T>(*m_data, m_row_len);
             }
             const reference operator*() const noexcept {
-                return m_cached_row;
+                return Row<T>(*m_data, m_row_len);
             }
-            const pointer operator->() const noexcept {
-                return &m_cached_row;
-            }
-
+            
         public:
             MatrixIterator operator++(int) noexcept {
-                MatrixIterator result(m_data++, m_cached_row.size());
-                m_cached_row.m_data = *m_data;
+                MatrixIterator result(m_data++, m_row_len);
                 return result;
             }
             MatrixIterator &operator++() noexcept {
                 ++m_data;
-                m_cached_row.m_data = *m_data;
                 return *this;
             }
             MatrixIterator operator--(int) noexcept {
-                MatrixIterator result(m_data--, m_cached_row.size());
-                m_cached_row.m_data = *m_data;
+                MatrixIterator result(m_data--, m_row_len);
                 return result;
             }
             MatrixIterator &operator--() noexcept {
                 --m_data;
-                m_cached_row.m_data = *m_data;
                 return *this;
             }
 
         public:
+            reference operator[](const size_t size) const noexcept {
+                return Row<T>(*(m_data + size), m_row_len);
+            }
+            
+        public:
             MatrixIterator operator+(const difference_type add) const noexcept {
-                return MatrixIterator(m_data + add, m_cached_row.size());
+                return MatrixIterator(m_data + add, m_row_len);
             }
             MatrixIterator operator-(const difference_type sub) const noexcept {
-                return MatrixIterator(m_data - sub, m_cached_row.size());
+                return MatrixIterator(m_data - sub, m_row_len);
             }
             MatrixIterator &operator+=(const difference_type add) noexcept {
                 m_data += add;
-                m_cached_row.m_data = *m_data;
                 return *this;
             }
             MatrixIterator &operator-=(const difference_type sub) noexcept {
                 m_data -= sub;
-                m_cached_row.m_data = *m_data;
                 return *this;
             }
             difference_type operator-(const MatrixIterator &other) const noexcept {

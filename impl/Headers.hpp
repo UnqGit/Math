@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ranges>
 #include <concepts>
 #include <type_traits>
 

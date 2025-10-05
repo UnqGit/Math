@@ -56,19 +56,17 @@ namespace math
                 }
                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
             }
-            Matrix(const size_t size, const T &primary_value, const T &secondary_value, const math::matrix::CSR construct_rule) : m_order(math::matrix::Order(size, size)) {
+            Matrix(const size_t size, const T &primary_value, const T &secondary_value, const math::matrix::ConstructSquareRule construct_rule) : m_order(math::matrix::Order(size, size)) {
                 if (m_order.is_zero()) return;
                 switch(construct_rule) {
                     case math::matrix::CSR::right_half :
                         *this = Matrix(size, secondary_value, primary_value, math::matrix::CSR::left_half); return;
                     case math::matrix::CSR::lower_half :
                         *this = Matrix(size, secondary_value, primary_value, math::matrix::CSR::upper_half); return;
-                    case math::matrix::CSR::bottom_right_quarter :
+                    case math::matrix::CSR::bottom_right_triangle :
                         *this = Matrix(size, secondary_value, primary_value, math::matrix::CSR::top_left_triangle); return;
-                    case math::matrix::CSR::bottom_left_quarter :
+                    case math::matrix::CSR::bottom_left_triangle :
                         *this = Matrix(size, secondary_value, primary_value, math::matrix::CSR::top_right_triangle); return;
-                    default:
-                        break;
                 }
                 m_data = static_cast<T**>(::operator new[](sizeof(T*) * size));
                 T *end = nullptr;
@@ -113,7 +111,7 @@ namespace math
                         for (size_t i = 0; i < size; i++) {
                             try {
                                 end = std::uninitialized_fill_n(m_data[i], size / 2, primary_value);
-                                end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2; secondary_value);
+                                end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, secondary_value);
                             } catch(...) {
                                 math::matrix::impl::destroy_data<T> (m_data, i, end, size, size);
                                 throw;
@@ -166,8 +164,94 @@ namespace math
                         }
                         return;
                     case math::matrix::CSR::top_left_quarter :
-                        
+                        for (size_t i = 0; i < size / 2; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size / 2, primary_value);
+                                end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, secondary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        for (size_t i = size / 2; i < size; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        return;
+                    case math::matrix::CSR::top_right_quarter :
+                        for (size_t i = 0; i < size / 2; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size / 2, secondary_value);
+                                end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, primary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        for (size_t i = size / 2; i < size; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        return;
+                    case math::matrix::CSR::bottom_left_quarter :
+                        for (size_t i = 0; i < size / 2; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        for (size_t i = size / 2; i < size; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size / 2, primary_value);
+                                end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, secondary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        return;
+                    case math::matrix::CSR::bottom_right_quarter :
+                        for (size_t i = 0; i < size / 2; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size, secondary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        for (size_t i = size / 2; i < size; i++) {
+                            try {
+                                end = std::uninitialized_fill_n(m_data[i], size / 2, secondary_value);
+                                end = std::uninitialized_fill_n(m_data[i] + size / 2, size - size / 2, primary_value);
+                            } catch(...) {
+                                math::matrix::impl::destroy_data<T>(m_data, i, end, size, size);
+                                throw;
+                            }
+                        }
+                        return;
                 }
+            }
+            Matrix(const size_t size, const T &primary_value, const math::matrix::ConstructSquareRule construct_rule) {
+                const bool zero_exists = math::helper::zero_vals.exists_of<T>();
+                if (zero_exists) {
+                    *this = Matrix(size, primary_value, math::helper::zero_vals.get_of<T>(), construct_rule);
+                    return;
+                }
+                else if constexpr (std::is_default_constructible_v<T>) {
+                    *this = Matrix(size, primary_value, T{}, construct_rule);
+                    return;
+                }
+                else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
             }
 
         public:
@@ -241,6 +325,7 @@ namespace math
             }
             Matrix(const size_t row, const size_t column, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : Matrix(math::matrix::Order(row, column), construct_rule) {}
 
+        public:
             Matrix(const math::matrix::Order &order, const T &to_copy) : m_order(order) {
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
@@ -928,7 +1013,7 @@ namespace math
             const math::matrix::MatrixIterator<T> end() const noexcept {
                 return math::matrix::MatrixIterator<T>(m_data + m_order.row(), m_order.column());
             }
-    
+
         public:
             Matrix transpose() const {
                 Matrix result;

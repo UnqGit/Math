@@ -35,22 +35,20 @@ namespace math::helper
     };
 
     template <typename Container, typename RequiredData>
-    concept isOneDArr = requires(Container obj) {
-        { obj.size() } -> std::integral;
-        { obj.begin() } -> std::same_as<decltype(obj.end())>;
-        { obj.begin() } -> std::input_iterator;
-        
-        requires std::same_as<std::decay_t<decltype(*(obj.begin()))>, RequiredData>;
-    };
+    concept isOneDArr =
+        std::ranges::sized_range<Container> &&
+        std::same_as<
+            std::decay_t<std::ranges::range_value_t<Container>>,
+            std::decay_t<RequiredData>
+        >;
 
     template <typename Container, typename RequiredData>
-    concept isTwoDArr = requires(Container obj) {
-        { obj.size() } -> std::integral;
-        { obj.begin() } -> std::same_as<decltype(obj.end())>;
-        { obj.begin() } -> std::input_iterator;
-        
-        requires isOneDArr<std::decay_t<decltype(*(obj.begin()))>, RequiredData>;
-    };
+    concept isTwoDArr =
+        std::ranges::sized_range<Container> &&
+        isOneDArr<
+            std::decay_t<std::ranges::range_value_t<Container>>,
+            RequiredData
+        >;
 
     template <typename T>
     concept isAdditionPossible = requires(T a, T b) {
