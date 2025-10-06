@@ -9,13 +9,14 @@
 namespace math
 {
     template <typename T>
-    class [[nodiscard("Discarding a matrix constructio - constructing a matrix is a expensive operation.")]] Matrix {
+    class [[nodiscard("Discarding a matrix constructio - constructing a matrix is an expensive operation.")]] Matrix {
         private:
             T **m_data = nullptr;
             math::matrix::Order m_order;
 
         public:
             Matrix() noexcept {}
+            
             Matrix(const size_t size) : m_order(math::matrix::Order(size, size)) {
                 if (m_order.is_zero()) return;
                 const bool zero_exists = math::zero_vals.exists_of<T>();
@@ -57,7 +58,10 @@ namespace math
                 }
                 else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
             }
-            Matrix(const size_t size, const T &primary_value, const T &secondary_value, const math::matrix::ConstructSquareRule construct_rule) : m_order(math::matrix::Order(size, size)) {
+            
+            Matrix(const size_t size, const T &primary_value, const T &secondary_value, const math::matrix::ConstructSquareRule construct_rule)
+            requires std::is_copy_constructible_v<T> : 
+            m_order(math::matrix::Order(size, size)) {
                 if (m_order.is_zero()) return;
                 switch(construct_rule) {
                     case math::matrix::CSR::right_half :
@@ -287,7 +291,10 @@ namespace math
                     default: break;
                 }
             }
-            Matrix(const size_t size, const T &primary_value, const math::matrix::ConstructSquareRule construct_rule) {
+            
+            Matrix(const size_t size, const T &primary_value, const math::matrix::ConstructSquareRule construct_rule) 
+            requires std::is_copy_constructible_v<T> {
+                if (size == 0) return;
                 const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (zero_exists) {
                     *this = Matrix(size, primary_value, math::zero_vals.get_of<T>(), construct_rule);
@@ -302,6 +309,7 @@ namespace math
 
         public:
             Matrix(const math::matrix::Order &order, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : m_order(order) {
+                if (m_order.is_zero()) return;
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
                 m_data = math::memory::impl::allocate_memory<T*>(row);
@@ -372,7 +380,9 @@ namespace math
             Matrix(const size_t row, const size_t column, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : Matrix(math::matrix::Order(row, column), construct_rule) {}
 
         public:
-            Matrix(const math::matrix::Order &order, const T &to_copy) : m_order(order) {
+            Matrix(const math::matrix::Order &order, const T &to_copy)
+            requires std::is_copy_constructible_v<T> : m_order(order) {
+                if (m_order.is_zero()) return;
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
                 m_data = math::memory::impl::allocate_memory<T*>(row);
@@ -392,10 +402,14 @@ namespace math
                     }
                 }
             }
-            Matrix(const size_t row, const size_t column, const T &to_copy) : Matrix(math::matrix::Order(row, column), to_copy) {}
+            
+            Matrix(const size_t row, const size_t column, const T &to_copy)
+            requires std::is_copy_constructible_v<T> : Matrix(math::matrix::Order(row, column), to_copy) {}
             
         public:
-            Matrix(T *data, const size_t size, math::matrix::COR construct_rule = math::matrix::COR::horizontal) {
+            Matrix(T *data, const size_t size, math::matrix::COR construct_rule = math::matrix::COR::horizontal)
+            requires std::is_copy_constructible_v<T> {
+                if (size == 0) return;
                 T *end = nullptr;
                 bool zero_exists = (math::zero_vals.exists_of<T>());
                 switch (construct_rule) {
@@ -491,7 +505,10 @@ namespace math
                         break;
                 }
             }
-            Matrix(T *data, const math::matrix::Order &order) : m_order(order) {
+            
+            Matrix(T *data, const math::matrix::Order &order)
+            requires std::is_copy_constructible_v<T> : m_order(order) {
+                if (m_order.size()) return;
                 const size_t row = order.row();
                 const size_t column = order.column();
                 T *end = nullptr;
@@ -511,10 +528,13 @@ namespace math
                     }
                 }
             }
-            Matrix(T *data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
+            
+            Matrix(T *data, const size_t row, const size_t column)
+            requires std::is_copy_constructible_v<T> : Matrix(data, math::matrix::Order(row, column)) {}
 
         public:
-            Matrix(T *data, const size_t size, const math::matrix::Order &order) : m_order(order) {
+            Matrix(T *data, const size_t size, const math::matrix::Order &order)
+            requires std::is_copy_constructible_v<T> : m_order(order) {
                 if (m_order.is_zero()) return;
                 if (size <= m_order.size()) {
                     *this = Matrix(data, m_order);
@@ -565,14 +585,18 @@ namespace math
                     }
                 }
             }
-            Matrix(T *data, const size_t size, const size_t row, const size_t column) : Matrix(data, size, math::matrix::Order(row, column)) {}
+            
+            Matrix(T *data, const size_t size, const size_t row, const size_t column)
+            requires std::is_copy_constructible_v<T> : Matrix(data, size, math::matrix::Order(row, column)) {}
 
         public:
             template <typename U>
             requires math::helper::isOneDArr<U, T>
-            Matrix(const U &arr, math::matrix::COR construct_rule = math::matrix::COR::horizontal) {
-                T *end = nullptr;
+            Matrix(const U &arr, math::matrix::COR construct_rule = math::matrix::COR::horizontal)
+            requires std::is_copy_constructible_v<T> {
                 const size_t size = arr.size();
+                if (size == 0) return;
+                T *end = nullptr;
                 auto Iter = arr.begin();
                 bool zero_exists = math::zero_vals.exists_of<T>();
                 switch (construct_rule) {
@@ -671,9 +695,12 @@ namespace math
                         return;
                 }
             }
+            
             template <typename U>
             requires math::helper::isOneDArr<U, T>
-            Matrix(const U &arr, const math::matrix::Order &order) : m_order(order) {
+            Matrix(const U &arr, const math::matrix::Order &order)
+            requires std::is_copy_constructible_v<T> : m_order(order) {
+                if (m_order.is_zero()) return;
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
                 const size_t size = arr.size();
@@ -714,12 +741,16 @@ namespace math
                     }
                 }
             }
+            
             template <typename U>
             requires math::helper::isOneDArr<U, T>
-            Matrix(const U &arr, const size_t row, const size_t column) : Matrix(arr, math::matrix::Order(row, column)) {}
+            Matrix(const U &arr, const size_t row, const size_t column)
+            requires std::is_copy_constructible_v<T> : Matrix(arr, math::matrix::Order(row, column)) {}
 
         public:
-            Matrix(T **data, const math::matrix::Order &order) : m_order(order) {
+            Matrix(T **data, const math::matrix::Order &order)
+            requires std::is_copy_constructible_v<T> : m_order(order) {
+                if (m_order.is_zero()) return;
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
                 m_data = math::memory::impl::allocate_memory<T*>(row);
@@ -739,12 +770,15 @@ namespace math
                     }
                 }
             }
-            Matrix(T **data, const size_t row, const size_t column) : Matrix(data, math::matrix::Order(row, column)) {}
+            
+            Matrix(T **data, const size_t row, const size_t column)
+            requires std::is_copy_constructible_v<T> : Matrix(data, math::matrix::Order(row, column)) {}
             
         public:
             template <typename U>
             requires math::helper::isTwoDArr<U, T>
-            Matrix(const U &arr, const math::matrix::ConstructContainerRule construct_rule = math::matrix::CCR::must_be_same) {
+            Matrix(const U &arr, const math::matrix::ConstructContainerRule construct_rule = math::matrix::CCR::must_be_same)
+            requires std::is_copy_constructible_v<T> {
                 const size_t size = arr.size();
                 if (size == 0) return;
                 if (size == 1) {
@@ -849,7 +883,9 @@ namespace math
 
         public:
             template <size_t C>
-            Matrix(const T (*data)[C], const size_t num_rows) : m_order(math::matrix::Order(num_rows, C)) {
+            Matrix(const T (*data)[C], const size_t num_rows)
+            requires std::is_copy_constructible_v<T> : m_order(math::matrix::Order(num_rows, C)) {
+                if (m_order.is_zero()) return;
                 T *end = nullptr;
                 m_data = math::memory::impl::allocate_memory<T*>(num_rows);
                 for (size_t i = 0; i < num_rows; i++) {
@@ -894,13 +930,16 @@ namespace math
             }
 
         public:
-            [[nodiscard("Result of (non-const)T &operator() was ignored.")]] T &operator()(const size_t row, const size_t column) noexcept {
+            [[nodiscard("Result of (non-const)T &operator() was ignored.")]]
+            T &operator()(const size_t row, const size_t column) noexcept {
                 return m_data[row][column];
             }
             const T &operator()(const size_t row, const size_t column) const noexcept {
                 return m_data[row][column];
             }
-            [[nodiscard("Result of (non-const)at method was ignored.")]] T &at(const size_t row, const size_t column) {
+            
+            [[nodiscard("Result of (non-const)at method was ignored.")]]
+            T &at(const size_t row, const size_t column) {
                 if ((row >= m_order.row()) || (column >= m_order.column())) throw std::out_of_range("Provided index does not exist within the bounds of this matrix.");
                 return m_data[row][column];
             }
@@ -916,22 +955,33 @@ namespace math
             }
 
         public:
-            [[nodiscard("Result of order method was ignored.")]] math::matrix::Order order() const noexcept {
+            [[nodiscard("Result of order method was ignored.")]]
+            math::matrix::Order order() const noexcept {
                 return m_order;
             }
-            [[nodiscard("Result of num_rows method was ignored.")]] size_t num_rows() const noexcept {
+            
+            [[nodiscard("Result of num_rows method was ignored.")]]
+            size_t num_rows() const noexcept {
                 return m_order.row();
             }
-            [[nodiscard("Result of column_len method was ignored.")]] size_t column_len() const noexcept {
+            
+            [[nodiscard("Result of column_len method was ignored.")]]
+            size_t column_len() const noexcept {
                 return m_order.row();
             }
-            [[nodiscard("Result of num_columns method was ignored.")]] size_t num_columns() const noexcept {
+            
+            [[nodiscard("Result of num_columns method was ignored.")]]
+            size_t num_columns() const noexcept {
                 return m_order.column();
             }
-            [[nodiscard("Result of row_len method was ignored.")]] size_t row_len() const noexcept {
+            
+            [[nodiscard("Result of row_len method was ignored.")]]
+            size_t row_len() const noexcept {
                 return m_order.column();
             }
-            [[nodiscard("Result of size method was ignored.")]] size_t size() const noexcept {
+            
+            [[nodiscard("Result of size method was ignored.")]]
+            size_t size() const noexcept {
                 return m_order.size();
             }
 
@@ -948,33 +998,49 @@ namespace math
             }
         
         public:
-            [[nodiscard("Result of is_square method was ignored.")]] bool is_square() const noexcept {
+            [[nodiscard("Result of is_square method was ignored.")]]
+            bool is_square() const noexcept {
                 return m_order.is_square();
             }
-            [[nodiscard("Result of is_row method was ignored.")]] bool is_row() const noexcept {
+            
+            [[nodiscard("Result of is_row method was ignored.")]]
+            bool is_row() const noexcept {
                 return m_order.is_row();
             }
-            [[nodiscard("Result of is_column method was ignored.")]] bool is_column() const noexcept {
+            
+            [[nodiscard("Result of is_column method was ignored.")]]
+            bool is_column() const noexcept {
                 return m_order.is_column();
             }
-            [[nodiscard("Result of is_tall method was ignored.")]] bool is_tall() const noexcept {
+            
+            [[nodiscard("Result of is_tall method was ignored.")]]
+            bool is_tall() const noexcept {
                 return m_order.is_tall();
             }
-            [[nodiscard("Result of is_wide method was ignored.")]] bool is_wide() const noexcept {
+            
+            [[nodiscard("Result of is_wide method was ignored.")]]
+            bool is_wide() const noexcept {
                 return m_order.is_wide();
             }
-            [[nodiscard("Result of is_same_dimension(const Matrix&) method was ignored.")]] bool is_same_dimension(const Matrix &other) const noexcept {
+            
+            [[nodiscard("Result of is_same_dimension(const Matrix&) method was ignored.")]]
+            bool is_same_dimension(const Matrix &other) const noexcept {
                 return (m_order == other.m_order);
             }
-            [[nodiscard("Result of is_multipliable_dimension(const Matrix&) method was ignored.")]] bool is_multipliable_dimension(const Matrix &other) const noexcept {
+            
+            [[nodiscard("Result of is_multipliable_dimension(const Matrix&) method was ignored.")]]
+            bool is_multipliable_dimension(const Matrix &other) const noexcept {
                 return (m_order.column() == other.m_order.row());
             }
-            [[nodiscard("Result of is_opposite_dimension(const Matrix&) method was ignored.")]] bool is_opposite_dimension(const Matrix &other) const noexcept {
+            
+            [[nodiscard("Result of is_opposite_dimension(const Matrix&) method was ignored.")]]
+            bool is_opposite_dimension(const Matrix &other) const noexcept {
                 return (m_order.transpose() == other.m_order);
             }
         
         public:
-            Matrix &operator+=(const Matrix &other) requires math::isAdditionPossible<T> {
+            Matrix &operator+=(const Matrix &other)
+            requires math::isAdditionPossible<T> {
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot add matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
@@ -987,13 +1053,16 @@ namespace math
                 return *this;
             }
 
-            [[nodiscard("Result of + operator method was ignored.")]] Matrix operator+(const Matrix &other) const requires math::isAdditionPossible<T> {
+            [[nodiscard("Result of + operator method was ignored.")]]
+            Matrix operator+(const Matrix &other) const
+            requires math::isAdditionPossible<T> {
                 Matrix temp(*this);
                 temp += other;
                 return temp;
             }
 
-            Matrix &operator-=(const Matrix &other) requires math::isSubtractionPossible<T> {
+            Matrix &operator-=(const Matrix &other)
+            requires math::isSubtractionPossible<T> {
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot subtract matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
@@ -1006,17 +1075,22 @@ namespace math
                 return *this;
             }
 
-            [[nodiscard("Result of - operator method was ignored.")]] Matrix operator-(const Matrix &other) const requires math::isSubtractionPossible<T> {
+            [[nodiscard("Result of - operator method was ignored.")]]
+            Matrix operator-(const Matrix &other) const
+            requires math::isSubtractionPossible<T> {
                 Matrix temp(*this);
                 return (temp -= other);
             }
 
-            Matrix &operator*=(const Matrix &other) requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
+            Matrix &operator*=(const Matrix &other)
+            requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
                 *this = *this * other;
                 return *this;
             }
 
-            [[nodiscard("Result of * operator_ method was ignored.")]] Matrix operator*(const Matrix &other) const requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
+            [[nodiscard("Result of * operator_ method was ignored.")]]
+            Matrix operator*(const Matrix &other) const
+            requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
                 if (!is_multipliable_dimension(other)) throw std::invalid_argument("Cannot multiply the matrices because the number of columns in first does not match the number of rows in the second.");
                 Matrix result;
                 if (m_order.is_zero()) return result;
@@ -1075,6 +1149,7 @@ namespace math
             }
 
         public:
+            // Row one dimension iterators.
             math::matrix::MatrixOneDIterator<T> begin_one_d() noexcept {
                 return math::matrix::MatrixOneDIterator<T>(m_data, m_order.column());
             }
@@ -1088,6 +1163,21 @@ namespace math
                 return math::matrix::MatrixOneDIterator<T>(m_data, m_order.column(), m_order.size());
             }
 
+            // Column one dimension iterators.
+            math::matrix::MatrixOneDColumnIterator<T> begin_c_one_d() noexcept {
+                return math::matrix::MatrixOneDColumnIterator<T>(m_data, m_order.column());
+            }
+            math::matrix::MatrixOneDColumnIterator<T> end_c_one_d() noexcept {
+                return math::matrix::MatrixOneDColumnIterator<T>(m_data, m_order.column(), m_order.size());
+            }
+            const math::matrix::MatrixOneDColumnIterator<T> begin_c_one_d() const noexcept {
+                return math::matrix::MatrixOneDColumnIterator<T>(m_data, m_order.column());
+            }
+            const math::matrix::MatrixOneDColumnIterator<T> end_c_one_d() const noexcept {
+                return math::matrix::MatrixOneDColumnIterator<T>(m_data, m_order.column(), m_order.size());
+            }
+
+            // Iterators which provide row view object for each row.
             math::matrix::MatrixIterator<T> begin() noexcept {
                 return math::matrix::MatrixIterator<T>(m_data, m_order.column());
             }
@@ -1102,7 +1192,9 @@ namespace math
             }
 
         public:
-            [[nodiscard("Result of transpose method was ignored.")]] Matrix transpose() const {
+            [[nodiscard("Result of transpose method was ignored.")]]
+            Matrix transpose() const
+            requires std::is_copy_constructible_v<T> {
                 Matrix result;
                 if (m_order.is_zero()) return result;
                 result.m_order = m_order.transpose();
@@ -1143,14 +1235,18 @@ namespace math
                             }
                         }
                     }
-                    else *this = this->transpose();
+                    else if constexpr (std::is_copy_constructible_v<T>) *this = this->transpose();
+                    else throw std::logic_error("Cannot do transposition on this matrix because it is neither a square matrix and is not copy constructible to create a new matrix.");
                 }
-                else *this = this->transpose();
+                else if constexpr (std::is_copy_constructible_v<T>) *this = this->transpose();
+                else throw std::logic_error("Cannot do transposition on this matrix because it is neither a square matrix(or the type is not swappable) and is not copy constructible to create a new matrix.");
                 return *this;
             }
     
         public:
-            [[nodiscard("Result of trace method was ignored.")]] T trace() const requires math::isAdditionPossible<T> {
+            [[nodiscard("Result of trace method was ignored.")]]
+            T trace() const
+            requires math::isAdditionPossible<T> {
                 if (!(this->is_square())) throw std::logic_error("Cannot find trace of a non square matrix.");
                 const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (m_order.is_zero()) {
@@ -1189,7 +1285,9 @@ namespace math
                 else throw std::logic_error("Cannot provide the trace of the matrix because it is not copy constructible for storing initial zero/default value and is neither default constructible.");
             }
 
-            [[nodiscard("Result of is_null method was ignored.")]] bool is_null() const requires math::isEqualityOperationPossible<T> {
+            [[nodiscard("Result of is_null method was ignored.")]]
+            bool is_null() const
+            requires math::isEqualityOperationPossible<T> {
                 const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (zero_exists) {
                     const T &to_check_from = math::zero_vals.get_of<T>();
@@ -1212,7 +1310,9 @@ namespace math
                 else throw std::logic_error("Cannot check for is_null property of the matrix as the zero value(stored in math::zero_vals or defautlt construction for the type) is not defined.");
             }
             
-            [[nodiscard("Result of are_all_same_as(const T&) method was ignored.")]] bool are_all_same_as(const T &to_check_from) const requires math::isEqualityOperationPossible<T> {
+            [[nodiscard("Result of are_all_same_as(const T&) method was ignored.")]]
+            bool are_all_same_as(const T &to_check_from) const
+            requires math::isEqualityOperationPossible<T> {
                 for (const auto &row : *this) {
                     for (const auto &elem : row) {
                         if (!math::is_equal(to_check_from, elem)) return false;
@@ -1221,7 +1321,9 @@ namespace math
                 return true;
             }
 
-            [[nodiscard("Result of are_all_same method was ignored.")]] bool are_all_same() const requires math::isEqualityOperationPossible<T> {
+            [[nodiscard("Result of are_all_same method was ignored.")]]
+            bool are_all_same() const
+            requires math::isEqualityOperationPossible<T> {
                 if (m_order.size() < 2) return true;
                 const auto end = this->end_one_d() - 1;
                 for (auto it = this->begin_one_d(); it != end; ) {
@@ -1230,7 +1332,9 @@ namespace math
                 return true;
             }
 
-            [[nodiscard("Result of count method was ignored.")]] size_t count(const T &to_find) const requires math::isEqualityOperationPossible<T> {
+            [[nodiscard("Result of count method was ignored.")]]
+            size_t count(const T &to_find) const
+            requires math::isEqualityOperationPossible<T> {
                 size_t result{};
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
@@ -1244,7 +1348,8 @@ namespace math
             }
     
         public:
-            [[nodiscard("Result of == operator was ignored.")]] bool operator==(const Matrix &other) const {
+            [[nodiscard("Result of == operator was ignored.")]]
+            bool operator==(const Matrix &other) const {
                 if (m_order != other.m_order) return false;
                 if (m_order.is_zero()) return true;
                 if (this == &other) return true;
@@ -1260,7 +1365,8 @@ namespace math
                 return true;
             }
 
-            [[nodiscard("Result of != operator was ignored.")]] bool operator!=(const Matrix &other) const {
+            [[nodiscard("Result of != operator was ignored.")]]
+            bool operator!=(const Matrix &other) const {
                 return !(*this == other);
             }
     };

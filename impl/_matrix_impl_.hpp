@@ -175,6 +175,102 @@ namespace math::matrix
                 return (static_cast<long long>(m_index) - static_cast<long long>(other.m_index));
             }
     };
+    
+    // So we can use the matrix in STL functions like std::sort using begin_one_d and end_one_d.
+    template <typename T>
+    class MatrixOneDColumnIterator {
+        public:
+            using iterator_category = std::random_access_iterator_tag;
+            using difference_type   = std::ptrdiff_t;
+            using value_type        = T;
+            using pointer           = T*;
+            using reference         = T&;
+
+        private:
+            T** m_data;
+            size_t m_row_size;
+            size_t m_index;
+
+        public:
+            MatrixOneDColumnIterator(T **data, const size_t row_len, const size_t index = 0) noexcept : m_data(data), m_row_size(row_len), m_index(index) {}
+            MatrixOneDColumnIterator(const MatrixOneDColumnIterator &other) noexcept = default;
+        
+        public:
+            bool operator==(const MatrixOneDColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_index == other.m_index));
+            }
+            bool operator!=(const MatrixOneDColumnIterator &other) const noexcept {
+                return ((m_data != other.m_data) || (m_index != other.m_index));
+            }
+            bool operator>(const MatrixOneDColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_index > other.m_index));
+            }
+            bool operator<(const MatrixOneDColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_index < other.m_index));
+            }
+            bool operator<=(const MatrixOneDColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_index <= other.m_index));
+            }
+            bool operator>=(const MatrixOneDColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_index >= other.m_index));
+            }
+
+        public:
+            reference operator*() noexcept {
+                return m_data[m_index % m_row_size][m_index / m_row_size];
+            }
+            pointer operator->() noexcept {
+                return (m_data[m_index % m_row_size] + (m_index / m_row_size));
+            }
+            const reference operator*() const noexcept {
+                return m_data[m_index % m_row_size][m_index / m_row_size];
+            }
+            const pointer operator->() const noexcept {
+                return (m_data[m_index % m_row_size] + (m_index / m_row_size));
+            }
+
+        public:
+            reference operator[](const size_t index) const noexcept {
+                return m_data[(m_index + index) % m_row_size][(m_index + index) / m_row_size];
+            }
+
+        public:
+            MatrixOneDColumnIterator operator++(int) noexcept {
+                MatrixOneDColumnIterator prev(m_data, m_row_size, m_index++);
+                return prev;
+            }
+            MatrixOneDColumnIterator &operator++() noexcept {
+                ++m_index;
+                return *this;
+            }
+            MatrixOneDColumnIterator operator--(int) noexcept {
+                MatrixOneDColumnIterator prev(m_data, m_row_size, m_index--);
+                return prev;
+            }
+            MatrixOneDColumnIterator &operator--() noexcept {
+                --m_index;
+                return *this;
+            }
+        
+        public:
+            MatrixOneDColumnIterator operator+(const difference_type add) const noexcept {
+                return MatrixOneDColumnIterator(m_data, m_row_size, m_index + add);
+            }
+            MatrixOneDColumnIterator operator-(const difference_type sub) const noexcept {
+                return MatrixOneDColumnIterator(m_data, m_row_size, m_index - sub);
+            }
+            MatrixOneDColumnIterator &operator+=(const difference_type add) noexcept {
+                m_index += add;
+                return *this;
+            }
+            MatrixOneDColumnIterator &operator-=(const difference_type sub) noexcept {
+                m_index -= sub;
+                return *this;
+            }
+            difference_type operator-(const MatrixOneDColumnIterator &other) const noexcept {
+                return (static_cast<long long>(m_index) - static_cast<long long>(other.m_index));
+            }
+    };
 
     // A view type container.
     template <typename T>

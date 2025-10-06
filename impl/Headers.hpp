@@ -19,6 +19,7 @@
 
 #include <memory>
 
+#include <new>
 #include <stdexcept>
 #include <exception>
 

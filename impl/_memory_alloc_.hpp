@@ -6,6 +6,7 @@ namespace math::memory::impl
 {
     // Allocating row memory, a C++ wrapper on malloc.
     template <typename T>
+    [[nodiscard("Shouldn't be allocating memory without getting a pointer to it.")]]
     T *allocate_memory(const size_t num_elements) {
         if (num_elements == 0) return nullptr;
         T *ptr = static_cast<T*>(std::malloc(sizeof(T) * num_elements));
