@@ -1,9 +1,11 @@
+// _memory_alloc_.hpp
 #pragma once
 
 #include "Headers.hpp"
 
 namespace math::memory::impl
 {
+    
     // Allocating row memory, a C++ wrapper on malloc.
     template <typename T>
     [[nodiscard("Shouldn't be allocating memory without getting a pointer to it.")]]
@@ -94,4 +96,5 @@ namespace math::memory::impl
         free_memory<T>(data[curr_i], 0);
         free_memory<T*>(data, 0);
     }
+
 }

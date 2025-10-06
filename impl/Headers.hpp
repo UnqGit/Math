@@ -1,3 +1,4 @@
+// Headers.hpp
 #pragma once
 
 #include <ranges>
@@ -5,6 +6,9 @@
 #include <type_traits>
 
 #include <algorithm>
+#include <utility>
+
+#include <functional>
 #include <limits>
 #include <cstdlib>
 

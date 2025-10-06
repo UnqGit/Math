@@ -5,7 +5,7 @@
 
 namespace math::matrix
 {
-    // A lightweight wrapper on two size_t's.
+    // A lightweight wrapper on two size_t(s).
     class Order {
         private:
             size_t m_rows, m_columns;

@@ -26,5 +26,9 @@ int main(void) {
     print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate_column));
     print_matrix<int> (Matrix<int>(9, 7, 8));
     std::cout << Matrix<int>(9, 7, 8).size() << "\n\n";
+    print_matrix<int> (Matrix<int>(Order(6, 6), [](){
+        static int i = 0;
+        return i++;
+    }).transpose_in_place());
     std::cout << "Bye World!\n";
 }

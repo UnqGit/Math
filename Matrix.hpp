@@ -9,7 +9,9 @@
 namespace math
 {
     template <typename T>
-    class [[nodiscard("Discarding a matrix constructio - constructing a matrix is an expensive operation.")]] Matrix {
+    class
+    [[nodiscard("Discarding a Matrix constructio - constructing a Matrix is an expensive operation.")]]
+    Matrix {
         private:
             T **m_data = nullptr;
             math::matrix::Order m_order;
@@ -56,7 +58,7 @@ namespace math
                     }
                     return;
                 }
-                else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
             }
             
             Matrix(const size_t size, const T &primary_value, const T &secondary_value, const math::matrix::ConstructSquareRule construct_rule)
@@ -304,7 +306,7 @@ namespace math
                     *this = Matrix(size, primary_value, T{}, construct_rule);
                     return;
                 }
-                else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
             }
 
         public:
@@ -359,7 +361,7 @@ namespace math
                             }
                         }
                     }
-                    else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                    else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                 }
                 else {
                     if (math::zero_vals.exists_of<T>()) {
@@ -374,7 +376,7 @@ namespace math
                             }
                         }
                     }
-                    else throw std::logic_error("The zero value is not stored of this type in math::zero_vals hence can't zero construct the matrix.");
+                    else throw std::logic_error("The zero value is not stored of this type in math::zero_vals hence can't zero construct the Matrix.");
                 }
             }
             Matrix(const size_t row, const size_t column, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : Matrix(math::matrix::Order(row, column), construct_rule) {}
@@ -468,7 +470,7 @@ namespace math
                                     end = std::construct_at(m_data[i] + i, data[i]);
                                     end = std::uninitialized_value_construct_n(m_data[i] + i + 1, size - 1 - i);
                                 }
-                                else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                                else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                             } catch(...) {
                                 math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
@@ -496,7 +498,7 @@ namespace math
                                     end = std::construct_at(m_data[i] + i, data[i]);
                                     end = std::uninitialized_value_construct_n(m_data[i] + i + 1, i);
                                 }
-                                else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                                else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                             } catch(...) {
                                 math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
                                 throw;
@@ -656,7 +658,7 @@ namespace math
                                     end = std::construct_at(m_data[i] + i, *Iter);
                                     end = std::uninitialized_value_construct_n(m_data[i] + i + 1, i);
                                 }
-                                else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                                else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                                 ++Iter;
                             } catch(...) {
                                 math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
@@ -685,7 +687,7 @@ namespace math
                                     end = std::construct_at(m_data[i] + i, *Iter);
                                     end = std::uninitialized_value_construct_n(m_data[i] + i + 1, i);
                                 }
-                                else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                                else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                                 ++Iter;
                             } catch(...) {
                                 math::memory::impl::destroy_data_continuous<T>(m_data, i, end, size);
@@ -733,7 +735,7 @@ namespace math
                             else if constexpr (std::is_default_constructible_v<T>) {
                                 end = std::uninitialized_value_construct_n(m_data[i] + j, column - j);
                             }
-                            else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                            else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                         }
                     } catch(...) {
                         math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
@@ -869,7 +871,7 @@ namespace math
                                     else if constexpr (std::is_default_constructible_v<T>) {
                                         err_end = std::uninitialized_value_construct_n(m_data[i] + j, row_size - j);
                                     }
-                                    else throw std::logic_error("Cannot construct the matrix for this type because neither zero value is stored and neither is it default constructible.");
+                                    else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                                     ++Iter;
                                 }
                             } catch(...) {
@@ -905,8 +907,69 @@ namespace math
             }
 
         public:
+            Matrix(const math::matrix::Order &order, const std::function<T()> &t_creation)
+            requires (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T>) : m_order(order) {
+                if (m_order.is_zero()) return;
+                const size_t row = m_order.row();
+                const size_t column = m_order.column();
+                m_data = math::memory::impl::allocate_memory<T*>(row);
+                for (size_t i = 0; i < row; i++) {
+                    try {
+                        m_data[i] = math::memory::impl::allocate_memory<T>(column);
+                    } catch(...) {
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        throw;
+                    }
+                    for (size_t j = 0; j < column; j++) {
+                        try {
+                            if constexpr (std::is_move_constructible_v<T>) {
+                                std::construct_at(m_data[i] + j, std::move(t_creation()));
+                            }
+                            else std::construct_at(m_data[i] + j, t_creation());
+                        } catch(...) {
+                            math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
+                            throw;
+                        }
+                    }
+                }
+            }
+            
+            Matrix(const size_t row, const size_t column, const std::function<T()> &t_creation)
+            requires (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T>) : Matrix(math::matrix::Order(row, column), t_creation) {}
+
+            Matrix(const math::matrix::Order &order, const std::function<T(size_t, size_t)> &t_creation)
+            requires (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T>) : m_order(order) {
+                if (m_order.is_zero()) return;
+                const size_t row = m_order.row();
+                const size_t column = m_order.column();
+                m_data = math::memory::impl::allocate_memory<T*>(row);
+                for (size_t i = 0; i < row; i++) {
+                    try {
+                        m_data[i] = math::memory::impl::allocate_memory<T>(column);
+                    } catch(...) {
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        throw;
+                    }
+                    for (size_t j = 0; j < column; j++) {
+                        try {
+                            if constexpr (std::is_move_constructible_v<T>) {
+                                std::construct_at(m_data[i] + j, std::move(t_creation(i, j)));
+                            }
+                            else std::construct_at(m_data[i] + j, t_creation(i, j));
+                        } catch(...) {
+                            math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
+                            throw;
+                        }
+                    }
+                }
+            }
+            
+            Matrix(const size_t row, const size_t column, const std::function<T(size_t, size_t)> &t_creation)
+            requires (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T>) : Matrix(math::matrix::Order(row, column), t_creation) {}
+
+        public:
             Matrix(const Matrix &other) : Matrix(other.m_data, other.m_order) {}
-            Matrix(Matrix &&other) noexcept : m_order(other.m_order), m_data(other.m_data) {
+            Matrix(Matrix &&other) noexcept : m_data(other.m_data), m_order(other.m_order) {
                 other.m_data = nullptr;
                 other.m_order = math::matrix::Order();
             }
@@ -940,11 +1003,11 @@ namespace math
             
             [[nodiscard("Result of (non-const)at method was ignored.")]]
             T &at(const size_t row, const size_t column) {
-                if ((row >= m_order.row()) || (column >= m_order.column())) throw std::out_of_range("Provided index does not exist within the bounds of this matrix.");
+                if ((row >= m_order.row()) || (column >= m_order.column())) throw std::out_of_range("Provided index does not exist within the bounds of this Matrix.");
                 return m_data[row][column];
             }
             const T &at(const size_t row, const size_t column) const {
-                if ((row >= m_order.row()) || (column >= m_order.column())) throw std::out_of_range("Provided index does not exist within the bounds of this matrix.");
+                if ((row >= m_order.row()) || (column >= m_order.column())) throw std::out_of_range("Provided index does not exist within the bounds of this Matrix.");
                 return m_data[row][column];
             }
 
@@ -1206,7 +1269,7 @@ namespace math
                     try {
                         result.m_data[i] = math::memory::impl::allocate_memory<T>(column);
                     } catch(...) {
-                        math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, column);
+                        math::memory::impl::destroy_data_mem_err_continuous<T>(result.m_data, i, column);
                         throw;
                     }
                     try {
@@ -1222,9 +1285,10 @@ namespace math
                 return result;
             }
 
-            Matrix &transpose_in_place() {
+            Matrix &transpose_in_place()
+            requires (std::is_copy_constructible_v<T> || std::is_nothrow_swappable_v<T>) {
                 if (m_order.is_zero()) return *this;
-                if constexpr (std::is_swappable_v<T>) {
+                if constexpr (std::is_nothrow_swappable_v<T>) {
                     if (m_order.is_square()) {
                         const size_t size = m_order.row();
                         for (size_t i = 0; i < size; i++) {
@@ -1236,10 +1300,10 @@ namespace math
                         }
                     }
                     else if constexpr (std::is_copy_constructible_v<T>) *this = this->transpose();
-                    else throw std::logic_error("Cannot do transposition on this matrix because it is neither a square matrix and is not copy constructible to create a new matrix.");
+                    else throw std::logic_error("Cannot do transposition on this Matrix because it is neither a square Matrix and is not copy constructible to create a new Matrix.");
                 }
                 else if constexpr (std::is_copy_constructible_v<T>) *this = this->transpose();
-                else throw std::logic_error("Cannot do transposition on this matrix because it is neither a square matrix(or the type is not swappable) and is not copy constructible to create a new matrix.");
+                else throw std::logic_error("Cannot do transposition on this Matrix because it is neither a square Matrix(or the type is not swappable) and is not copy constructible to create a new Matrix.");
                 return *this;
             }
     
@@ -1247,7 +1311,7 @@ namespace math
             [[nodiscard("Result of trace method was ignored.")]]
             T trace() const
             requires math::isAdditionPossible<T> {
-                if (!(this->is_square())) throw std::logic_error("Cannot find trace of a non square matrix.");
+                if (!(this->is_square())) throw std::logic_error("Cannot find trace of a non square Matrix.");
                 const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (m_order.is_zero()) {
                     if (zero_exists) {
@@ -1256,7 +1320,7 @@ namespace math
                     else if constexpr (std::is_default_constructible_v<T>) {
                         return T{};
                     }
-                    else throw std::logic_error("Cannot provide the value of trace for a zero size matrix with a type of which neither a default constructor exists nor is the zero value stored.");
+                    else throw std::logic_error("Cannot provide the value of trace for a zero size Matrix with a type of which neither a default constructor exists nor is the zero value stored.");
                 }
                 const size_t size = m_order.row();
                 if constexpr (std::is_copy_constructible_v<T>) {
@@ -1282,7 +1346,7 @@ namespace math
                     }
                     return result;
                 }
-                else throw std::logic_error("Cannot provide the trace of the matrix because it is not copy constructible for storing initial zero/default value and is neither default constructible.");
+                else throw std::logic_error("Cannot provide the trace of the Matrix because it is not copy constructible for storing initial zero/default value and is neither default constructible.");
             }
 
             [[nodiscard("Result of is_null method was ignored.")]]
@@ -1307,7 +1371,7 @@ namespace math
                     }
                     return true;
                 }
-                else throw std::logic_error("Cannot check for is_null property of the matrix as the zero value(stored in math::zero_vals or defautlt construction for the type) is not defined.");
+                else throw std::logic_error("Cannot check for is_null property of the Matrix as the zero value(stored in math::zero_vals or defautlt construction for the type) is not defined.");
             }
             
             [[nodiscard("Result of are_all_same_as(const T&) method was ignored.")]]
