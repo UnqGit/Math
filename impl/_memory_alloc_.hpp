@@ -5,7 +5,6 @@
 
 namespace math::memory::impl
 {
-
     // Allocating row memory, a C++ wrapper on malloc.
     template <typename T>
     [[nodiscard("Shouldn't be allocating memory without getting a pointer to it.")]]
@@ -36,8 +35,10 @@ namespace math::memory::impl
             return mem_ptr;
         }
         if (num_elements < old_num_elements) {
-            if constexpr (!std::is_trivially_destructible_v<T>) std::destroy(mem_ptr + old_num_elements, mem_ptr + num_elements);
-            mem_ptr = static_cast<T*>(std::realloc(mem_ptr, sizeof(T) * num_elements));
+            if constexpr (!std::is_trivially_destructible_v<T>) std::destroy(mem_ptr + num_elements, mem_ptr + old_num_elements);
+            T *temp = static_cast<T*>(std::realloc(mem_ptr, sizeof(T) * num_elements));
+            if (temp) mem_ptr = temp;
+            else throw std::bad_alloc{}; 
             return mem_ptr;
         }
         if constexpr (std::is_trivially_copyable_v<T>) {
@@ -121,20 +122,20 @@ namespace math::memory::impl
         }
     }
 
-    template <typename T>
-    void mem_2d_safe_construct_at(T* &to_construct_at, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size, const auto &..._args) {
+    template <typename T, typename ...Args>
+    void mem_2d_safe_construct_at(T* to_construct_at, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size, Args&&... _args) {
         try {
-            std::construct_at(to_construct_at, _args);
+            std::construct_at(to_construct_at, std::forward<Args>(_args)...);
         } catch(...) {
             destroy_data<T>(mem, curr_i, to_construct_at - mem[curr_i], num_rows, row_size);
             throw;
         }
     }
 
-    template <typename T>
-    void mem_2d_safe_construct_at_continuous(T* &to_construct_at, T** &mem, const size_t curr_i, const size_t row_size, const auto &..._args) {
+    template <typename T, typename ...Args>
+    void mem_2d_safe_construct_at_continuous(T* to_construct_at, T** &mem, const size_t curr_i, const size_t row_size, Args&&... _args) {
         try {
-            std::construct_at(to_construct_at, _args);
+            std::construct_at(to_construct_at, std::forward<Args>(_args)...);
         } catch(...) {
             destroy_data_continuous<T>(mem, curr_i, to_construct_at - mem[curr_i], row_size);
             throw;
@@ -142,7 +143,7 @@ namespace math::memory::impl
     }
 
     template <typename T>
-    void mem_2d_safe_uninit_fill_n(T* &to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    void mem_2d_safe_uninit_fill_n(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
         if constexpr (std::is_nothrow_copy_constructible_v<T>) {
             std::uninitialized_fill_n(to_construct_at, size, val);
@@ -160,7 +161,7 @@ namespace math::memory::impl
     }
 
     template <typename T>
-    void mem_2d_safe_uninit_fill_n_continuous(T* &to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
+    void mem_2d_safe_uninit_fill_n_continuous(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
         if constexpr (std::is_nothrow_copy_constructible_v<T>) {
             std::uninitialized_fill_n(to_construct_at, size, val);
@@ -177,7 +178,7 @@ namespace math::memory::impl
     }
 
     template <typename T>
-    void mem_2d_safe_uninit_valcon_n(T* &to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    void mem_2d_safe_uninit_valcon_n(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_default_constructible_v<T> {
         if constexpr (std::is_nothrow_default_constructible_v<T>) {
             std::uninitialized_value_construct_n(to_construct_at, size);
@@ -194,7 +195,7 @@ namespace math::memory::impl
     }
 
     template <typename T>
-    void mem_2d_safe_uninit_valcon_n_continuous(T* &to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
+    void mem_2d_safe_uninit_valcon_n_continuous(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_default_constructible_v<T> {
         if constexpr (std::is_nothrow_default_constructible_v<T>) {
             std::uninitialized_value_construct_n(to_construct_at, size);
@@ -211,13 +212,12 @@ namespace math::memory::impl
     }
 
     template <typename T, std::input_iterator Iter>
-    void mem_2d_safe_uninit_copy_n(T* &to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    void mem_2d_safe_uninit_copy_n(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
-        if constexpr (std::is_nothrow_constructible_v<T>) {
+        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
             std::uninitialized_copy_n(it, size, to_construct_at);
-            return;
         }
-        for (size_t created_items = 0; created_items < size; created_items++, ++it) {
+        for (size_t created_items = 0; created_items < size; ++created_items, ++it) {
             try {
                 std::construct_at(to_construct_at + created_items, *it);
             } catch(...) {
@@ -228,9 +228,9 @@ namespace math::memory::impl
     }
 
     template <typename T, std::input_iterator Iter>
-    void mem_2d_safe_uninit_copy_n_continuous(T* &to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t row_size)
+    void mem_2d_safe_uninit_copy_n_continuous(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
-        if constexpr (std::is_nothrow_constructible_v<T>) {
+        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
             std::uninitialized_copy_n(it, size, to_construct_at);
             return;
         }
@@ -242,5 +242,69 @@ namespace math::memory::impl
                 throw;
             }
         }
+    }
+
+    template <typename T, std::input_iterator Iter>
+    size_t mem_2d_safe_uninit_copy(T* to_construct_at, Iter begin, Iter end, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
+        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
+            if constexpr (std::random_access_iterator<Iter>) {
+                std::uninitialized_copy(begin, end, to_construct_at);
+                return (end - begin);
+            }
+            else {
+                size_t constructed_items = 0;
+                while (begin != end) {
+                    std::construct_at(to_construct_at + constructed_items, *begin);
+                    ++begin;
+                    ++constructed_items;
+                }
+                return constructed_items;
+            }
+        }
+        size_t constructed_items = 0;
+        while (begin != end) {
+            try {
+                std::construct_at(to_construct_at + constructed_items, *begin);
+            } catch(...) {
+                destroy_data<T>(mem, curr_i, constructed_items, num_rows, row_size);
+                throw;
+            }
+            ++begin;
+            ++constructed_items;
+        }
+        return constructed_items;
+    }
+    
+    template <typename T, std::input_iterator Iter>
+    size_t mem_2d_safe_uninit_copy_continuous(T* to_construct_at, Iter begin, Iter end, T** &mem, const size_t curr_i, const size_t row_size)
+    requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
+        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
+            if constexpr (std::random_access_iterator<Iter>) {
+                std::uninitialized_copy(begin, end, to_construct_at);
+                return (end - begin);
+            }
+            else {
+                size_t constructed_items = 0;
+                while (begin != end) {
+                    std::construct_at(to_construct_at + constructed_items, *begin);
+                    ++begin;
+                    ++constructed_items;
+                }
+                return constructed_items;
+            }
+        }
+        size_t constructed_items = 0;
+        while (begin != end) {
+            try {
+                std::construct_at(to_construct_at + constructed_items, *begin);
+            } catch(...) {
+                destroy_data_continuous<T>(mem, curr_i, constructed_items, row_size);
+                throw;
+            }
+            ++begin;
+            ++constructed_items;
+        }
+        return constructed_items;
     }
 }

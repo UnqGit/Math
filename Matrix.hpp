@@ -29,7 +29,7 @@ namespace math
                 if (zero_exists) {
                     for (size_t i = 0; i < size; i++) {
                         math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, size);
-                        math::memory::impl::mem_2d_uninit_fill_n_continuous<T>(m_data[i], math::zero_vals.get_of<T>(), size, m_data, i, size);
+                        math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i], math::zero_vals.get_of<T>(), size, m_data, i, size);
                     }
                     return;
                 }
@@ -239,7 +239,7 @@ namespace math
                         m_order = math::matrix::Order(1, size);
                         m_data = math::memory::impl::allocate_memory<T*>(1);
                         math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, 0, size);
-                        math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[0], size, data, m_data, i, size);
+                        math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[0], size, data, m_data, 0, size);
                         return;
                     case math::matrix::COR::vertical :
                         m_order = math::matrix::Order(size, 1);
@@ -308,60 +308,59 @@ namespace math
             requires std::is_copy_constructible_v<T> : Matrix(data, math::matrix::Order(row, column)) {}
 
         public:
-            Matrix(T *data, const size_t size, const math::matrix::Order &order)
+            Matrix(T *data, const size_t size, const math::matrix::Order &order, const T &fallback_val)
             requires std::is_copy_constructible_v<T> : m_order(order) {
                 if (m_order.is_zero()) return;
-                if (size <= m_order.size()) {
+                if (size >= m_order.size()) {
                     *this = Matrix(data, m_order);
                     return;
                 }
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
-                T *end = nullptr;
-                const bool zero_exists = math::zero_vals.exists_of<T>();
-                size_t constructed_items = 0, j;
+                size_t constructed_items = 0;
                 m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
-                    j = 0;
-                    while (constructed_items <= size && j < column) {
-                        try {
-                            std::construct_at(m_data[i] + j, data[constructed_items]);
-                        } catch(...) {
-                            math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
-                            throw;
-                        }
-                        ++j;
-                        ++constructed_items;
-                    }
-                    if (j < column) {
-                        if (zero_exists) {
-                            try {
-                                end = std::uninitialized_fill_n(m_data[i] + j, column - j, math::zero_vals.get_of<T>());
-                            } catch(...) {
-                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
-                                throw;
-                            }
-                        }
-                        else if constexpr (std::is_default_constructible_v<T>) {
-                            try {
-                                end = std::uninitialized_value_construct_n(m_data[i] + j, column - j, T{});
-                            } catch(...) {
-                                math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
-                                throw;
-                            }
-                        }
-                        else {
-                            math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
-                            throw std::logic_error("Cannot construct using the array provided since it's size is smaller then the order provided and the type is not default constructible and it's zero value is not stored in the math::zero_vals.");
-                        }
+                    bool is_remaining = size > constructed_items;
+                    switch(is_remaining) {
+                        case true:
+                            math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], std::min(size - constructed_items, column), data + constructed_items, m_data, i, column);
+                            constructed_items += std::min(size - constructed_items, column);
+                            if (constructed_items % column == 0) break;
+                            [[fallthrough]];
+                        case false:
+                            if (constructed_items % column)
+                                math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i] + (constructed_items % column), fallback_val, constructed_items % column, m_data, i, column);
+                            else math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i], fallback_val, column, m_data, i, column);
+                            constructed_items += ((constructed_items % column) == 0 ? column : (constructed_items % column));
                     }
                 }
             }
+
+            Matrix(T *data, const size_t size, const math::matrix::Order &order)
+            requires std::is_copy_constructible_v<T> : m_order(order) {
+                if (m_order.is_zero()) return;
+                if (size >= m_order.size()) {
+                    *this = Matrix(data, m_order);
+                    return;
+                }
+                if (math::zero_vals.exists_of<T>()) {
+                    *this = Matrix(data, size, order, math::zero_vals.get_of<T>());
+                    return;
+                }
+                else if constexpr (std::is_default_constructible_v<T>) {
+                    *this = Matrix(data, size, order, T{});
+                    return;
+                }
+                throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
+            }
+            
+            Matrix(T *data, const size_t size, const size_t row, const size_t column, const T &fallback_val)
+            requires std::is_copy_constructible_v<T> : Matrix(data, size, math::matrix::Order(row, column), fallback_val) {}
             
             Matrix(T *data, const size_t size, const size_t row, const size_t column)
-            requires std::is_copy_constructible_v<T> : Matrix(data, size, math::matrix::Order(row, column)) {}
-
+            requires std::is_copy_constructible_v<T> : Matrix(data, size, math::matrix::Order(row, column)) {} 
+           
         public:
             template <typename U>
             requires math::helper::isOneDArr<U, T>
@@ -505,12 +504,7 @@ namespace math
                 T* end = nullptr;
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
-                    try {
-                        end = std::uninitialized_copy(data[i], data[i] + column, m_data[i]);
-                    } catch(...) {
-                        math::memory::impl::destroy_data_continuous<T>(m_data, i, end, column);
-                        throw;
-                    }
+                    math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], column, data[i], m_data, i, column);
                 }
             }
             
@@ -532,78 +526,79 @@ namespace math
                 auto Iter = arr.begin();
                 auto end = arr.end();
                 const bool zero_exists = math::zero_vals.exists_of<T>();
-                T *err_end = nullptr;
-                size_t j;
+                const size_t row_objects_created = 0;
                 switch (construct_rule) {
                     case math::matrix::CCR::shrink :
-                        row_size = Iter->size();
+                        row_size = (*Iter).size();
                         while (Iter != end) {
-                            row_size = std::min(row_size, Iter->size());
+                            row_size = std::min(row_size, (*Iter).size());
+                            if (row_size == 0) return;
                             ++Iter;
                         }
-                        if (row_size == 0) return;
                         m_order = math::matrix::Order(size, row_size);
                         m_data = math::memory::impl::allocate_memory<T*>(size);
                         Iter = arr.begin();
                         for (size_t i = 0; i < size; i++) {
                             math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, row_size);
-                            try {
-                                err_end = std::uninitialized_copy_n(Iter->begin(), row_size, m_data[i]);
-                                ++Iter;
-                            } catch(...) {
-                                math::memory::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
-                                throw;
-                            }
+                            math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], row_size, Iter, m_data, i, row_size);
                         }
                         return;
                     case math::matrix::CCR::must_be_same :
-                        row_size = Iter->size();
+                        row_size = (*Iter).size();
                         while (Iter != end) {
-                            if (row_size != Iter->size()) throw std::invalid_argument("Rows of the provided container are not of the same size and rule chosen is math::matrix::ConstructContainerRule::must_be_same.");
+                            if (row_size != (*Iter).size()) throw std::invalid_argument("Rows of the provided container are not of the same size and rule chosen is math::matrix::ConstructContainerRule::must_be_same.");
                             ++Iter;
                         }
                         m_order = math::matrix::Order(size, row_size);
+                        if (row_size == 0) return;
                         m_data = math::memory::impl::allocate_memory<T*>(size);
                         Iter = arr.begin();
                         for (size_t i = 0; i < size; i++) {
                             math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, row_size);
-                            try {
-                                err_end = std::uninitialized_copy(Iter->begin(), Iter->end(), m_data[i]);
-                                ++Iter;
-                            } catch(...) {
-                                math::memory::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
-                                throw;
-                            }
+                            math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], row_size, Iter, m_data, i, row_size);
                         }
                         return;
                     case math::matrix::CCR::expand :
-                        row_size = Iter->size();
+                        row_size = (*Iter).size();
+                        bool are_all_same = true;
+                        size_t temp;
                         while (Iter != end) {
-                            row_size = std::max(row_size, Iter->size());
+                            temp = std::max(row_size, (*Iter).size());
+                            if (temp != row_size) are_all_same = false;
+                            row_size = temp;
                             ++Iter;
                         }
+                        if (row_size == 0) return;
                         Iter = arr.begin();
+                        if (!are_all_same)
+                            if constexpr (!std::is_default_constructible_v<T>)
+                                if (!zero_exists) throw std::invalid_argument("Cannot construct the Matrix because the tag set was math::matrix::ConstructContainerRule::expand and all rows were not of the same size and the type is neither default constructible and neither is it's zero value stored in math::zero_vals.");
                         m_order = math::matrix::Order(size, row_size);
                         m_data = math::memory::impl::allocate_memory<T*>(size);
                         for (size_t i = 0; i < size; i++) {
                             math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, row_size);
-                            try {
-                                err_end = std::uninitialized_copy(Iter->begin(), Iter->end(), m_data[i]);
-                                j = Iter->size();
-                                if (j != row_size) {
-                                    if (zero_exists) {
-                                        err_end = std::uninitialized_fill_n(m_data[i] + j, row_size - j, math::zero_vals.get_of<T>());
-                                    }
-                                    else if constexpr (std::is_default_constructible_v<T>) {
-                                        err_end = std::uninitialized_value_construct_n(m_data[i] + j, row_size - j);
-                                    }
-                                    else throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
-                                    ++Iter;
-                                }
-                            } catch(...) {
-                                math::memory::impl::destroy_data_continuous<T>(m_data, i, err_end, row_size);
-                                throw;
+                            row_objects_created = math::memory::impl::mem_2d_safe_uninit_copy_continuous<T>(m_data[i], (*Iter).begin(), (*Iter).end(), m_data, i, row_size);
+                            if (row_objects_created != row_size) {
+                                if constexpr (!std::is_default_constructible_v<T>) 
+                                    math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i] + row_objects_created, math::zero_vals.get_of<T>(), row_size - row_objects_created, m_data, i, row_size);
+                                else math::memory::impl::mem_2d_safe_uninit_valcon_n_continuous<T>(m_data[i] + row_objects_created, row_size - row_objects_created, m_data, i, row_size);
                             }
+                            ++Iter;
+                        }
+                        return;
+                    case math::matrix::CCR::are_same :
+                        row_size = (*Iter).size();
+                        if (row_size == 0) return;
+                        m_order = math::matrix::Order(size, row_size);
+                        m_data = math::memory::impl::allocate_memory<T*>(size);
+                        for (size_t i = 0; i < size; i++) {
+                            if ((*Iter).size() != row_size) {
+                                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i, row_size);
+                                throw std::logic_error("Promised attribute math::matrix::ConstructConainerRule::are_same was not satisfied in construction of the Matrix.");
+                            }
+                            m_data[i] = math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, row_size);
+                            math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], row_size, Iter, m_data, i, row_size);
+                            ++Iter;
                         }
                         return;
                 }
@@ -618,12 +613,7 @@ namespace math
                 m_data = math::memory::impl::allocate_memory<T*>(num_rows);
                 for (size_t i = 0; i < num_rows; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, C);
-                    try {
-                        end = std::uninitialized_copy(data[i], data[i] + C, m_data[i]);
-                    } catch(...) {
-                        math::memory::impl::destroy_data_continuous<T>(m_data, i, end, C);
-                        throw;
-                    }
+                    math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], C, data[i], m_data, i, C);
                 }
             }
 
@@ -636,17 +626,8 @@ namespace math
                 m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
-                    for (size_t j = 0; j < column; j++) {
-                        try {
-                            if constexpr (std::is_move_constructible_v<T>) {
-                                std::construct_at(m_data[i] + j, std::move(t_creation()));
-                            }
-                            else std::construct_at(m_data[i] + j, t_creation());
-                        } catch(...) {
-                            math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
-                            throw;
-                        }
-                    }
+                    for (size_t j = 0; j < column; j++)
+                        math::memory::impl::mem_2d_safe_construct_at_continuous(m_data[i] + j, m_data, i, column, t_creation());
                 }
             }
             
@@ -661,17 +642,8 @@ namespace math
                 m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
-                    for (size_t j = 0; j < column; j++) {
-                        try {
-                            if constexpr (std::is_move_constructible_v<T>) {
-                                std::construct_at(m_data[i] + j, std::move(t_creation(i, j)));
-                            }
-                            else std::construct_at(m_data[i] + j, t_creation(i, j));
-                        } catch(...) {
-                            math::memory::impl::destroy_data_continuous<T>(m_data, i, m_data[i] + j, column);
-                            throw;
-                        }
-                    }
+                    for (size_t j = 0; j < column; j++)
+                        math::memory::impl::mem_2d_safe_construct_at_continuous<T>(m_data[i] + j, m_data, i, column, t_creation(i, j));
                 }
             }
             

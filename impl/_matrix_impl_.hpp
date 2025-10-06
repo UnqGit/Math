@@ -614,7 +614,7 @@ namespace math::matrix
     using COR = ConstructOrientationRule;
 
     enum class ConstructContainerRule : char {
-        shrink, expand, must_be_same
+        shrink, expand, must_be_same, are_same
     };
     using CCR = ConstructContainerRule;
 
