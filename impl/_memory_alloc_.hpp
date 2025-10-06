@@ -5,7 +5,7 @@
 
 namespace math::memory::impl
 {
-    
+
     // Allocating row memory, a C++ wrapper on malloc.
     template <typename T>
     [[nodiscard("Shouldn't be allocating memory without getting a pointer to it.")]]
@@ -82,19 +82,165 @@ namespace math::memory::impl
 
     // This is for when the memory is allocated in a separate loop and constructed in another.
     template <typename T>
-    void destroy_data(T** &data, const size_t curr_i, const T *const end_curr_i, const size_t num_row, const size_t row_size) {
+    void destroy_data(T** &data, const size_t curr_i, const size_t end_row_created_items, const size_t num_row, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
-        free_memory<T>(data[curr_i], end_curr_i - data[curr_i]);
-        for (size_t i = curr_i + 1; i < num_row; i++) free_memory<T>(data[i], row_size);
+        free_memory<T>(data[curr_i], end_row_created_items);
+        for (size_t i = curr_i + 1; i < num_row; i++) free_memory<T>(data[i], 0);
         free_memory<T*>(data, 0);
     }
 
     // This is for when the memory is allocated and constructed in the same loop.
     template <typename T>
-    void destroy_data_continuous(T** &data, const size_t curr_i, const T *const end_curr_i, const size_t row_size) {
+    void destroy_data_continuous(T** &data, const size_t curr_i, const size_t end_row_created_items, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
-        free_memory<T>(data[curr_i], 0);
+        free_memory<T>(data[curr_i], end_row_created_items);
         free_memory<T*>(data, 0);
     }
 
+    // ======DRY SECTOR======
+
+    // Shorthand for when memory is allocated in a separate loop, with exception safety.
+    template <typename T>
+    void allocate_mem_2d_safe(T** &mem_ptr, const size_t curr_i, const size_t row_size) {
+        try {
+            mem_ptr[curr_i] = allocate_memory<T>(row_size);
+        } catch(...) {
+            destroy_data_mem_err<T>(mem_ptr, curr_i);
+            throw;
+        }
+    }
+
+    // Shorthand for allocating memory continuously in a loop with construction, with exception safety.
+    template <typename T>
+    void allocate_mem_2d_safe_continuous(T** &mem_ptr, const size_t curr_i, const size_t row_size) {
+        try {
+            mem_ptr[curr_i] = allocate_memory<T>(row_size);
+        } catch(...) {
+            destroy_data_mem_err_continuous<T>(mem_ptr, curr_i, row_size);
+            throw;
+        }
+    }
+
+    template <typename T>
+    void mem_2d_safe_construct_at(T* &to_construct_at, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size, const auto &..._args) {
+        try {
+            std::construct_at(to_construct_at, _args);
+        } catch(...) {
+            destroy_data<T>(mem, curr_i, to_construct_at - mem[curr_i], num_rows, row_size);
+            throw;
+        }
+    }
+
+    template <typename T>
+    void mem_2d_safe_construct_at_continuous(T* &to_construct_at, T** &mem, const size_t curr_i, const size_t row_size, const auto &..._args) {
+        try {
+            std::construct_at(to_construct_at, _args);
+        } catch(...) {
+            destroy_data_continuous<T>(mem, curr_i, to_construct_at - mem[curr_i], row_size);
+            throw;
+        }
+    }
+
+    template <typename T>
+    void mem_2d_safe_uninit_fill_n(T* &to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    requires std::is_copy_constructible_v<T> {
+        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
+            std::uninitialized_fill_n(to_construct_at, size, val);
+            return;
+        }
+        for (size_t created_items = 0; created_items < size; created_items++) {
+            try {
+                std::construct_at(to_construct_at + created_items, val);
+            } catch(...) {
+                destroy_data<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size);
+                throw;
+            }
+        }
+
+    }
+
+    template <typename T>
+    void mem_2d_safe_uninit_fill_n_continuous(T* &to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
+    requires std::is_copy_constructible_v<T> {
+        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
+            std::uninitialized_fill_n(to_construct_at, size, val);
+            return;
+        }
+        for (size_t created_items = 0; created_items < size; created_items++) {
+            try {
+                std::construct_at(to_construct_at + created_items, val);
+            } catch(...) {
+                destroy_data_continuous<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size);
+                throw;
+            }
+        }
+    }
+
+    template <typename T>
+    void mem_2d_safe_uninit_valcon_n(T* &to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    requires std::is_default_constructible_v<T> {
+        if constexpr (std::is_nothrow_default_constructible_v<T>) {
+            std::uninitialized_value_construct_n(to_construct_at, size);
+            return;
+        }
+        for (size_t created_items = 0; created_items < size; created_items++) {
+            try {
+                std::construct_at(to_construct_at + created_items);
+            } catch(...) {
+                destroy_data<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size);
+                throw;
+            }
+        }
+    }
+
+    template <typename T>
+    void mem_2d_safe_uninit_valcon_n_continuous(T* &to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
+    requires std::is_default_constructible_v<T> {
+        if constexpr (std::is_nothrow_default_constructible_v<T>) {
+            std::uninitialized_value_construct_n(to_construct_at, size);
+            return;
+        }
+        for (size_t created_items = 0; created_items < size; created_items++) {
+            try {
+                std::construct_at(to_construct_at + created_items);
+            } catch(...) {
+                destroy_data_continuous<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size);
+                throw;
+            }
+        }
+    }
+
+    template <typename T, std::input_iterator Iter>
+    void mem_2d_safe_uninit_copy_n(T* &to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
+        if constexpr (std::is_nothrow_constructible_v<T>) {
+            std::uninitialized_copy_n(it, size, to_construct_at);
+            return;
+        }
+        for (size_t created_items = 0; created_items < size; created_items++, ++it) {
+            try {
+                std::construct_at(to_construct_at + created_items, *it);
+            } catch(...) {
+                destroy_data<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size);
+                throw;
+            }
+        }
+    }
+
+    template <typename T, std::input_iterator Iter>
+    void mem_2d_safe_uninit_copy_n_continuous(T* &to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t row_size)
+    requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
+        if constexpr (std::is_nothrow_constructible_v<T>) {
+            std::uninitialized_copy_n(it, size, to_construct_at);
+            return;
+        }
+        for (size_t created_items = 0; created_items < size; created_items++, ++it) {
+            try {
+                std::construct_at(to_construct_at + created_items, *it);
+            } catch(...) {
+                destroy_data_continuous<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size);
+                throw;
+            }
+        }
+    }
 }

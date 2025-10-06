@@ -272,7 +272,102 @@ namespace math::matrix
             }
     };
 
-    // A view type container.
+    // Column Iterator for view type column object of a row major matrix
+    template <typename T>
+    class ColumnIterator {
+        public:
+            using iterator_category = std::random_access_iterator_tag;
+            using difference_type   = std::ptrdiff_t;
+            using value_type        = T;
+            using pointer           = T*;
+            using reference         = T&;
+
+        private:
+            T **m_data;
+            size_t m_col_index;
+
+        public:
+            ColumnIterator(T **data, const size_t col) : m_data(data), m_col_index(col) {}
+            ColumnIterator(const ColumnIterator &other) noexcept = default;
+
+        public:
+            bool operator==(const ColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_col_index == other.m_col_index));
+            }
+            bool operator!=(const ColumnIterator &other) const noexcept {
+                return ((m_data != other.m_data) || (m_col_index != other.m_col_index));
+            }
+            bool operator>(const ColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_col_index > other.m_col_index));
+            }
+            bool operator<(const ColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_col_index < other.m_col_index));
+            }
+            bool operator<=(const ColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_col_index <= other.m_col_index));
+            }
+            bool operator>=(const ColumnIterator &other) const noexcept {
+                return ((m_data == other.m_data) && (m_col_index >= other.m_col_index));
+            }
+
+        public:
+            reference operator*() noexcept {
+                return (*m_data)[m_col_index];
+            }
+            pointer operator->() noexcept {
+                return (*m_data) + m_col_index;
+            }
+            const reference operator*() const noexcept {
+                return (*m_data)[m_col_index];
+            }
+            const pointer operator->() const noexcept {
+                return (*m_data) + m_col_index;
+            }
+
+        public:
+            reference operator[](const size_t index) const noexcept {
+                return (*(m_data + index))[m_col_index];
+            }
+    
+        public:
+            ColumnIterator operator++(int) noexcept {
+                ColumnIterator prev(m_data++, m_col_index);
+                return prev;
+            }
+            ColumnIterator &operator++() noexcept {
+                ++m_data;
+                return *this;
+            }
+            ColumnIterator operator--(int) noexcept {
+                ColumnIterator prev(m_data--, m_col_index);
+                return prev;
+            }
+            ColumnIterator &operator--() noexcept {
+                --m_data;
+                return *this;
+            }
+    
+        public:
+            ColumnIterator operator+(const difference_type add) const noexcept {
+                return ColumnIterator(m_data + add, m_col_index);
+            }
+            ColumnIterator operator-(const difference_type sub) const noexcept {
+                return ColumnIterator(m_data - sub, m_col_index);
+            }
+            ColumnIterator &operator+=(const difference_type add) noexcept {
+                m_data += add;
+                return *this;
+            }
+            ColumnIterator &operator-=(const difference_type sub) noexcept {
+                m_data -= sub;
+                return *this;
+            }
+            ColumnIterator operator-(const ColumnIterator &other) const noexcept {
+                return (m_data - other.m_data);
+            }
+    };
+
+    // A view type row container.
     template <typename T>
     class Row {
         private:
@@ -284,6 +379,7 @@ namespace math::matrix
             Row(const Row &other) noexcept = default;
 
         public:
+            [[nodiscard("Result of (non-const)at method for this row was not used.")]]
             T &at(const size_t index) {
                 if (index >= m_row_len) throw std::out_of_range("Index is greater than number of elements in the row and hence can't be accessed.");
                 return m_data[index];
@@ -292,6 +388,8 @@ namespace math::matrix
                 if (index >= m_row_len) throw std::out_of_range("Index is greater than number of elements in the row and hence can't be accessed.");
                 return m_data[index];
             }
+            
+            [[nodiscard("Result of (non-const)&operator[] method for this row was not used.")]]
             T &operator[](const size_t index) noexcept {
                 return m_data[index];
             }
@@ -314,16 +412,19 @@ namespace math::matrix
             }
 
         public:
+            [[nodiscard("Result of size method for this row was not used.")]]
             size_t size() const noexcept {
                 return m_row_len;
             }
 
+            [[nodiscard("Result of is_same_as method for this row was not used.")]]
             bool is_same_as(const Row &other) const noexcept {
                 return ((this == &other) || ((m_data == other.m_data) && (m_row_len == other.m_row_len)));
             }
 
-            bool operator==(const Row &other) const {
-                if (this == &other) return true;
+            [[nodiscard("Result of operator== for this row was not used.")]]
+            bool operator==(const Row &other) const
+            requires math::isEqualityOperationPossible<T> {
                 if (this->is_same_as(other)) return true;
                 for (size_t i = 0; i < m_row_len; i++) {
                     if (!math::is_equal(m_data[i], other.m_data[i])) return false;
@@ -331,7 +432,82 @@ namespace math::matrix
                 return true;
             }
 
-            bool operator!=(const Row &other) const {
+            [[nodiscard("Result of operator!= for this row was not used.")]]
+            bool operator!=(const Row &other) const
+            requires math::isEqualityOperationPossible<T> {
+                return !((*this)==other);
+            }
+    };
+
+    // A view type column container.
+    template <typename T>
+    class Column {
+        private:
+            T **m_data;
+            size_t m_column_index;
+            size_t m_num_rows;
+
+        public:
+            Column(T **data, const size_t col, const size_t row) noexcept : m_data(data), m_column_index(col), m_num_rows(row) {}
+            Column(const Column &other) noexcept = default;
+
+        public:
+            [[nodiscard("Result for (non-const)at method for this column was not used.")]]
+            T &at(const size_t index) {
+                if (index >= m_num_rows) std::out_of_range("Cannot access provided row on this column because it exceeds the number of rows in the matrix.");
+                return m_data[index][m_column_index];
+            }
+            const T &at(const size_t index) const {
+                if (index >= m_num_rows) std::out_of_range("Cannot access provided row on this column because it exceeds the number of rows in the matrix.");
+                return m_data[index][m_column_index];
+            }
+            
+            [[nodiscard("Result for (non-const)&operator[] method for this column was not used.")]]
+            T &operator[](const size_t index) noexcept {
+                return m_data[index][m_column_index];
+            }
+            const T &operator[](const size_t index) const noexcept {
+                return m_data[index][m_column_index];
+            }
+    
+        public:
+            ColumnIterator<T> begin() noexcept {
+                return ColumnIterator<T>(m_data, m_column_index);
+            }
+            const ColumnIterator<T> begin() const noexcept {
+                return ColumnIterator<T>(m_data, m_column_index);
+            }
+            ColumnIterator<T> end() noexcept {
+                return ColumnIterator<T>(m_data + m_num_rows, m_column_index);
+            }
+            const ColumnIterator<T> end() const noexcept {
+                return ColumnIterator<T>(m_data + m_num_rows, m_column_index);
+            }
+
+        public:
+            [[nodiscard("Result of size method for this column was not used.")]]
+            size_t size() const noexcept {
+                return m_num_rows;
+            }
+
+            [[nodiscard("Result of is_same_as method for this column was not used.")]]
+            bool is_same_as(const Column &other) const noexcept {
+                return ((this == &other) && ((m_data == other.m_data) || (m_column_index == other.m_column_index) || (m_num_rows == other.m_num_rows)));
+            }
+
+            [[nodiscard("Result of operator== for this column was not used.")]]
+            bool operator==(const Column &other) const
+            requires math::isEqualityOperationPossible<T> {
+                if (this->is_same_as(other)) return true;
+                for (size_t i = 0; i < m_num_rows; i++) {
+                    if (!math::is_equal(m_data[i][m_column_index], other.m_data[i][m_column_index])) return false;
+                }
+                return true;
+            }
+
+            [[nodiscard("Result of operator!= for this column was not used.")]]
+            bool operator!=(const Column &other) const
+            requires math::isEqualityOperationPossible<T> {
                 return !((*this)==other);
             }
     };
@@ -427,22 +603,22 @@ namespace math::matrix
 
     // Construction rules.
 
-    enum class ConstructAllocateRule {
+    enum class ConstructAllocateRule : bool {
         zero, possible_garbage
     };
     using CAR = ConstructAllocateRule;
 
-    enum class ConstructOrientationRule {
+    enum class ConstructOrientationRule : char {
         horizontal, vertical, main_diagonal, off_diagonal
     };
     using COR = ConstructOrientationRule;
 
-    enum class ConstructContainerRule {
+    enum class ConstructContainerRule : char {
         shrink, expand, must_be_same
     };
     using CCR = ConstructContainerRule;
 
-    enum class ConstructSquareRule {
+    enum class ConstructSquareRule : char {
         full, upper_half, lower_half, left_half, right_half, top_left_quarter, top_right_quarter, bottom_left_quarter, bottom_right_quarter, top_left_triangle, top_right_triangle, bottom_left_triangle, bottom_right_triangle, main_diagonal, off_diagonal, alternate, alternate_row, alternate_column
     };
     using CSR = ConstructSquareRule;
