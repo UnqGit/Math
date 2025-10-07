@@ -35,6 +35,7 @@ namespace math::memory::impl
 
     // Safely free-ing memory.
     template <typename T>
+    requires (std::is_trivially_destructible_v<T> || noexcept( ~std::declval<std::decay_t<T>>() ))
     void free_memory(T* &memory, const size_t created_items) {
         if (memory == nullptr) return;
         if constexpr (!std::is_trivially_destructible_v<T>) std::destroy(memory, memory + created_items);
