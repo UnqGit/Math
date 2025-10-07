@@ -9,7 +9,8 @@
 namespace math
 {
     template <typename T>
-    requires ( std::is_trivially_destructible_v<T> || noexcept( ~std::declval<std::decay_t<T>>() ) ) 
+    // Make your type no_throw_destructible first.
+    requires ( std::is_nothrow_destructible_v<T> ) 
     class [[nodiscard("Discarding a Matrix construction - constructing a Matrix is an expensive operation.")]]
     Matrix {
         private:
@@ -880,14 +881,16 @@ namespace math
                 const size_t column = other.m_order.column();
                 const size_t this_column = m_order.column();
                 T *to_transfer = math::memory::impl::allocate_memory<T*>(row);
+                size_t d = 0;
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(to_transfer, i, column);
                     const T &cached = m_data[i][0];
                     const T *const cache_data = other.m_data[0];
                     T *const data = to_transfer[i];
-                    for (size_t d = 0; d < column; d++) try { std::construct_at(data + d, cached * cache_data[d]); }
+                    try { for (d = 0; d < column; d++) std::construct_at(data + d, cached * cache_data[d]); }
                     catch(...) { math::memory::impl::destroy_data_continuous<T>(to_transfer, i, to_transfer[i] + d, column); throw; }
                 }
+                // it is fine till here if an exception is called and the destructor of result is called because the order is zero and hence it wouldn't try to free memory.
                 std::swap(result.m_data, to_transfer); // m_data was nullptr before this.
                 result.m_order = math::matrix::Order(row, column);
                 if (result.is_wide()) {
@@ -968,17 +971,18 @@ namespace math
             requires std::is_copy_constructible_v<T> {
                 Matrix result;
                 if (m_order.is_zero()) return result;
-                result.m_order = m_order.transpose();
                 const size_t row = m_order.column();
                 const size_t column = m_order.row();
-                result.m_data = math::memory::impl::allocate_memory<T*>(row);
+                T *to_transfer = math::memory::impl::allocate_memory<T*>(row);
                 size_t j;
                 for (size_t i = 0; i < row; i++) {
-                    math::memory::impl::allocate_mem_2d_safe_continuous<T>(result.m_data, i, column);
-                    T *data = result.m_data[i];
+                    math::memory::impl::allocate_mem_2d_safe_continuous<T>(to_transfer, i, column);
+                    T *data = to_transfer[i];
                     for (j = 0; j < column; j++)
                         math::memory::impl::mem_2d_safe_construct_at_continuous<T>(data + j, m_data, i, column, m_data[j][i]);
                 }
+                std::swap(result.m_data, to_transfer); // Automatically sets to_transfer to nullptr.
+                result.m_order = m_order.transpose();
                 return result;
             }
 
