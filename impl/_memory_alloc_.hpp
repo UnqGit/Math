@@ -3,6 +3,24 @@
 
 #include "Headers.hpp"
 
+#define _PRE_INC_2_(x, y) ++x; ++y;
+
+namespace {
+    template <typename T, std::input_iterator Iter>
+    static void nothrow_copy_construct(T *to_construct_at, Iter &begin, Iter &end, size_t &constructed_items) noexcept {
+        if constexpr (!std::random_access_iterator<Iter>) {
+            while (begin != end) {
+                std::construct_at(to_construct_at + constructed_items, *begin);
+                _PRE_INC_2_(begin, constructed_items)
+            }
+        }
+        else {
+            std::uninitialized_copy(begin, end, to_construct_at);
+            constructed_items = end - begin;
+        }
+    }
+}
+
 namespace math::memory::impl
 {
     // Allocating row memory, a C++ wrapper on malloc.
@@ -18,7 +36,8 @@ namespace math::memory::impl
     // Safely free-ing memory.
     template <typename T>
     void free_memory(T* &memory, const size_t created_items) {
-        if (!std::is_trivially_destructible_v<T>) std::destroy(memory, memory + created_items);
+        if (memory == nullptr) return;
+        if constexpr (!std::is_trivially_destructible_v<T>) std::destroy(memory, memory + created_items);
         std::free(memory);
         memory = nullptr;
     }
@@ -100,211 +119,131 @@ namespace math::memory::impl
 
     // ======DRY SECTOR======
 
+    #define _CATCH_MEM_ERR_(x, y) catch(...) { destroy_data_mem_err<T>(x, y); throw; }
+
+    #define _CATCH_MEM_ERR_CONT_(x, y, z) catch(...) { destroy_data_mem_err_continuous<T>(x, y, z); throw; }
+
+    #define _CATCH_DES_DATA_(x, y, z, a, b) catch(...) { destroy_data<T>(x, y, z, a, b); throw; }
+
+    #define _CATCH_DES_DATA_CONT_(x, y, z, a) catch(...) { destroy_data_continuous<T>(x, y, z, a); throw; }
+
+    #define _TRY_CONSTRUCT_AT_(x, y) try { std::construct_at(x, y); }
+
     // Shorthand for when memory is allocated in a separate loop, with exception safety.
     template <typename T>
     void allocate_mem_2d_safe(T** &mem_ptr, const size_t curr_i, const size_t row_size) {
-        try {
-            mem_ptr[curr_i] = allocate_memory<T>(row_size);
-        } catch(...) {
-            destroy_data_mem_err<T>(mem_ptr, curr_i);
-            throw;
-        }
+        try { mem_ptr[curr_i] = allocate_memory<T>(row_size); } _CATCH_MEM_ERR_(mem_ptr, curr_i)
     }
 
     // Shorthand for allocating memory continuously in a loop with construction, with exception safety.
     template <typename T>
     void allocate_mem_2d_safe_continuous(T** &mem_ptr, const size_t curr_i, const size_t row_size) {
-        try {
-            mem_ptr[curr_i] = allocate_memory<T>(row_size);
-        } catch(...) {
-            destroy_data_mem_err_continuous<T>(mem_ptr, curr_i, row_size);
-            throw;
-        }
+        try { mem_ptr[curr_i] = allocate_memory<T>(row_size); } _CATCH_MEM_ERR_CONT_(mem_ptr, curr_i, row_size)
     }
 
     template <typename T, typename ...Args>
     void mem_2d_safe_construct_at(T* to_construct_at, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size, Args&&... _args) {
-        try {
-            std::construct_at(to_construct_at, std::forward<Args>(_args)...);
-        } catch(...) {
-            destroy_data<T>(mem, curr_i, to_construct_at - mem[curr_i], num_rows, row_size);
-            throw;
-        }
+        _TRY_CONSTRUCT_AT_(to_construct_at, std::forward<Args>(_args)...)
+        _CATCH_DES_DATA_(mem, curr_i, to_construct_at - mem[curr_i], num_rows, row_size)
     }
 
     template <typename T, typename ...Args>
     void mem_2d_safe_construct_at_continuous(T* to_construct_at, T** &mem, const size_t curr_i, const size_t row_size, Args&&... _args) {
-        try {
-            std::construct_at(to_construct_at, std::forward<Args>(_args)...);
-        } catch(...) {
-            destroy_data_continuous<T>(mem, curr_i, to_construct_at - mem[curr_i], row_size);
-            throw;
-        }
+        _TRY_CONSTRUCT_AT_(to_construct_at, std::forward<Args>(_args)...)
+        _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at - mem[curr_i], row_size)
     }
 
     template <typename T>
     void mem_2d_safe_uninit_fill_n(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
-        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
-            std::uninitialized_fill_n(to_construct_at, size, val);
-            return;
-        }
-        for (size_t created_items = 0; created_items < size; created_items++) {
-            try {
-                std::construct_at(to_construct_at + created_items, val);
-            } catch(...) {
-                destroy_data<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size);
-                throw;
+        if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
+            for (size_t created_items = 0; created_items < size; created_items++) {
+                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, val)
+                _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
             }
-        }
-
+        } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
 
     template <typename T>
     void mem_2d_safe_uninit_fill_n_continuous(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
-        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
-            std::uninitialized_fill_n(to_construct_at, size, val);
-            return;
-        }
-        for (size_t created_items = 0; created_items < size; created_items++) {
-            try {
-                std::construct_at(to_construct_at + created_items, val);
-            } catch(...) {
-                destroy_data_continuous<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size);
-                throw;
+        if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
+            for (size_t created_items = 0; created_items < size; created_items++) {
+                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, val)
+                _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
             }
-        }
+        } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
 
     template <typename T>
     void mem_2d_safe_uninit_valcon_n(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_default_constructible_v<T> {
-        if constexpr (std::is_nothrow_default_constructible_v<T>) {
-            std::uninitialized_value_construct_n(to_construct_at, size);
-            return;
-        }
-        for (size_t created_items = 0; created_items < size; created_items++) {
-            try {
-                std::construct_at(to_construct_at + created_items);
-            } catch(...) {
-                destroy_data<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size);
-                throw;
+        if constexpr (!std::is_nothrow_default_constructible_v<T>) {
+            for (size_t created_items = 0; created_items < size; created_items++) {
+                try { std::construct_at(to_construct_at + created_items); } _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
             }
-        }
+        } else std::uninitialized_value_construct_n(to_construct_at, size);
     }
 
     template <typename T>
     void mem_2d_safe_uninit_valcon_n_continuous(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_default_constructible_v<T> {
-        if constexpr (std::is_nothrow_default_constructible_v<T>) {
-            std::uninitialized_value_construct_n(to_construct_at, size);
-            return;
-        }
-        for (size_t created_items = 0; created_items < size; created_items++) {
-            try {
-                std::construct_at(to_construct_at + created_items);
-            } catch(...) {
-                destroy_data_continuous<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size);
-                throw;
+        if constexpr (!std::is_nothrow_default_constructible_v<T>) {
+            for (size_t created_items = 0; created_items < size; created_items++) {
+                try { std::construct_at(to_construct_at + created_items); } _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
             }
-        }
+        } else std::uninitialized_value_construct_n(to_construct_at, size);
     }
 
     template <typename T, std::input_iterator Iter>
     void mem_2d_safe_uninit_copy_n(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
-        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
-            std::uninitialized_copy_n(it, size, to_construct_at);
-        }
-        for (size_t created_items = 0; created_items < size; ++created_items, ++it) {
-            try {
-                std::construct_at(to_construct_at + created_items, *it);
-            } catch(...) {
-                destroy_data<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size);
-                throw;
+        if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
+            for (size_t created_items = 0; created_items < size; ++created_items, ++it) {
+                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, *it)
+                _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
             }
-        }
+        } else std::uninitialized_copy_n(it, size, to_construct_at);
     }
 
     template <typename T, std::input_iterator Iter>
     void mem_2d_safe_uninit_copy_n_continuous(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
-        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
-            std::uninitialized_copy_n(it, size, to_construct_at);
-            return;
-        }
-        for (size_t created_items = 0; created_items < size; created_items++, ++it) {
-            try {
-                std::construct_at(to_construct_at + created_items, *it);
-            } catch(...) {
-                destroy_data_continuous<T>(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size);
-                throw;
+        if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
+            for (size_t created_items = 0; created_items < size; ++created_items, ++it) {
+                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, *it)
+                _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
             }
-        }
+        } else std::uninitialized_copy_n(it, size, to_construct_at);
     }
 
     template <typename T, std::input_iterator Iter>
     size_t mem_2d_safe_uninit_copy(T* to_construct_at, Iter begin, Iter end, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
-        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
-            if constexpr (std::random_access_iterator<Iter>) {
-                std::uninitialized_copy(begin, end, to_construct_at);
-                return (end - begin);
-            }
-            else {
-                size_t constructed_items = 0;
-                while (begin != end) {
-                    std::construct_at(to_construct_at + constructed_items, *begin);
-                    ++begin;
-                    ++constructed_items;
-                }
-                return constructed_items;
-            }
-        }
         size_t constructed_items = 0;
-        while (begin != end) {
-            try {
-                std::construct_at(to_construct_at + constructed_items, *begin);
-            } catch(...) {
-                destroy_data<T>(mem, curr_i, constructed_items, num_rows, row_size);
-                throw;
+        if constexpr (!std::is_nothrow_copy_constructible_v<T> || !noexcept( *std::declval<Iter>() ) || !noexcept( ++std::declval<Iter>() ) ) {
+            while (begin != end) {
+                _TRY_CONSTRUCT_AT_(to_construct_at + constructed_items, *begin)
+                _CATCH_DES_DATA_(mem, curr_i, constructed_items, num_rows, row_size)
+                _PRE_INC_2_(begin, constructed_items)
             }
-            ++begin;
-            ++constructed_items;
         }
+        else ::nothrow_copy_construct(to_construct_at, begin, end, constructed_items);
         return constructed_items;
     }
     
     template <typename T, std::input_iterator Iter>
     size_t mem_2d_safe_uninit_copy_continuous(T* to_construct_at, Iter begin, Iter end, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
-        if constexpr (std::is_nothrow_copy_constructible_v<T>) {
-            if constexpr (std::random_access_iterator<Iter>) {
-                std::uninitialized_copy(begin, end, to_construct_at);
-                return (end - begin);
-            }
-            else {
-                size_t constructed_items = 0;
-                while (begin != end) {
-                    std::construct_at(to_construct_at + constructed_items, *begin);
-                    ++begin;
-                    ++constructed_items;
-                }
-                return constructed_items;
-            }
-        }
         size_t constructed_items = 0;
-        while (begin != end) {
-            try {
-                std::construct_at(to_construct_at + constructed_items, *begin);
-            } catch(...) {
-                destroy_data_continuous<T>(mem, curr_i, constructed_items, row_size);
-                throw;
+        if constexpr (!std::is_nothrow_copy_constructible_v<T> || !noexcept( *std::declval<Iter>() ) || !noexcept( ++std::declval<Iter>() ) ) {
+            while (begin != end) {
+                _TRY_CONSTRUCT_AT_(to_construct_at + constructed_items, *begin)
+                _CATCH_DES_DATA_CONT_(mem, curr_i, constructed_items, row_size)
+                _PRE_INC_2_(begin, constructed_items)
             }
-            ++begin;
-            ++constructed_items;
         }
+        else ::nothrow_copy_construct(to_construct_at, begin, end, constructed_items);
         return constructed_items;
     }
 }
