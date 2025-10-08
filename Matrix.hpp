@@ -765,17 +765,28 @@ namespace math
             }
 
         public:
-            const T **data() const noexcept {
+            const T **const data() const noexcept {
                 return m_data;
+            }
+            T *const operator[](const size_t row) noexcept {
+                return m_data[row];
+            }
+            const T *const operator[] (const size_t row) const noexcept {
+                return m_data[row];
             }
             math::matrix::Row<T> row(const size_t row) const {
                 if (row >= m_order.row()) throw std::out_of_range("Cannot provide row object for the provided row number.");
                 return math::matrix::Row<T>(m_data[row], m_order.column());
             }
-            math::matrix::Row<T> operator[](const size_t row) const noexcept {
+            math::matrix::Column<T> column(const size_t col) const {
+                if (col >= m_order.column()) throw std::out_of_range("Cannot access the column on the provided index as it exceeds the number of columns present in the matrix.");
+                return math::matrix::Column<T>(m_data, col, m_order.row());
+            }
+            math::matrix::Row<T> row(const size_t row) {
+                if (row >= m_order.row()) throw std::out_of_range("Cannot provide row object for the provided row number.");
                 return math::matrix::Row<T>(m_data[row], m_order.column());
             }
-            math::matrix::Column<T> column(const size_t col) const {
+            math::matrix::Column<T> column(const size_t col) {
                 if (col >= m_order.column()) throw std::out_of_range("Cannot access the column on the provided index as it exceeds the number of columns present in the matrix.");
                 return math::matrix::Column<T>(m_data, col, m_order.row());
             }
@@ -1050,8 +1061,8 @@ namespace math
                 else throw std::logic_error("Cannot provide the trace of the Matrix because it is not copy constructible for storing initial zero/default value and is neither default constructible.");
             }
 
-            [[nodiscard("Result of is_null method was ignored.")]]
-            bool is_null() const
+            [[nodiscard("Result of is_zero method was ignored.")]]
+            bool is_zero() const
             requires math::isEqualityOperationPossible<T> {
                 const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (zero_exists) {
@@ -1072,7 +1083,7 @@ namespace math
                     }
                     return true;
                 }
-                else throw std::logic_error("Cannot check for is_null property of the Matrix as the zero value(stored in math::zero_vals or defautlt construction for the type) is not defined.");
+                else throw std::logic_error("Cannot check for is_zero property of the Matrix as the zero value(stored in math::zero_vals or defautlt construction for the type) is not defined.");
             }
             
             [[nodiscard("Result of are_all_same_as(const T&) method was ignored.")]]

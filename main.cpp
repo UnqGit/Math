@@ -21,6 +21,13 @@ void print_column(const math::Matrix<T> &mat, const size_t col) noexcept {
     std::cout << '\n';
 }
 
+template <typename T>
+void print_row(const math::Matrix<T> &mat, const size_t row) noexcept {
+    try { for (const auto &x : mat.row(row)) std::cout << x << ' '; }
+    catch(const std::exception &e) { std::cerr << "Cannot print because: " << e.what() << '\n'; }
+    std::cout << '\n';
+}
+
 int main(void) {
     using namespace math;
     using namespace math::matrix;
@@ -35,10 +42,13 @@ int main(void) {
     //     return i++;
     // }).transpose_in_place());
     Matrix<int> mat(5, 6, CSR::alternate);
+    static_assert(math::helper::isOneDArr<math::matrix::Row<int>, int>);
+    static_assert(math::helper::isOneDArr<math::Matrix<int>, math::matrix::Row<int>>);
     print_column<int> (mat, 2);
     for (auto &x : mat.column(2)) x += 2;
     print_matrix<int> (mat);
     for (auto x : mat.row(2)) x += 2;
     print_matrix<int> (mat);
+    print_row<int> (mat, 2);
     std::cout << "Bye World!\n";
 }

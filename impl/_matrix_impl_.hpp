@@ -371,11 +371,11 @@ namespace math::matrix
     template <typename T>
     class Row {
         private:
-            T *m_data;
+            T *&m_data;
             size_t m_row_len;
 
         public:
-            Row(T *data, const size_t row_len) noexcept : m_data(data), m_row_len(row_len) {}
+            Row(T *&data, const size_t row_len) noexcept : m_data(data), m_row_len(row_len) {}
             Row(const Row &other) noexcept = default;
 
         public:
@@ -418,10 +418,51 @@ namespace math::matrix
             }
 
             [[nodiscard("Result of is_same_as method for this row was not used.")]]
-            bool is_same_as(const Row &other) const noexcept {
+            bool is_same_as(const Row &other) const {
                 return ((this == &other) || ((m_data == other.m_data) && (m_row_len == other.m_row_len)));
             }
 
+            [[nodiscard("Result of are_all_same_as method for this row was not used.")]]
+            bool are_all_same_as(const T &val_to_compare) const
+            requires math::isEqualityOperationPossible<T> {
+                if (m_row_len == 0) return false;
+                for (size_t i = 0; i < m_row_len; i++) {
+                    if (!math::is_equal(m_data[i], val_to_compare)) return false;
+                }
+                return true;
+            }
+
+            [[nodiscard("Result of are_all_same method for this row was not used.")]]
+            bool are_all_same() const
+            requires math::isEqualityOperationPossible<T> {
+                if (m_row_len < 2) return true;
+                for (size_t i = 0; i < m_row_len - 1; i++) {
+                    if (!math::is_equal(m_data[i], m_data[i + 1])) return false;
+                }
+                return true;
+            }
+
+            [[nodiscard("Result of is_zero for this row was not used.")]]
+            bool is_zero() const
+            requires math::isEqualityOperationPossible<T> {
+                const bool zero_exists = math::zero_vals.exists_of<T>();
+                if constexpr (!std::is_default_constructible_v<T>)
+                    if (!zero_exists)
+                        throw std::logic_error("Cannot check for is_zero property of the row as the zero value(stored in math::zero_vals or defautlt construction for the type) is not defined.");
+                if constexpr (!std::is_default_constructible_v<T>)
+                    return are_all_same_as(math::zero_vals.get_of<T>());
+                else return are_all_same_as(T{});
+            }
+
+            [[nodiscard("Result of count method for this row was not used.")]]
+            size_t count(const T &val_to_compare) const
+            requires math::isEqualityOperationPossible<T> {
+                size_t count = 0;
+                for (size_t i = 0; i < m_row_len; i++) count += math::is_equal(m_data[i], val_to_compare);
+                return count;
+            }
+
+        public:
             [[nodiscard("Result of operator== for this row was not used.")]]
             bool operator==(const Row &other) const
             requires math::isEqualityOperationPossible<T> {
