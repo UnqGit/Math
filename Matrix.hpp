@@ -401,7 +401,7 @@ namespace math
                             math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i], fallback_val, i, m_data, i, size);
                             math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i] + i, 1, Iter, m_data, i, size);
                             math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i] + i + 1, fallback_val, size - i - 1, m_data, i, size);
-                            if constexpr ( !noexcept( ++std::declval<std::decay_t<decltype(Iter)>>() )) try {++Iter;} catch(...) {math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i + 1, size); throw;}
+                            if constexpr ( !noexcept( ++std::declval<std::decay_t<decltype(Iter)>>() )) try {++Iter;} _CATCH_MEM_ERR_CONT_(m_data, i + 1, size)
                             else ++Iter;
                         }
                         return;
@@ -413,7 +413,7 @@ namespace math
                             math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i], fallback_val, size - i - 1, m_data, i, size);
                             math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i] + size - 1 - i, 1, Iter, m_data, i, size);
                             math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i] + size - i, fallback_val, i, m_data, i, size);
-                            if constexpr ( !noexcept( ++std::declval<std::decay_t<decltype(Iter)>>() )) try {++Iter;} catch(...) {math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i + 1, size); throw;}
+                            if constexpr ( !noexcept( ++std::declval<std::decay_t<decltype(Iter)>>() )) try {++Iter;} _CATCH_MEM_ERR_CONT_(m_data, i + 1, size)
                             else ++Iter;
                         }
                         return;
@@ -462,7 +462,7 @@ namespace math
                 const size_t column = m_order.column();
                 const size_t size = arr.size();
                 auto Iter = arr.begin();
-                size_t j = 0, constructed_items = 0;
+                size_t j = 0, constructed_items = 0, k;
                 m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
@@ -473,10 +473,8 @@ namespace math
                             math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], j, Iter, m_data, i, column);
                             constructed_items += j;
                             if ( std::random_access_iterator<std::decay_t<decltype(Iter)>> )
-                                try { Iter += j; } catch(...) { math::memory::impl::destroy_data_continuous<T>(m_data, i, j, column); throw; }
-                            else
-                                for (size_t k = 0; k < j; k++)
-                                    try { ++Iter; } catch(...) { math::memory::impl::destroy_data_continuous<T>(m_data, i, j, column); throw; }
+                                try { Iter += j; } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
+                            else try { for (k = 0; k < j; k++) ++Iter; } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                             if (constructed_items % column == 0) break;
                             [[fallthrough]];
                         case false :
@@ -500,6 +498,7 @@ namespace math
                 const size_t column = m_order.column();
                 const size_t size = arr.size();
                 const bool zero_exists = math::zero_vals.exists_of<T>();
+                size_t k;
                 if (size < order.size()) {
                     if constexpr (!std::is_default_constructible_v<T>)
                         if (!zero_exists)
@@ -514,11 +513,9 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
                     math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], column, Iter, m_data, i, column);
-                    if constexpr (!std::random_access_iterator<std::decay_t<decltype(Iter)>>)
-                        try { Iter += column; } catch(...) { math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i + 1, column); throw; }
-                    else
-                        for (size_t k = 0; k < column; k++)
-                            try { ++Iter; } catch(...) { math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, i + 1, column); throw; }
+                    if constexpr (std::random_access_iterator<std::decay_t<decltype(Iter)>>)
+                        try { Iter += column; } _CATCH_MEM_ERR_CONT_(m_data, i + 1, column)
+                    else try { for (k = 0; k < column; k++) ++Iter; } _CATCH_MEM_ERR_CONT_(m_data, i + 1, column)
                 }
             }
             
@@ -656,11 +653,12 @@ namespace math
                 if (m_order.is_zero()) return;
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
+                size_t j;
                 m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
-                    for (size_t j = 0; j < column; j++)
-                        math::memory::impl::mem_2d_safe_construct_at_continuous(m_data[i] + j, m_data, i, column, t_creation());
+                    if constexpr ( noexcept(t_creation) ) { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation()); }
+                    else try { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation()); } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                 }
             }
             
@@ -672,11 +670,12 @@ namespace math
                 if (m_order.is_zero()) return;
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
+                size_t j;
                 m_data = math::memory::impl::allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
-                    for (size_t j = 0; j < column; j++)
-                        math::memory::impl::mem_2d_safe_construct_at_continuous<T>(m_data[i] + j, m_data, i, column, t_creation(i, j));
+                    if constexpr ( noexcept(t_creation) ) { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation(i, j)); }
+                    else try { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation(i, j)); } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                 }
             }
             
@@ -898,8 +897,8 @@ namespace math
                     const T &cached = m_data[i][0];
                     const T *const cache_data = other.m_data[0];
                     T *const data = to_transfer[i];
-                    try { for (d = 0; d < column; d++) std::construct_at(data + d, cached * cache_data[d]); }
-                    catch(...) { math::memory::impl::destroy_data_continuous<T>(to_transfer, i, to_transfer[i] + d, column); throw; }
+                    if constexpr ( noexcept(std::declval<T>() * std::declval<T>()) ) for (d = 0; d < column; d++) std::construct_at(data + d, cached * cache_data[d]);
+                    try { for (d = 0; d < column; d++) std::construct_at(data + d, cached * cache_data[d]); } _CATCH_DES_DATA_CONT_(to_transfer, i, d, column)
                 }
                 // it is fine till here if an exception is called and the destructor of result is called because the order is zero and hence it wouldn't try to free memory.
                 std::swap(result.m_data, to_transfer); // m_data was nullptr before this.

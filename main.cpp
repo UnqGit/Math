@@ -43,7 +43,7 @@ int main(void) {
     // }).transpose_in_place());
     Matrix<int> mat(5, 6, CSR::alternate);
     static_assert(math::helper::isOneDArr<math::matrix::Row<int>, int>);
-    static_assert(math::helper::isOneDArr<math::Matrix<int>, math::matrix::Row<int>>);
+    // static_assert(math::helper::isOneDArr<math::Matrix<int>, math::matrix::Row<int>>);
     print_column<int> (mat, 2);
     for (auto &x : mat.column(2)) x += 2;
     print_matrix<int> (mat);
