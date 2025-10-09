@@ -182,7 +182,7 @@ namespace math
             }
 
         public:
-            Matrix(const math::matrix::Order &order, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : m_order(order) {
+            Matrix(const math::matrix::Order &order, const math::matrix::ConstructAllocateRule construct_rule = math::matrix::CAR::zero) : m_order(order) {
                 if (m_order.is_zero()) return;
                 const size_t row = m_order.row();
                 const size_t column = m_order.column();
@@ -211,7 +211,7 @@ namespace math
                         math::memory::impl::mem_2d_safe_uninit_fill_n<T>(m_data[i], math::zero_vals.get_of<T>(), column, m_data, i, row, column);
                 }
             }
-            Matrix(const size_t row, const size_t column, const math::matrix::CAR construct_rule = math::matrix::CAR::zero) : Matrix(math::matrix::Order(row, column), construct_rule) {}
+            Matrix(const size_t row, const size_t column, const math::matrix::ConstructAllocateRule construct_rule = math::matrix::CAR::zero) : Matrix(math::matrix::Order(row, column), construct_rule) {}
 
         public:
             Matrix(const math::matrix::Order &order, const T &to_copy)
@@ -271,7 +271,7 @@ namespace math
                 }
             }
 
-            Matrix(T *data, const size_t size, math::matrix::COR construct_rule = math::matrix::COR::horizontal)
+            Matrix(T *data, const size_t size, math::matrix::ConstructOrientationRule construct_rule = math::matrix::COR::horizontal)
             requires std::is_copy_constructible_v<T> {
                 if (size == 0) return;
                 const bool zero_exists = (math::zero_vals.exists_of<T>());
@@ -683,28 +683,28 @@ namespace math
             requires (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T>) : Matrix(math::matrix::Order(row, column), t_creation) {}
 
         public:
-            Matrix(const Matrix &other) : Matrix(other.m_data, other.m_order) {}
-            Matrix(Matrix &&other) noexcept : m_data(other.m_data), m_order(other.m_order) {
-                other.m_data = nullptr;
-                other.m_order = math::matrix::Order();
+            Matrix(const Matrix &other) : Matrix(other.m_data, other.m_order) {} // Delegate to Matrix(T** data, const math::matrix::Order &order) {} constructor.
+            Matrix(Matrix &&other) noexcept {
+                this->swap(other); // Default value for data members for this is there 0 state, so now 'other' is in 0 state.
             }
             Matrix &operator=(const Matrix &other) {
-                if (this == &other) return *this;
-                Matrix temp(other);
-                (*this).swap(temp);
+                if (this != &other) {
+                    Matrix temp(other);
+                    this->swap(temp);
+                }
                 return *this;
             }
-            Matrix &operator=(Matrix &&other) {
-                if (this == &other) return *this;
-                if (m_data != nullptr) std::destroy_at(this);
-                (*this).swap(other);
-                other.m_order = math::matrix::Order();
+            Matrix &operator=(Matrix &&other) noexcept {
+                if (this != &other) this->swap(other);
                 return *this;
             }
 
         public:
-            ~Matrix() {
-                math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, m_order.row(), m_order.column());
+            ~Matrix() noexcept {
+                if (m_data != nullptr) math::memory::impl::destroy_data_mem_err_continuous<T>(m_data, m_order.row(), m_order.column());
+            }
+            void reset() noexcept {
+                *this = Matrix{}; // Call the default constructor.
             }
 
         public:
@@ -1143,6 +1143,67 @@ namespace math
             [[nodiscard("Result of != operator was ignored.")]]
             bool operator!=(const Matrix &other) const {
                 return !(*this == other);
+            }
+    
+        public:
+            void shrink_columns_by(const size_t shrink_amount) noexcept {
+                const size_t col = m_order.column();
+                if (shrink_amount < col) {
+                    const size_t row = m_order.row();
+                    const size_t new_num_elements = col - shrink_amount;
+                    for (size_t i = 0; i < row; i++) math::memory::impl::reallocate_memory<T>(m_data[i], col, new_num_elements);
+                    m_order.set_column(new_num_elements);
+                }
+                else this->reset();
+            }
+
+            void extend_columns_by(const size_t extend_amount)
+            requires std::is_copy_constructible_v<T> || std::is_default_constructible_v<T> {
+                if (extend_amount == 0 || m_order.row() == 0) return;
+                const bool zero_exists = math::zero_vals.exists_of<T>();
+                if constexpr (!std::is_default_constructible_v<T>) 
+                    if (!zero_exists)
+                        throw std::logic_error("Cannot extend the columns of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in math::zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
+                const size_t row = m_order.row();
+                const size_t old_col = m_data.column();
+                const size_t new_col = old_col + extend_amount;
+                size_t j;
+                if constexpr (std::is_copy_constructible_v<T>) {
+                    if (!zero_exists) goto DEFAULT_CONSTRUCT;
+                    const T &zero = math::zero_vals.get_of<T>;
+                    for (size_t i = 0; i < row; i++) {
+                        try { math::memory::impl::reallocate_memory(m_data[i], old_col, new_col); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, 0)
+                        if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i] + old_col, extend_amount, zero);
+                        else try { for (j = 0; j < extend_amount; j++) std::construct_at(m_data[i] + j, zero); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
+                    }
+                    m_order.set_column(new_col);
+                    return;
+                }
+                else goto DEFAULT_CONSTRUCT;
+                DEFAULT_CONSTRUCT:
+                    if constexpr (!std::is_default_constructible_v<T>) throw std::logic_error("Cannot extend the columns of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in math::zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
+                    for (size_t i = 0; i < row; i++) {
+                        try { math::memory::impl::reallocate_memory(m_data[i], old_col, new_col); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, 0)
+                        if constexpr (std::is_nothrow_default_constructible_v<T>) std::uninitialized_value_construct_n(m_data[i] + old_col, extend_amount);
+                        else try { for (j = 0; j < extend_amount; j++) std::construct_at(m_data[i] + j); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
+                    }
+                    m_order.set_column(new_col);
+                    return;
+            }
+
+            void extend_columns_by(const size_t extend_amount, const T &copy_val)
+            requires std::is_copy_constructible_v<T> {
+                if (extend_amount == 0 || m_order.row() == 0) return;
+                const size_t row = m_order.row();
+                const size_t col = m_order.column();
+                const size_t new_col = col + extend_amount;
+                size_t j;
+                for (size_t i = 0; i < row; i++) {
+                    try { math::memory::impl::reallocate_memory(m_data[i], col, new_col); } _CATCH_REW_RLC_(m_data, i, col, new_col, 0)
+                    if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i] + col, extend_amount, copy_val);
+                    else try { for (j = 0; j < extend_amount; j++) std::construct_at(m_data[i] + col + j, copy_val); } _CATCH_REW_RLC_(m_data, i, col, new_col, j)
+                }
+                m_order.set_column(new_col);
             }
     };
 }

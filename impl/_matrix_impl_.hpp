@@ -77,7 +77,9 @@ namespace math::matrix
                 m_columns = column;
                 if (m_columns == 0) m_rows = 0;
             }
-
+            void reset() noexcept {
+                m_rows = 0; m_columns = 0;
+            }
         };
 
     // So we can use the matrix in STL functions like std::sort using begin_one_d and end_one_d.

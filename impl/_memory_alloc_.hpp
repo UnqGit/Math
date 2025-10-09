@@ -130,7 +130,7 @@ namespace math::memory::impl
 
     #define _CATCH_DES_DATA_CONT_(x, y, z, a) catch(...) { destroy_data_continuous<T>(x, y, z, a); throw; }
 
-    #define _TRY_CONSTRUCT_AT_(x, y) try { std::construct_at(x, y); }
+    #define _TRY_CONSTRUCT_AT_(x, ...) try { std::construct_at(x, ##__VA_ARGS__); }
 
     // Shorthand for when memory is allocated in a separate loop, with exception safety.
     template <typename T>
@@ -249,4 +249,17 @@ namespace math::memory::impl
         else ::nothrow_copy_construct(to_construct_at, begin, end, constructed_items);
         return constructed_items;
     }
+
+    template <typename T>
+    inline void rewind_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t extended_size, const size_t curr_i_created_items) noexcept {
+        for (size_t i = 0; i < curr_i; i++) reallocate_memory<T>(mem_ptr[i], extended_size, rewind_size);
+        reallocate_memory<T>(mem_ptr[curr_i], rewind_size + curr_i_created_items, rewind_size);
+        /*
+            Does the same thing as:
+            std::destroy(m_data[i] + old_col, m_data[i] + old_col + j); // If not trivially destructible
+            std::realloc(m_data[i], old_col * sizeof(T));
+        */
+    }
+
+    #define _CATCH_REW_RLC_(x, y, z, a, b) catch(...) { rewind_reallocate_2d_mem<T>(x, y, z, a, b); throw; }
 }

@@ -50,5 +50,8 @@ int main(void) {
     for (auto x : mat.row(2)) x += 2;
     print_matrix<int> (mat);
     print_row<int> (mat, 2);
+    Matrix<int> mat2(2, 4, 5, ConstructSquareRule::alternate);
+    std::cout << '\n';
+    print_matrix(mat2);
     std::cout << "Bye World!\n";
 }
