@@ -251,7 +251,7 @@ namespace math::memory::impl
     }
 
     template <typename T>
-    inline void rewind_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t extended_size, const size_t curr_i_created_items) noexcept {
+    inline void rewind_col_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t extended_size, const size_t curr_i_created_items) noexcept {
         for (size_t i = 0; i < curr_i; i++) reallocate_memory<T>(mem_ptr[i], extended_size, rewind_size);
         reallocate_memory<T>(mem_ptr[curr_i], rewind_size + curr_i_created_items, rewind_size);
         /*
@@ -261,5 +261,13 @@ namespace math::memory::impl
         */
     }
 
-    #define _CATCH_REW_RLC_(x, y, z, a, b) catch(...) { rewind_reallocate_2d_mem<T>(x, y, z, a, b); throw; }
+    template <typename T>
+    inline void rewind_row_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t new_size, const size_t column_size, const size_t curr_i_created_items) noexcept {
+        for (size_t i = rewind_size; i < curr_i; i++) math::memory::impl::free_memory<T>(mem_ptr[i], colum_size);
+        math::memory::impl::free_memory<T>(mem_ptr[curr_i], curr_i_created_items);
+        math::memory::impl::reallocate_memory<T*>(mem_ptr, new_size, rewind_size); // Because T* is trivially copyable, free-ing memory is important.
+    }
+
+    #define _CATCH_REW_RLC_(x, y, z, a, b) catch(...) { rewind_col_reallocate_2d_mem<T>(x, y, z, a, b); throw; }
+    #define _CATCH_REW_RLR_(x, y, z, a, b, c) catch(...) { rewind_row_reallocate_2d_mem<T>(x, y, z, a, b, c); throw; }
 }

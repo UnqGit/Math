@@ -1205,5 +1205,58 @@ namespace math
                 }
                 m_order.set_column(new_col);
             }
+    
+        public:
+            void shrink_rows_by(const size_t shrink_amount) noexcept {
+                if (shrink_amount < m_order.row()) {
+                    const size_t row = m_order.row();
+                    const size_t col = m_order.column();
+                    for (size_t i = row - shrink_amount; i < row; i++) math::memory::impl::free_memory<T>(m_data[i], col);
+                    math::memory::impl::reallocate_memory<T*>(m_data, row, row - shrink_amount); // It is better to free the memory first because T* is trivially destructible and would not destroy the memory by itself.
+                }
+                else this->reset();
+            }
+    
+            void extend_rows_by(const size_t extend_amount) 
+            requires std::is_copy_constructible_v<T> || std::is_default_constructible_v<T> {
+                if (extend_amount == 0 || m_order.column() == 0) return;
+                const bool zero_exists = math::zero_vals.exists_of<T>();
+                const size_t row = m_order.row();
+                const size_t new_num_rows = row + extend_amount;
+                const size_t col = m_order.column();
+                size_t j;
+                if constexpr (!std::is_default_constructible_v<T>)
+                    if (!zero_exists)
+                        throw std::logic_error("Cannot extend the rows of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in math::zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
+                math::memory::impl::reallocate_memory<T*>(m_data, row, new_num_rows);
+                for (size_t i = row; i < new_num_rows; i++) {
+                    if constexpr (std::is_copy_constructible_v<T>) {
+                        if (!zero_exists) goto DEFAULT_CASE;
+                        const T &zero_val = math::zero_vals.get_of<T>();
+                        if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i], col, zero_val);
+                        else try { for (j = 0; j < col; j++) std::construct_at(m_data[i] + j, zero_val); } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
+                        continue;
+                    }
+                    else {
+                        goto DEFAULT_CASE; continue;
+                    }
+                    DEFAULT_CASE:
+                        if constexpr (std::is_nothrow_default_constructible_v<T>) std::uninitialized_value_construct_n(m_data[i], col);
+                        else try { for (j = 0; j < col; j++) std::construct_at(m_data[i]); } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
+                }
+            }
+    
+            void extend_rows_by(const size_t extend_amount, const T &copy_val)
+            requires std::is_copy_constructible_v<T> {
+                if (extend_amount == 0 || m_order.column() == 0) return;
+                const size_t row = m_order.row();
+                const size_t col = m_order.column();
+                const size_t new_num_rows = row + extend_amount;
+                math::memory::impl::reallocate_memory<T*>(m_data, row, new_num_rows);
+                for (size_t i = row; i < new_num_rows; i++) {
+                    if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i], col, copy_val);
+                    else try { for (j = 0; j < col; j++) std::construct_at(m_data[i] + j, copy_val); } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
+                }
+            }
     };
 }
