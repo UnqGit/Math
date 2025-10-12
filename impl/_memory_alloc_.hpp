@@ -122,15 +122,17 @@ namespace math::memory::impl
 
     // ======DRY SECTOR======
 
-    #define _CATCH_MEM_ERR_(x, y) catch(...) { destroy_data_mem_err<T>(x, y); throw; }
+    #define _CATCH_MEM_ERR_(ptr, index) catch(...) { destroy_data_mem_err<T>(ptr, index); throw; }
 
-    #define _CATCH_MEM_ERR_CONT_(x, y, z) catch(...) { destroy_data_mem_err_continuous<T>(x, y, z); throw; }
+    #define _CATCH_MEM_ERR_CONT_(ptr, index, size_of_rows) catch(...) { destroy_data_mem_err_continuous<T>(ptr, index, size_of_rows); throw; }
 
-    #define _CATCH_DES_DATA_(x, y, z, a, b) catch(...) { destroy_data<T>(x, y, z, a, b); throw; }
+    #define _CATCH_DES_DATA_(ptr, index, index_created_elements, number_of_rows, size_of_rows_before) catch(...) { destroy_data<T>(ptr, index, index_created_elements, number_of_rows, size_of_rows_before); throw; }
 
-    #define _CATCH_DES_DATA_CONT_(x, y, z, a) catch(...) { destroy_data_continuous<T>(x, y, z, a); throw; }
+    #define _CATCH_DES_DATA_CONT_(ptr, index, index_created_elements, size_of_rows_before) catch(...) { destroy_data_continuous<T>(ptr, index, index_created_elements, size_of_rows_before); throw; }
 
-    #define _TRY_CONSTRUCT_AT_(x, ...) try { std::construct_at(x, ##__VA_ARGS__); }
+    #define _TRY_CONSTRUCT_AT_(ptr, ...) try { std::construct_at(ptr, ##__VA_ARGS__); }
+
+    #define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var; loop_end_condition; loop_increment_cond) std::construct_at(ptr + loop_var, ##__VA_ARGS__); }
 
     // Shorthand for when memory is allocated in a separate loop, with exception safety.
     template <typename T>
@@ -160,10 +162,9 @@ namespace math::memory::impl
     inline void mem_2d_safe_uninit_fill_n(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
-            for (size_t created_items = 0; created_items < size; created_items++) {
-                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, val)
-                _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
-            }
+            size_t created_items;
+            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at, val)
+            _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
         } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
 
@@ -171,10 +172,9 @@ namespace math::memory::impl
     inline void mem_2d_safe_uninit_fill_n_continuous(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
-            for (size_t created_items = 0; created_items < size; created_items++) {
-                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, val)
-                _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
-            }
+            size_t created_items;
+            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at, val)
+            _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
         } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
 
@@ -182,9 +182,9 @@ namespace math::memory::impl
     inline void mem_2d_safe_uninit_valcon_n(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_default_constructible_v<T> {
         if constexpr (!std::is_nothrow_default_constructible_v<T>) {
-            for (size_t created_items = 0; created_items < size; created_items++) {
-                try { std::construct_at(to_construct_at + created_items); } _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
-            }
+            size_t created_items;
+            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at)
+            _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
         } else std::uninitialized_value_construct_n(to_construct_at, size);
     }
 
@@ -192,9 +192,9 @@ namespace math::memory::impl
     inline void mem_2d_safe_uninit_valcon_n_continuous(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_default_constructible_v<T> {
         if constexpr (!std::is_nothrow_default_constructible_v<T>) {
-            for (size_t created_items = 0; created_items < size; created_items++) {
-                try { std::construct_at(to_construct_at + created_items); } _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
-            }
+            size_t created_items;
+            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at)
+            _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
         } else std::uninitialized_value_construct_n(to_construct_at, size);
     }
 
@@ -202,10 +202,9 @@ namespace math::memory::impl
     inline void mem_2d_safe_uninit_copy_n(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
-            for (size_t created_items = 0; created_items < size; ++created_items, ++it) {
-                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, *it)
-                _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
-            }
+            size_t created_items;
+            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), ((++created_items), ++it), to_construct_at, *it)
+            _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
         } else std::uninitialized_copy_n(it, size, to_construct_at);
     }
 
@@ -213,10 +212,9 @@ namespace math::memory::impl
     inline void mem_2d_safe_uninit_copy_n_continuous(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
-            for (size_t created_items = 0; created_items < size; ++created_items, ++it) {
-                _TRY_CONSTRUCT_AT_(to_construct_at + created_items, *it)
-                _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
-            }
+            size_t created_items;
+            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), ((++created_items), ++it), to_construct_at, *it)
+            _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
         } else std::uninitialized_copy_n(it, size, to_construct_at);
     }
 
@@ -225,11 +223,10 @@ namespace math::memory::impl
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
         size_t constructed_items = 0;
         if constexpr (!std::is_nothrow_copy_constructible_v<T> || !noexcept( *std::declval<Iter>() ) || !noexcept( ++std::declval<Iter>() ) ) {
-            while (begin != end) {
-                _TRY_CONSTRUCT_AT_(to_construct_at + constructed_items, *begin)
-                _CATCH_DES_DATA_(mem, curr_i, constructed_items, num_rows, row_size)
-                _PRE_INC_2_(begin, constructed_items)
-            }
+            try { while (begin != end) {
+                std::construct_at(to_construct_at + constructed_items, *begin);
+                _PRE_INC_2_(constructed_items, begin)
+            } } _CATCH_DES_DATA_(mem, curr_i, constructed_items, num_rows, row_size)
         }
         else ::nothrow_copy_construct(to_construct_at, begin, end, constructed_items);
         return constructed_items;
@@ -240,11 +237,10 @@ namespace math::memory::impl
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
         size_t constructed_items = 0;
         if constexpr (!std::is_nothrow_copy_constructible_v<T> || !noexcept( *std::declval<Iter>() ) || !noexcept( ++std::declval<Iter>() ) ) {
-            while (begin != end) {
-                _TRY_CONSTRUCT_AT_(to_construct_at + constructed_items, *begin)
-                _CATCH_DES_DATA_CONT_(mem, curr_i, constructed_items, row_size)
-                _PRE_INC_2_(begin, constructed_items)
-            }
+            try { while (begin != end) {
+                std::construct_at(to_construct_at + constructed_items, *begin);
+                _PRE_INC_2_(constructed_items, begin)
+            } } _CATCH_DES_DATA_CONT_(mem, curr_i, constructed_items, row_size)
         }
         else ::nothrow_copy_construct(to_construct_at, begin, end, constructed_items);
         return constructed_items;
@@ -262,12 +258,12 @@ namespace math::memory::impl
     }
 
     template <typename T>
-    inline void rewind_row_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t new_size, const size_t column_size, const size_t curr_i_created_items) noexcept {
-        for (size_t i = rewind_size; i < curr_i; i++) math::memory::impl::free_memory<T>(mem_ptr[i], colum_size);
+    inline void rewind_row_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t new_size, const size_t curr_i_created_items, const size_t row_size) noexcept {
+        for (size_t i = rewind_size; i < curr_i; i++) math::memory::impl::free_memory<T>(mem_ptr[i], row_size);
         math::memory::impl::free_memory<T>(mem_ptr[curr_i], curr_i_created_items);
         math::memory::impl::reallocate_memory<T*>(mem_ptr, new_size, rewind_size); // Because T* is trivially copyable, free-ing memory is important.
     }
 
-    #define _CATCH_REW_RLC_(x, y, z, a, b) catch(...) { rewind_col_reallocate_2d_mem<T>(x, y, z, a, b); throw; }
-    #define _CATCH_REW_RLR_(x, y, z, a, b, c) catch(...) { rewind_row_reallocate_2d_mem<T>(x, y, z, a, b, c); throw; }
+    #define _CATCH_REW_RLC_(ptr, index, prev_size, extended_size, index_created_items) catch(...) { rewind_col_reallocate_2d_mem<T>(ptr, index, prev_size, extended_size, index_created_items); throw; }
+    #define _CATCH_REW_RLR_(ptr, index, prev_size, extended_size, index_created_items, row_size) catch(...) { rewind_row_reallocate_2d_mem<T>(ptr, index, prev_size, extended_size, index_created_items, row_size); throw; }
 }

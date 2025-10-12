@@ -1258,5 +1258,30 @@ namespace math
                     else try { for (j = 0; j < col; j++) std::construct_at(m_data[i] + j, copy_val); } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
                 }
             }
+    
+        public:
+            void shrink_by(const math::matrix::Order &order) noexcept {
+                if (order.is_zero()) return;
+                const size_t row_shrink_amount = order.row();
+                const size_t col_shrink_amount = order.column();
+                const size_t num_row = m_order.row();
+                const size_t num_col = m_order.column();
+                if (row_shrink_amount < num_row && col_shrink_amount < num_col) {
+                    const size_t new_num_row = m_order.row() - row_shrink_amount;
+                    const size_t new_num_col = m_order.column() - col_shrink_amount;
+                    for (size_t i = new_num_row; i < num_row; i++) math::memory::impl::free_memory<T>(m_data[i], num_col);
+                    math::memory::impl::reallocate_memory<T>(m_data, num_row, new_num_row);
+                    for (size_t i = 0; i < new_num_row; i++) math::memory::impl::reallocate_memory<T>(m_data[i], num_col, new_num_col);
+                }
+                else this->reset();
+            }
+
+            void shrink_by(const size_t row_shrink_amount, const size_t col_shrink_amount) noexcept {
+                this->shrink_by(math::matrix::Order(row_shrink_amount, col_shrink_amount));
+            }
+
+            void shrink_by(const size_t shrink_amount) noexcept {
+                this->shrink_by(math::matrix::Order(shrink_amount, shrink_amount));
+            }
     };
 }
