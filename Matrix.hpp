@@ -1254,10 +1254,7 @@ namespace math
             }
     
         public:
-            void shrink_by(const math::matrix::Order &order) noexcept {
-                if (order.is_zero()) return;
-                const size_t row_shrink_amount = order.row();
-                const size_t col_shrink_amount = order.column();
+            void shrink_by(const size_t row_shrink_amount, const size_t col_shrink_amount) noexcept {
                 const size_t num_row = m_order.row();
                 const size_t num_col = m_order.column();
                 if (row_shrink_amount < num_row && col_shrink_amount < num_col) {
@@ -1271,11 +1268,84 @@ namespace math
             }
 
             void shrink_by(const size_t row_shrink_amount, const size_t col_shrink_amount) noexcept {
-                this->shrink_by(math::matrix::Order(row_shrink_amount, col_shrink_amount));
+                this->shrink_by(row_shrink_amount, col_shrink_amount);
             }
 
             void shrink_by(const size_t shrink_amount) noexcept {
-                this->shrink_by(math::matrix::Order(shrink_amount, shrink_amount));
+                this->shrink_by(shrink_amount, shrink_amount);
+            }
+            
+        public:
+            void extend_by(const size_t row_extend_amount, const size_t col_extend_amount)
+            requires std::is_default_constructible_v<T> || std::is_copy_constructible_v<T> {
+                if (!m_order.is_zero()) {
+                    this->extend_columns_by(col_extend_amount);
+                    this->extend_rows_by(row_extend_amount);
+                }
+                else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount));
+            }
+
+            void extend_by(const size_t extend_amount)
+            requires std::is_default_constructible_v<T> || std::is_copy_constructible_v<T> {
+                this->extend_by(extend_amount, extend_amount);
+            }
+            
+            void extend_by(const size_t row_extend_amount, const size_t col_extend_amount, const T &copy_val)
+            requires std::is_copy_constructible_v<T> {
+                if (!m_order.is_zero()) {
+                    this->extend_columns_by(row_extend_amount, copy_val);
+                    this->extend_rows_by(row_extend_amount, copy_val);
+                }
+                else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount), copy_val);
+            }
+    
+            void extend_by(const size_t extend_amount, const T &copy_val)
+            requires std::is_copy_constructible_v<T> {
+                this->extend_by(extend_amount, extend_amount, copy_val);
+            }
+
+            void extend_by(const size_t row_extend_amount, const size_t col_extend_amount, const T &row_extend_val, const T &col_extend_val)
+            requires std::is_copy_constructible_v<T> {
+                if (!m_order.is_zero()) {
+                    this->extend_columns_by(col_extend_amount, col_extend_val);
+                    this->extend_rows_by(row_extend_amount, row_extend_val);
+                }
+                else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount), row_extend_val);
+            }
+
+            void extend_by(const size_t extend_amount, const T &row_extend_val, const T &col_extend_val)
+            requires std::is_copy_constructible_v<T> {
+                this->extend_by(extend_amount, extend_amount, row_extend_val, col_extend_val);
+            }
+
+            void extend_by(const size_t row_extend_amount, const size_t col_extend_amount, const T &row_extend_val, const T &col_extend_val, const T &common_extend_val)
+            requires std::is_copy_constructible_v<T> {
+                if (!m_order.is_zero()) {
+                    const size_t col = m_order.column();
+                    this->extend_columns_by(col_extend_amount, col_extend_val);
+                    if (row_extend_amount != 0) {
+                        const size_t row = m_order.row();
+                        const size_t new_col = m_order.column();
+                        const size_t new_num_rows = row + row_extend_amount;
+                        math::memory::impl::reallocate_memory<T*>(m_data, row, new_num_rows);
+                        for (size_t i = row; i < new_num_rows; i++) {
+                            if constexpr (std::is_nothrow_copy_constructible_v<T>) {
+                                std::uninitialized_fill_n(m_data[i], col, row_extend_val);
+                                std::uninitialized_fill_n(m_data[i] + col, col_extend_amount, common_extend_val);
+                            }
+                            else try {
+                                for (j = 0; j < col; j++) std::construct_at(m_data[i] + j, col_extend_val);
+                                for (; j < new_col; j++) std::construct_at(m_data[i] + j, common_extend_val);
+                            } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
+                        }
+                    }
+                }
+                else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount), row_extend_val);
+            }
+
+            void extend_by(const size_t extend_amount, const T &row_extend_val, const T &col_extend_val, const T &common_extend_val)
+            requires std::is_copy_constructible_v<T> {
+                this->extend_by(extend_amount, extend_amount, row_extend_val, col_extend_val, common_extend_val);
             }
     };
 }
