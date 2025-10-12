@@ -652,7 +652,7 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
                     if constexpr ( noexcept(t_creation) ) { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation()); }
-                    else _TRY_CONSTRUCT_AT_LOOP_(J, (J < column), (j++), m_data[i], t_creation()) _CATCH_DES_DATA_CONT_(m_data, i, j, column)
+                    else _TRY_CONSTRUCT_AT_LOOP_(j, (j < column), (j++), m_data[i], t_creation()) _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                 }
             }
             
@@ -669,7 +669,7 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
                     if constexpr ( noexcept(t_creation) ) { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation(i, j)); }
-                    else _TRY_CONSTRUCT_AT_LOOP_(J, (J < column), (j++), m_data[i], t_creation(i, j)) _CATCH_DES_DATA_CONT_(m_data, i, j, column)
+                    else _TRY_CONSTRUCT_AT_LOOP_(j, (j < column), (j++), m_data[i], t_creation(i, j)) _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                 }
             }
             
@@ -1195,7 +1195,7 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     try { math::memory::impl::reallocate_memory(m_data[i], col, new_col); } _CATCH_REW_RLC_(m_data, i, col, new_col, 0)
                     if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i] + col, extend_amount, copy_val);
-                    else _TRY_CONSTRUCT_AT_LOOP_(j, (j < extend_amount), (j++), (m_data[i] + col), zero) _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
+                    else _TRY_CONSTRUCT_AT_LOOP_(j, (j < extend_amount), (j++), (m_data[i] + col), copy_val) _CATCH_REW_RLC_(m_data, i, col, new_col, j)
                 }
                 m_order.set_column(new_col);
             }
@@ -1246,6 +1246,7 @@ namespace math
                 const size_t row = m_order.row();
                 const size_t col = m_order.column();
                 const size_t new_num_rows = row + extend_amount;
+                size_t j;
                 math::memory::impl::reallocate_memory<T*>(m_data, row, new_num_rows);
                 for (size_t i = row; i < new_num_rows; i++) {
                     if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i], col, copy_val);
@@ -1265,10 +1266,6 @@ namespace math
                     for (size_t i = 0; i < new_num_row; i++) math::memory::impl::reallocate_memory<T>(m_data[i], num_col, new_num_col);
                 }
                 else this->reset();
-            }
-
-            void shrink_by(const size_t row_shrink_amount, const size_t col_shrink_amount) noexcept {
-                this->shrink_by(row_shrink_amount, col_shrink_amount);
             }
 
             void shrink_by(const size_t shrink_amount) noexcept {
@@ -1327,6 +1324,7 @@ namespace math
                         const size_t row = m_order.row();
                         const size_t new_col = m_order.column();
                         const size_t new_num_rows = row + row_extend_amount;
+                        size_t j;
                         math::memory::impl::reallocate_memory<T*>(m_data, row, new_num_rows);
                         for (size_t i = row; i < new_num_rows; i++) {
                             if constexpr (std::is_nothrow_copy_constructible_v<T>) {
