@@ -132,7 +132,7 @@ namespace math::memory::impl
 
     #define _TRY_CONSTRUCT_AT_(ptr, ...) try { std::construct_at(ptr, ##__VA_ARGS__); }
 
-    #define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var; loop_end_condition; loop_increment_cond) std::construct_at(ptr + loop_var, ##__VA_ARGS__); }
+    #define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var = 0; loop_end_condition; loop_increment_cond) std::construct_at(ptr + loop_var, ##__VA_ARGS__); }
 
     // Shorthand for when memory is allocated in a separate loop, with exception safety.
     template <typename T>
@@ -163,7 +163,7 @@ namespace math::memory::impl
     requires std::is_copy_constructible_v<T> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
             size_t created_items;
-            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at, val)
+            _TRY_CONSTRUCT_AT_LOOP_(created_items, (created_items < size), (created_items++), to_construct_at, val)
             _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
         } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
@@ -173,7 +173,7 @@ namespace math::memory::impl
     requires std::is_copy_constructible_v<T> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
             size_t created_items;
-            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at, val)
+            _TRY_CONSTRUCT_AT_LOOP_(created_items, (created_items < size), (created_items++), to_construct_at, val)
             _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
         } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
@@ -193,27 +193,27 @@ namespace math::memory::impl
     requires std::is_default_constructible_v<T> {
         if constexpr (!std::is_nothrow_default_constructible_v<T>) {
             size_t created_items;
-            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at)
+            _TRY_CONSTRUCT_AT_LOOP_(created_items, (created_items < size), (created_items++), to_construct_at)
             _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
         } else std::uninitialized_value_construct_n(to_construct_at, size);
     }
 
     template <typename T, std::input_iterator Iter>
-    inline void mem_2d_safe_uninit_copy_n(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
+    inline void mem_2d_safe_uninit_copy_n(T* to_construct_at, const size_t size, Iter &it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
             size_t created_items;
-            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), ((++created_items), ++it), to_construct_at, *it)
+            _TRY_CONSTRUCT_AT_LOOP_(created_items, (created_items < size), ((++created_items), ++it), to_construct_at, *it)
             _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
         } else std::uninitialized_copy_n(it, size, to_construct_at);
     }
 
     template <typename T, std::input_iterator Iter>
-    inline void mem_2d_safe_uninit_copy_n_continuous(T* to_construct_at, const size_t size, Iter it, T** &mem, const size_t curr_i, const size_t row_size)
+    inline void mem_2d_safe_uninit_copy_n_continuous(T* to_construct_at, const size_t size, Iter &it, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
         if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
             size_t created_items;
-            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), ((++created_items), ++it), to_construct_at, *it)
+            _TRY_CONSTRUCT_AT_LOOP_(created_items, (created_items < size), ((++created_items), ++it), to_construct_at, *it)
             _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at + created_items - mem[curr_i], row_size)
         } else std::uninitialized_copy_n(it, size, to_construct_at);
     }

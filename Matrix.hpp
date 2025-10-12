@@ -472,9 +472,6 @@ namespace math
                             j = std::min(size - constructed_items, column);
                             math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], j, Iter, m_data, i, column);
                             constructed_items += j;
-                            if ( std::random_access_iterator<std::decay_t<decltype(Iter)>> )
-                                try { Iter += j; } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
-                            else try { for (k = 0; k < j; k++) ++Iter; } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                             if (constructed_items % column == 0) break;
                             [[fallthrough]];
                         case false :
@@ -513,9 +510,6 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
                     math::memory::impl::mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], column, Iter, m_data, i, column);
-                    if constexpr (std::random_access_iterator<std::decay_t<decltype(Iter)>>)
-                        try { Iter += column; } _CATCH_MEM_ERR_CONT_(m_data, i + 1, column)
-                    else try { for (k = 0; k < column; k++) ++Iter; } _CATCH_MEM_ERR_CONT_(m_data, i + 1, column)
                 }
             }
             
@@ -658,7 +652,7 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
                     if constexpr ( noexcept(t_creation) ) { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation()); }
-                    else try { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation()); } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
+                    else _TRY_CONSTRUCT_AT_LOOP_(J, (J < column), (j++), m_data[i], t_creation()) _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                 }
             }
             
@@ -675,7 +669,7 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
                     if constexpr ( noexcept(t_creation) ) { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation(i, j)); }
-                    else try { for (j = 0; j < column; j++) std::construct_at(m_data[i] + j, t_creation(i, j)); } _CATCH_DES_DATA_CONT_(m_data, i, j, column)
+                    else _TRY_CONSTRUCT_AT_LOOP_(J, (J < column), (j++), m_data[i], t_creation(i, j)) _CATCH_DES_DATA_CONT_(m_data, i, j, column)
                 }
             }
             
@@ -898,7 +892,7 @@ namespace math
                     const T *const cache_data = other.m_data[0];
                     T *const data = to_transfer[i];
                     if constexpr ( noexcept(std::declval<T>() * std::declval<T>()) ) for (d = 0; d < column; d++) std::construct_at(data + d, cached * cache_data[d]);
-                    try { for (d = 0; d < column; d++) std::construct_at(data + d, cached * cache_data[d]); } _CATCH_DES_DATA_CONT_(to_transfer, i, d, column)
+                    else _TRY_CONSTRUCT_AT_LOOP_(d, (d < column), (d++), data, cached * cache_data[d]) _CATCH_DES_DATA_CONT_(to_transfer, i, d, column)
                 }
                 // it is fine till here if an exception is called and the destructor of result is called because the order is zero and hence it wouldn't try to free memory.
                 std::swap(result.m_data, to_transfer); // m_data was nullptr before this.
@@ -1174,7 +1168,7 @@ namespace math
                     for (size_t i = 0; i < row; i++) {
                         try { math::memory::impl::reallocate_memory(m_data[i], old_col, new_col); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, 0)
                         if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i] + old_col, extend_amount, zero);
-                        else try { for (j = 0; j < extend_amount; j++) std::construct_at(m_data[i] + j, zero); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
+                        else _TRY_CONSTRUCT_AT_LOOP_(j, (j < extend_amount), (j++), m_data[i], zero) _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
                     }
                     m_order.set_column(new_col);
                     return;
@@ -1185,7 +1179,7 @@ namespace math
                     for (size_t i = 0; i < row; i++) {
                         try { math::memory::impl::reallocate_memory(m_data[i], old_col, new_col); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, 0)
                         if constexpr (std::is_nothrow_default_constructible_v<T>) std::uninitialized_value_construct_n(m_data[i] + old_col, extend_amount);
-                        else try { for (j = 0; j < extend_amount; j++) std::construct_at(m_data[i] + j); } _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
+                        else _TRY_CONSTRUCT_AT_LOOP_(j, (j < extend_amount), (j++), m_data[i]) _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
                     }
                     m_order.set_column(new_col);
                     return;
@@ -1201,7 +1195,7 @@ namespace math
                 for (size_t i = 0; i < row; i++) {
                     try { math::memory::impl::reallocate_memory(m_data[i], col, new_col); } _CATCH_REW_RLC_(m_data, i, col, new_col, 0)
                     if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i] + col, extend_amount, copy_val);
-                    else try { for (j = 0; j < extend_amount; j++) std::construct_at(m_data[i] + col + j, copy_val); } _CATCH_REW_RLC_(m_data, i, col, new_col, j)
+                    else _TRY_CONSTRUCT_AT_LOOP_(j, (j < extend_amount), (j++), (m_data[i] + col), zero) _CATCH_REW_RLC_(m_data, i, old_col, new_col, j)
                 }
                 m_order.set_column(new_col);
             }
@@ -1234,7 +1228,7 @@ namespace math
                         if (!zero_exists) goto DEFAULT_CASE;
                         const T &zero_val = math::zero_vals.get_of<T>();
                         if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i], col, zero_val);
-                        else try { for (j = 0; j < col; j++) std::construct_at(m_data[i] + j, zero_val); } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
+                        else _TRY_CONSTRUCT_AT_LOOP_(j, (j < col), (j++), m_data[i], zero_val) _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
                         continue;
                     }
                     else {
@@ -1242,7 +1236,7 @@ namespace math
                     }
                     DEFAULT_CASE:
                         if constexpr (std::is_nothrow_default_constructible_v<T>) std::uninitialized_value_construct_n(m_data[i], col);
-                        else try { for (j = 0; j < col; j++) std::construct_at(m_data[i]); } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
+                        else _TRY_CONSTRUCT_AT_LOOP_(j, (j < col), (j++), m_data[i]) _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
                 }
             }
     
@@ -1255,7 +1249,7 @@ namespace math
                 math::memory::impl::reallocate_memory<T*>(m_data, row, new_num_rows);
                 for (size_t i = row; i < new_num_rows; i++) {
                     if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_data[i], col, copy_val);
-                    else try { for (j = 0; j < col; j++) std::construct_at(m_data[i] + j, copy_val); } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
+                    else _TRY_CONSTRUCT_AT_LOOP_(j, (j < col), (j++), m_data[i], copy_val) _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
                 }
             }
     
