@@ -1280,7 +1280,7 @@ namespace math
             requires std::is_default_constructible_v<T> || std::is_copy_constructible_v<T> {
                 if (!m_order.is_zero()) {
                     this->extend_columns_by(col_extend_amount);
-                    this->extend_rows_by(row_extend_amount);
+                    try { this->extend_rows_by(row_extend_amount); } catch(...) { this->shrink_columns_by(col_extend_amount); throw; }
                 }
                 else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount));
             }
@@ -1294,7 +1294,7 @@ namespace math
             requires std::is_copy_constructible_v<T> {
                 if (!m_order.is_zero()) {
                     this->extend_columns_by(row_extend_amount, copy_val);
-                    this->extend_rows_by(row_extend_amount, copy_val);
+                    try { this->extend_rows_by(row_extend_amount, copy_val); } catch(...) { this->shrink_columns_by(col_extend_amount); throw; }
                 }
                 else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount), copy_val);
             }
@@ -1308,7 +1308,7 @@ namespace math
             requires std::is_copy_constructible_v<T> {
                 if (!m_order.is_zero()) {
                     this->extend_columns_by(col_extend_amount, col_extend_val);
-                    this->extend_rows_by(row_extend_amount, row_extend_val);
+                    try { this->extend_rows_by(row_extend_amount, row_extend_val); } catch(...) { this->shrink_columns_by(col_extend_amount); throw; }
                 }
                 else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount), row_extend_val);
             }
@@ -1323,7 +1323,7 @@ namespace math
                 if (!m_order.is_zero()) {
                     const size_t col = m_order.column();
                     this->extend_columns_by(col_extend_amount, col_extend_val);
-                    if (row_extend_amount != 0) {
+                    if (row_extend_amount != 0) { try {
                         const size_t row = m_order.row();
                         const size_t new_col = m_order.column();
                         const size_t new_num_rows = row + row_extend_amount;
@@ -1337,7 +1337,7 @@ namespace math
                                 for (j = 0; j < col; j++) std::construct_at(m_data[i] + j, col_extend_val);
                                 for (; j < new_col; j++) std::construct_at(m_data[i] + j, common_extend_val);
                             } _CATCH_REW_RLR_(m_data, i, row, new_num_rows, col, j)
-                        }
+                        } } catch(...) { this->shrink_columns_by(col_extend_amount); throw; }
                     }
                 }
                 else *this = Matrix(math::matrix::Order(row_extend_amount, col_extend_amount), row_extend_val);
