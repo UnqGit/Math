@@ -829,11 +829,42 @@ namespace math
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot add matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
-                #pragma omp parallel for collapse(2) schedule(static)
-                for (size_t i = 0; i < num_rows; i++) {
-                    for (size_t j = 0; j < num_columns; j++) {
-                        m_data[i][j] += other.m_data[i][j];
+                if constexpr ( noexcept( std::declval<std::decay_t<T>>() += std::declval<std::decay_t<T>>() ) ) {
+                    #pragma omp parallel for collapse(2) schedule(static)
+                    for (size_t i = 0; i < num_rows; i++) {
+                        for (size_t j = 0; j < num_columns; j++) {
+                            m_data[i][j] += other.m_data[i][j];
+                        }
                     }
+                }
+                else {
+                    T **result;
+                    try {
+                        result = math::memory::impl::allocate_memory<T*>(num_rows);
+                        for (size_t i = 0; i < num_rows; i++) result[i] = math::memory::impl::allocate_mem_2d_safe<T>(result, i, num_columns);
+                    } catch(...) { throw std::runtime_error("Could not do addition for this matrix aa an error occured during memory allocation(which was required as the operator(+=) isn't noexcept)."); }
+                    if constexpr ( noexcept( std::declval<std::decay_t<T>>() + std::declval<std::decay_t<T>>() ) && std::is_nothrow_copy_constructible_v<T> ) {
+                        #pragma omp parallel for collapse(2) schedule(static)
+                        for (size_t i = 0; i < num_rows; i++) {
+                            for (size_t j = 0; j < num_columns; j++) {
+                                std::construct_at(result[i] + j, m_data[i][j] + other.m_data[i][j]);
+                            }
+                        }
+                    }
+                    else {
+                        size_t j;
+                        for (size_t i = 0; i < num_rows; i++) {
+                            _TRY_CONSTRUCT_AT_LOOP_((j = 0), (j < num_columns), (j++), result[i], m_data[i][j] + other.m_data[i][j])
+                            catch(...) {
+                                math::memory::impl::destroy_data<T>(m_data, i, j, num_rows, num_columns);
+                                throw std::runtime_error("Cannot add the two matrices because of error that occured in either copy construction of the matrix or the operator(+: binary) for the template type T failed(which was required because the template type doesn't have noexcept operator(+=), or failed (noexcept(T+T) && nothrow_copy_constructible))");
+                            }
+                        }
+                    }
+                    Matrix result_mat;
+                    std::swap(result_mat.m_data, result);
+                    result_mat.m_order = m_order;
+                    this->swap(result_mat);
                 }
                 return *this;
             }
@@ -851,11 +882,42 @@ namespace math
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot subtract matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
-                #pragma omp parallel for collapse(2) schedule(static)
-                for (size_t i = 0; i < num_rows; i++) {
-                    for (size_t j = 0; j < num_columns; j++) {
-                        m_data[i][j] -= other.m_data[i][j];
+                if constexpr ( noexcept( std::declval<std::decay_t<T>>() -= std::declval<std::decay_t<T>>() ) ) {
+                    #pragma omp parallel for collapse(2) schedule(static)
+                    for (size_t i = 0; i < num_rows; i++) {
+                        for (size_t j = 0; j < num_columns; j++) {
+                            m_data[i][j] -= other.m_data[i][j];
+                        }
                     }
+                }
+                else {
+                    T **result;
+                    try {
+                        result = math::memory::impl::allocate_memory<T*>(num_rows);
+                        for (size_t i = 0; i < num_rows; i++) result[i] = math::memory::impl::allocate_mem_2d_safe<T>(result, i, num_columns);
+                    } catch(...) { throw std::runtime_error("Could not do subtraction for this matrix aa an error occured during memory allocation(which was required as the operator(-=) isn't noexcept for the template type T)."); }
+                    if constexpr ( noexcept( std::declval<std::decay_t<T>>() - std::declval<std::decay_t<T>>() ) && std::is_nothrow_copy_constructible_v<T> ) {
+                        #pragma omp parallel for collapse(2) schedule(static)
+                        for (size_t i = 0; i < num_rows; i++) {
+                            for (size_t j = 0; j < num_columns; j++) {
+                                std::construct_at(result[i] + j, m_data[i][j] - other.m_data[i][j]);
+                            }
+                        }
+                    }
+                    else {
+                        size_t j;
+                        for (size_t i = 0; i < num_rows; i++) {
+                            _TRY_CONSTRUCT_AT_LOOP_((j = 0), (j < num_columns), (j++), result[i], m_data[i][j] - other.m_data[i][j])
+                            catch(...) {
+                                math::memory::impl::destroy_data<T>(m_data, i, j, num_rows, num_columns);
+                                throw std::runtime_error("Cannot subtract the two matrices because of error that occured in either copy construction of the matrix or the operator(-: binary) for the template type T failed(which was required because the template type doesn't have noexcept operator(-=), or failed (noexcept(T-T) && is_nothrow_copy_constructible_v))");
+                            }
+                        }
+                    }
+                    Matrix result_mat;
+                    std::swap(result_mat.m_data, result);
+                    result_mat.m_order = m_order;
+                    this->swap(result_mat);
                 }
                 return *this;
             }
