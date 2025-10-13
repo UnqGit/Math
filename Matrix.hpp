@@ -193,22 +193,20 @@ namespace math
                             throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
                     m_data = math::memory::impl::allocate_memory<T*>(row);
                     for (size_t i = 0; i < row; i++) math::memory::impl::allocate_mem_2d_safe<T>(m_data, i, column);
-                    if constexpr (std::is_trivially_constructible_v<T>) return;
-                    else if constexpr (std::is_default_constructible_v<T>) {
-                        for (size_t i = 0; i < row; i++)
-                            math::memory::impl::mem_2d_safe_uninit_valcon_n<T>(m_data[i], column, m_data, i, row, column);
-                        return;
-                    }
-                    for (size_t i = 0; i < row; i++)
-                        math::memory::impl::mem_2d_safe_uninit_fill_n<T>(m_data[i], math::zero_vals.get_of<T>(), column, m_data, i, row, column);
+                    if constexpr (!std::is_trivially_constructible_v<T>)
+                        for (size_t i = 0; i < row; i++) {
+                            if constexpr (!std::is_default_constructible_v<T>) math::memory::impl::mem_2d_safe_uninit_fill_n<T>(m_data[i], math::zero_vals.get_of<T>(), column, m_data, i, row, column);
+                            else math::memory::impl::mem_2d_safe_uninit_valcon_n<T>(m_data[i], column, m_data, i, row, column);
+                        }
                 }
                 else {
                     if (!zero_exists)
                         throw std::logic_error("The zero value is not stored of this type in math::zero_vals hence can't zero construct the Matrix.");
                     m_data = math::memory::impl::allocate_memory<T*>(row);
-                    for (size_t i = 0; i < row; i++) math::memory::impl::allocate_mem_2d_safe<T>(m_data, i, column);
-                    for (size_t i = 0; i < row; i++)
-                        math::memory::impl::mem_2d_safe_uninit_fill_n<T>(m_data[i], math::zero_vals.get_of<T>(), column, m_data, i, row, column);
+                    for (size_t i = 0; i < row; i++) {
+                        math::memory::impl::allocate_mem_2d_safe_continuous<T>(m_data, i, column);
+                        math::memory::impl::mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i], math::zero_vals.get_of<T>(), column, m_data, i, column);
+                    }
                 }
             }
             Matrix(const size_t row, const size_t column, const math::matrix::ConstructAllocateRule construct_rule = math::matrix::CAR::zero) : Matrix(math::matrix::Order(row, column), construct_rule) {}
