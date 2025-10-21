@@ -17,7 +17,7 @@ namespace {
         }
         else {
             std::uninitialized_copy(begin, end, to_construct_at);
-            constructed_items = end - begin;
+            constructed_items += end - begin;
         }
     }
 }
@@ -25,7 +25,13 @@ namespace {
 // Destructor of the math::Classes are noexcept(true) because the class itself can only be made if the std::is_nothrow_destructible_v<T> type_trait is true and hence the free mem function is fine being noexcept
 namespace math::memory::impl
 {
-    // Allocating row memory, a C++ wrapper on malloc.
+    /**
+     * @brief Allocating row memory, a C++ wrapper on malloc.
+     * @tparam T Type of the elements to allocate memory for.
+     * @param num_elements Number of elements to allocate memory for.
+     * @throws std::bad_alloc If the memory allocation fails.
+     * @return Pointer to the allocated memory.
+    */
     template <typename T>
     [[nodiscard("Shouldn't be allocating memory without getting a pointer to it.")]]
     inline T *allocate_memory(const size_t num_elements) {
@@ -35,7 +41,13 @@ namespace math::memory::impl
         throw std::bad_alloc{};
     }
 
-    // Safely free-ing memory.
+    /**
+     * @brief Safely free-ing memory.
+     * @tparam T Type of the elements to free memory for.
+     * @param memory Pointer to the memory to free.
+     * @param created_items Number of elements to call destructor for.
+     * @return Pointer to the allocated memory.
+    */
     template <typename T>
     requires ( std::is_nothrow_destructible_v<T> )
     inline void free_memory(T* &memory, const size_t created_items) noexcept {
@@ -45,11 +57,18 @@ namespace math::memory::impl
         memory = nullptr;
     }
 
-    // Reallocating memory, a safer wrapper on realloc.
+    /**
+     * @brief Reallocating memory, a safer wrapper on realloc.
+     * @tparam T Type of the elements to reallocate memory for.
+     * @param mem_ptr Pointer to the memory to reallocate.
+     * @param old_num_elements Number of elements in old memory.
+     * @param num_elements Number of elements to reallocate memory for.
+     * @throws std::bad_alloc If the memory reallocation fails.
+     * @return Pointer to the reallocated memory.
+    */
     template <typename T>
     inline T *reallocate_memory(T* &mem_ptr, const size_t old_num_elements, const size_t num_elements)
-    requires (std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T> || std::is_trivially_copyable_v<T>)
-    {
+    requires (std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T> || std::is_trivially_copyable_v<T>) {
         if (mem_ptr == nullptr) return allocate_memory<T>(num_elements);
         if (old_num_elements == num_elements) return mem_ptr;
         if (num_elements == 0) {
@@ -57,53 +76,66 @@ namespace math::memory::impl
             return mem_ptr;
         }
         if (num_elements < old_num_elements) {
-            if constexpr (!std::is_trivially_destructible_v<T>) std::destroy(mem_ptr + num_elements, mem_ptr + old_num_elements);
+            if constexpr (!std::is_trivially_destructible_v<T>) std::destroy_n(mem_ptr + num_elements, old_num_elements - num_elements);
             T *temp = static_cast<T*>(std::realloc(mem_ptr, sizeof(T) * num_elements));
-            if (temp) mem_ptr = temp;
-            else throw std::bad_alloc{}; 
-            return mem_ptr;
+            if (!temp) throw std::bad_alloc{};
+            return (mem_ptr = temp);
         }
         if constexpr (std::is_trivially_copyable_v<T>) {
             T *temp = static_cast<T*>(std::realloc(mem_ptr, sizeof(T) * num_elements));
             if (!temp) throw std::bad_alloc{};
-            mem_ptr = temp;
-            return mem_ptr;
+            return (mem_ptr = temp);
         }
-        T *temp = static_cast<T*>(std::malloc(sizeof(T) * num_elements));
-        if (!temp) throw std::bad_alloc{};
+        T *temp = allocate_memory<T>(num_elements);
         if constexpr (std::is_nothrow_move_constructible_v<T>) {
             std::uninitialized_move_n(mem_ptr, old_num_elements, temp);
             std::free(mem_ptr);
+            return (mem_ptr = temp);
         }
-        else if constexpr (std::is_copy_constructible_v<T>) {
-            T *end = nullptr;
-            try {
-                end = std::uninitialized_copy_n(mem_ptr, old_num_elements, temp);
-            } catch(...) {
-                free_memory<T>(temp, end - temp);
-                throw;
-            }
-            free_memory<T>(mem_ptr, old_num_elements);
+        else if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
+            size_t created_items;
+            try { for (; created_items < old_num_elements; created_items++) std::construct_at(temp + created_items, *(mem_ptr + created_items)); }
+            catch(...) { free_memory<T>(temp, created_items); throw; }
         }
-        mem_ptr = temp;
-        return mem_ptr;
+        else std::uninitialized_copy_n(mem_ptr, old_num_elements, temp);
+        free_memory<T>(mem_ptr, old_num_elements);
+        return (mem_ptr = temp);
     }
 
-    // This is for when the error occurs in a pure memore allocation loop.
+    /**
+     * @brief Destroying data in a pure memory allocation loop.
+     * @tparam T Type of the elements to destroy.
+     * @param data Pointer to the 2D array of data to destroy.
+     * @param curr_i Current index of the 2D array of data.
+    */
     template <typename T>
     inline void destroy_data_mem_err(T** &data, const size_t curr_i) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], 0);
         free_memory<T*>(data, 0);
     }
 
-    // This is for when the memory is being allocated continuously and is constructed in the same loop and the error occurs in the memory allocation.
+    /**
+     * @brief Destroying data in a continuous memory allocation loop(allocation and construction in the same loop).
+     * @tparam T Type of the elements to destroy.
+     * @param data Pointer to the 2D array of data to destroy.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+    */
     template <typename T>
     inline void destroy_data_mem_err_continuous(T** &data, const size_t curr_i, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
         free_memory<T*>(data, 0);
     }
 
-    // This is for when the memory is allocated in a separate loop and constructed in another.
+    /**
+     * @brief Destroying data in the construction loop(when the memory is allocated in a separate loop and constructed in another).
+     * @tparam T Type of the elements to destroy.
+     * @param data Pointer to the 2D array of data to destroy.
+     * @param curr_i Current index of the 2D array of data.
+     * @param end_row_created_items Number of elements created in the last row.
+     * @param num_row Number of rows in the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+    */
     template <typename T>
     inline void destroy_data(T** &data, const size_t curr_i, const size_t end_row_created_items, const size_t num_row, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
@@ -112,7 +144,14 @@ namespace math::memory::impl
         free_memory<T*>(data, 0);
     }
 
-    // This is for when the memory is allocated and constructed in the same loop.
+    /**
+     * @brief Destroying data in a 2D array(when the memory is allocated and constructed in the same loop).
+     * @tparam T Type of the elements to destroy.
+     * @param data Pointer to the 2D array of data to destroy.
+     * @param curr_i Current index of the 2D array of data.
+     * @param end_row_created_items Number of elements created in the last row.
+     * @param row_size Size of the rows of the 2D array of data.
+    */
     template <typename T>
     inline void destroy_data_continuous(T** &data, const size_t curr_i, const size_t end_row_created_items, const size_t row_size) {
         for (size_t i = 0; i < curr_i; i++) free_memory<T>(data[i], row_size);
@@ -121,43 +160,101 @@ namespace math::memory::impl
     }
 
     // ======DRY SECTOR======
-
     #define _CATCH_MEM_ERR_(ptr, index) catch(...) { destroy_data_mem_err<T>(ptr, index); throw; }
-
     #define _CATCH_MEM_ERR_CONT_(ptr, index, size_of_rows) catch(...) { destroy_data_mem_err_continuous<T>(ptr, index, size_of_rows); throw; }
-
     #define _CATCH_DES_DATA_(ptr, index, index_created_elements, number_of_rows, size_of_rows_before) catch(...) { destroy_data<T>(ptr, index, index_created_elements, number_of_rows, size_of_rows_before); throw; }
-
     #define _CATCH_DES_DATA_CONT_(ptr, index, index_created_elements, size_of_rows_before) catch(...) { destroy_data_continuous<T>(ptr, index, index_created_elements, size_of_rows_before); throw; }
-
     #define _TRY_CONSTRUCT_AT_(ptr, ...) try { std::construct_at(ptr, ##__VA_ARGS__); }
-
     #define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var = 0; loop_end_condition; loop_increment_cond) std::construct_at(ptr + loop_var, ##__VA_ARGS__); }
 
-    // Shorthand for when memory is allocated in a separate loop, with exception safety.
+    /**
+     * @brief Allocating memory for a 2D array with exception safety.
+     * @tparam T Type of the elements to allocate memory for.
+     * @param num_rows Number of rows in the 2D array.
+     * @param row_size Size of the rows of the 2D array.
+     * @throws std::bad_alloc If the memory allocation fails.
+     * @return Pointer to the allocated memory.
+    */
+    template <typename T>
+    inline T** allocate_2d_safe_memory(const size_t num_rows, const size_t row_size) {
+        T** mem_ptr = allocate_memory<T*>(num_rows);
+        size_t i = 0;
+        try { for (; i < num_rows; i++) mem_ptr[i] = allocate_memory<T>(row_size); }
+        catch(...) { destroy_data_mem_err<T>(mem_ptr, i); throw; }
+        return mem_ptr;
+    }
+
+    /**
+     * @brief Allocating memory for a row in a 2D array(allocation and construction in a separate loop).
+     * @tparam T Type of the elements to allocate memory for.
+     * @param mem_ptr Pointer to the 2D array of data to allocate the row memory for.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::bad_alloc If the memory allocation fails.
+    */
     template <typename T>
     inline void allocate_mem_2d_safe(T** &mem_ptr, const size_t curr_i, const size_t row_size) {
         try { mem_ptr[curr_i] = allocate_memory<T>(row_size); } _CATCH_MEM_ERR_(mem_ptr, curr_i)
     }
 
-    // Shorthand for allocating memory continuously in a loop with construction, with exception safety.
+    /**
+     * @brief Allocating memory for a row in a 2D array(allocation and construction in the same loop).
+     * @tparam T Type of the elements to allocate memory for.
+     * @param mem_ptr Pointer to the 2D array of data to allocate the row memory for.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::bad_alloc If the memory allocation fails.
+    */
     template <typename T>
     inline void allocate_mem_2d_safe_continuous(T** &mem_ptr, const size_t curr_i, const size_t row_size) {
         try { mem_ptr[curr_i] = allocate_memory<T>(row_size); } _CATCH_MEM_ERR_CONT_(mem_ptr, curr_i, row_size)
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in separate loops).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param mem Pointer to the 2D array of data to construct the object in.
+     * @param curr_i Current index of the 2D array of data.
+     * @param num_rows Number of rows in the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @param _args Arguments to pass to the constructor.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T, typename ...Args>
     inline void mem_2d_safe_construct_at(T* to_construct_at, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size, Args&&... _args) {
         _TRY_CONSTRUCT_AT_(to_construct_at, std::forward<Args>(_args)...)
         _CATCH_DES_DATA_(mem, curr_i, to_construct_at - mem[curr_i], num_rows, row_size)
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in separate loops).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param mem Pointer to the 2D array of data to construct the object in.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @param _args Arguments to pass to the constructor.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T, typename ...Args>
     inline void mem_2d_safe_construct_at_continuous(T* to_construct_at, T** &mem, const size_t curr_i, const size_t row_size, Args&&... _args) {
         _TRY_CONSTRUCT_AT_(to_construct_at, std::forward<Args>(_args)...)
         _CATCH_DES_DATA_CONT_(mem, curr_i, to_construct_at - mem[curr_i], row_size)
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in separate loops).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param val Value to fill the memory with.
+     * @param size Number of elements to fill in memory with the value.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param num_rows Number of rows in the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T>
     inline void mem_2d_safe_uninit_fill_n(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
@@ -168,6 +265,17 @@ namespace math::memory::impl
         } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in the same loop).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param val Value to fill the memory with.
+     * @param size Number of elements to fill in memory with the value.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T>
     inline void mem_2d_safe_uninit_fill_n_continuous(T* to_construct_at, const T &val, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> {
@@ -178,16 +286,37 @@ namespace math::memory::impl
         } else std::uninitialized_fill_n(to_construct_at, size, val);
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in separate loops).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param size Number of elements to construct in memory.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param num_rows Number of rows in the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T>
     inline void mem_2d_safe_uninit_valcon_n(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_default_constructible_v<T> {
         if constexpr (!std::is_nothrow_default_constructible_v<T>) {
             size_t created_items;
-            _TRY_CONSTRUCT_AT_LOOP_((created_items = 0), (created_items < size), (created_items++), to_construct_at)
+            _TRY_CONSTRUCT_AT_LOOP_(created_items, (created_items < size), (created_items++), to_construct_at)
             _CATCH_DES_DATA_(mem, curr_i, to_construct_at + created_items - mem[curr_i], num_rows, row_size)
         } else std::uninitialized_value_construct_n(to_construct_at, size);
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in the same loop).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param size Number of elements to construct in memory.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T>
     inline void mem_2d_safe_uninit_valcon_n_continuous(T* to_construct_at, const size_t size, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_default_constructible_v<T> {
@@ -198,6 +327,18 @@ namespace math::memory::impl
         } else std::uninitialized_value_construct_n(to_construct_at, size);
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in separate loops).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param size Number of elements to construct in memory.
+     * @param it Iterator to the beginning of the range of data to construct the object from.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param num_rows Number of rows in the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T, std::input_iterator Iter>
     inline void mem_2d_safe_uninit_copy_n(T* to_construct_at, const size_t size, Iter &it, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
@@ -208,6 +349,17 @@ namespace math::memory::impl
         } else std::uninitialized_copy_n(it, size, to_construct_at);
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in the same loop).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param size Number of elements to construct in memory.
+     * @param it Iterator to the beginning of the range of data to construct the object from.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T, std::input_iterator Iter>
     inline void mem_2d_safe_uninit_copy_n_continuous(T* to_construct_at, const size_t size, Iter &it, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
@@ -218,6 +370,18 @@ namespace math::memory::impl
         } else std::uninitialized_copy_n(it, size, to_construct_at);
     }
 
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in separate loops).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param begin Iterator to the beginning of the range of data to construct the object from.
+     * @param end Iterator to the end of the range of data to construct the object from.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param num_rows Number of rows in the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T, std::input_iterator Iter>
     inline size_t mem_2d_safe_uninit_copy(T* to_construct_at, Iter begin, Iter end, T** &mem, const size_t curr_i, const size_t num_rows, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
@@ -232,6 +396,17 @@ namespace math::memory::impl
         return constructed_items;
     }
     
+    /**
+     * @brief Constructing an object at a given memory location in a 2D array(allocation and construction in the same loop).
+     * @tparam T Type of the data to construct.
+     * @param to_construct_at Pointer to the memory location to construct the object at.
+     * @param begin Iterator to the beginning of the range of data to construct the object from.
+     * @param end Iterator to the end of the range of data to construct the object from.
+     * @param mem Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param row_size Size of the rows of the 2D array of data.
+     * @throws std::exception If the constructor throws an exception.
+    */
     template <typename T, std::input_iterator Iter>
     inline size_t mem_2d_safe_uninit_copy_continuous(T* to_construct_at, Iter begin, Iter end, T** &mem, const size_t curr_i, const size_t row_size)
     requires std::is_copy_constructible_v<T> && std::same_as<std::decay_t<T>, std::decay_t<decltype(*std::declval<Iter>())>> {
@@ -246,6 +421,15 @@ namespace math::memory::impl
         return constructed_items;
     }
 
+    /**
+    * @brief Rewinding the reallocation of a column in a 2D array(only when extending the column).
+    * @tparam T Type of the data to construct.
+    * @param mem_ptr Pointer to the 2D array of data.
+    * @param curr_i Current index of the 2D array of data.
+    * @param rewind_size Size of the column to rewind.
+    * @param extended_size Size of the column extended to.
+    * @param curr_i_created_items Number of elements created in the current column.
+    */
     template <typename T>
     inline void rewind_col_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t extended_size, const size_t curr_i_created_items) noexcept {
         for (size_t i = 0; i < curr_i; i++) reallocate_memory<T>(mem_ptr[i], extended_size, rewind_size);
@@ -257,6 +441,16 @@ namespace math::memory::impl
         */
     }
 
+    /**
+     * @brief Rewinding the reallocation of a row in a 2D array(only when extending the row).
+     * @tparam T Type of the data to construct.
+     * @param mem_ptr Pointer to the 2D array of data.
+     * @param curr_i Current index of the 2D array of data.
+     * @param rewind_size Size of the row to rewind.
+     * @param new_size Size of the row extended to.
+     * @param curr_i_created_items Number of elements created in the current row.
+     * @param row_size Size of the rows of the 2D array of data.
+     */
     template <typename T>
     inline void rewind_row_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t new_size, const size_t curr_i_created_items, const size_t row_size) noexcept {
         for (size_t i = rewind_size; i < curr_i; i++) math::memory::impl::free_memory<T>(mem_ptr[i], row_size);

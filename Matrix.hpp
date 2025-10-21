@@ -57,10 +57,9 @@ namespace math
                         *this = Matrix(size, secondary_value, primary_value, math::matrix::CSR::top_right_triangle); return;
                     default: break;
                 }
-                m_data = math::memory::impl::allocate_memory<T*>(size);
+                m_data = math::memory::impl::allocate_2d_safe_memory<T>(size, size);
                 T *cache_data;
                 bool is_primary = 0;
-                for (size_t i = 0; i < size; i++) math::memory::impl::allocate_mem_2d_safe<T>(m_data, i, size);
                 switch(construct_rule) {
                     case math::matrix::CSR::full :
                         for (size_t i = 0; i < size; i++) 
@@ -191,8 +190,7 @@ namespace math
                     if constexpr (!(std::is_trivially_constructible_v<T> || std::is_default_constructible_v<T>))
                         if (!zero_exists)
                             throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
-                    m_data = math::memory::impl::allocate_memory<T*>(row);
-                    for (size_t i = 0; i < row; i++) math::memory::impl::allocate_mem_2d_safe<T>(m_data, i, column);
+                    m_data = math::memory::impl::allocate_2d_safe_memory<T>(row, column);
                     if constexpr (!std::is_trivially_constructible_v<T>)
                         for (size_t i = 0; i < row; i++) {
                             if constexpr (!std::is_default_constructible_v<T>) math::memory::impl::mem_2d_safe_uninit_fill_n<T>(m_data[i], math::zero_vals.get_of<T>(), column, m_data, i, row, column);
@@ -839,10 +837,8 @@ namespace math
                 }
                 else {
                     T **result;
-                    try {
-                        result = math::memory::impl::allocate_memory<T*>(num_rows);
-                        for (size_t i = 0; i < num_rows; i++) result[i] = math::memory::impl::allocate_mem_2d_safe<T>(result, i, num_columns);
-                    } catch(...) { throw std::runtime_error("Could not do addition for this matrix aa an error occured during memory allocation(which was required as the operator(+=) isn't noexcept)."); }
+                    try { result = math::memory::impl::allocate_2d_safe_memory<T>(num_rows, num_columns); }
+                    catch(...) { throw std::runtime_error("Could not do addition for this matrix aa an error occured during memory allocation(which was required as the operator(+=) isn't noexcept)."); }
                     if constexpr ( noexcept( std::declval<std::decay_t<T>>() + std::declval<std::decay_t<T>>() ) && std::is_nothrow_copy_constructible_v<T> ) {
                         #pragma omp parallel for collapse(2) schedule(static)
                         for (size_t i = 0; i < num_rows; i++) {
@@ -892,10 +888,8 @@ namespace math
                 }
                 else {
                     T **result;
-                    try {
-                        result = math::memory::impl::allocate_memory<T*>(num_rows);
-                        for (size_t i = 0; i < num_rows; i++) result[i] = math::memory::impl::allocate_mem_2d_safe<T>(result, i, num_columns);
-                    } catch(...) { throw std::runtime_error("Could not do subtraction for this matrix aa an error occured during memory allocation(which was required as the operator(-=) isn't noexcept for the template type T)."); }
+                    try { result = math::memory::impl::allocate_2d_safe_memory<T>(num_rows, num_columns); }
+                    catch(...) { throw std::runtime_error("Could not do subtraction for this matrix aa an error occured during memory allocation(which was required as the operator(-=) isn't noexcept for the template type T)."); }
                     if constexpr ( noexcept( std::declval<std::decay_t<T>>() - std::declval<std::decay_t<T>>() ) && std::is_nothrow_copy_constructible_v<T> ) {
                         #pragma omp parallel for collapse(2) schedule(static)
                         for (size_t i = 0; i < num_rows; i++) {
