@@ -11,53 +11,78 @@ namespace math
     };
 
     // Equality checking functions.
-    template <std::integral T> // Just because it's better to send numbers by value instead of const T&.
-    inline bool is_equal(const T a, const T b) noexcept {
-        return a == b;
-    }
-
     template <std::floating_point T>
-    inline bool is_equal(const T a, const T b) noexcept {
-        const T rel_tol = static_cast<T>(4) * std::numeric_limits<T>::epsilon();
-        const T abs_tol = std::numeric_limits<T>::denorm_min();
+    inline constexpr bool is_equal(const T &a, const T &b) noexcept {
+        static constexpr T rel_tol(static_cast<T>(4) * std::numeric_limits<T>::epsilon());
+        static constexpr T abs_tol(std::numeric_limits<T>::denorm_min());
         return (std::fabs(a - b) <= std::max(rel_tol * std::max(std::fabs(a), std::fabs(b)), abs_tol));
     }
 
     template <typename T>
-    requires (((!std::floating_point<T>) && (!std::integral<T>)) && ProperEquality<T>)
-    inline bool is_equal(const T &a, const T &b) {
+    requires (!std::floating_point<T> && ProperEquality<T>)
+    inline constexpr bool is_equal(const T &a, const T &b) noexcept( std::declval<T>() == std::declval<T>() ) {
         return a == b;
     }
 
     template <typename T>
     concept isEqualityOperationPossible = requires(const T &a, const T &b) {
-        { math::is_equal(a, b) } -> std::same_as<bool>;
+        math::is_equal(a, b);
     };
 
     template <typename T>
-    concept isAdditionPossible = requires(T a, T b) {
-        { a + b } -> std::same_as<T>;
-        requires std::same_as<std::remove_reference_t<decltype(a += b)>, T>;
+    concept isAdditive = requires(const T &a, const T &b) {
+        requires std::same_as<std::remove_const_t<decltype(a + b)>, T>;
     };
 
     template <typename T>
-    concept isSubtractionPossible = requires(T a, T b) {
-        { a - b } -> std::same_as<T>;
-        requires std::same_as<std::remove_reference_t<decltype(a -= b)>, T>;
+    concept isRefAdditive = requires(T &a, const T &b) {
+        { a += b } -> std::same_as<T&>;
     };
 
     template <typename T>
-    concept isMultiplicationPossible = requires(T a, T b) {
-        { a * b } -> std::same_as<T>;
-        requires std::same_as<std::remove_reference_t<decltype(a *= b)>, T>;
+    concept compoundAddition = isAdditive<T> && isRefAdditive<T>;
+    
+    template <typename T>
+    concept anyAddition = isAdditive<T> || isRefAdditive<T>;
+
+    template <typename T>
+    concept isSubtractible = requires(const T &a, const T &b) {
+        requires std::same_as<std::remove_const_t<decltype(a - b)>, T>;
     };
+
+    template <typename T>
+    concept isRefSubtractible = requires(T &a, const T &b) {
+        { a -= b } -> std::same_as<T&>;
+    };
+
+    template <typename T>
+    concept compoundSubtraction = isSubtractible<T> && isRefSubtractible<T>;
+    
+    template <typename T>
+    concept anySubtraction = isSubtractible<T> || isRefSubtractible<T>;
+
+    template <typename T>
+    concept isMultiplicative = requires(const T &a, const T &b) {
+        requires std::same_as<std::remove_const_t<decltype(a * b)>, T>;
+    };
+
+    template <typename T>
+    concept isRefMultiplicative = requires(T &a, const T &b) {
+        { a *= b } -> std::same_as<T&>;
+    };
+
+    template <typename T>
+    concept compoundMultiplication = isMultiplicative<T> && isRefMultiplicative<T>;
+
+    template <typename T>
+    concept anyMultiplication = isMultiplicative<T> || isRefMultiplicative<T>;
 
     // Zero value holder class.
     class ZeroValueHolder {
         private:
             std::unordered_map<std::type_index, std::any> m_vals;
         private:
-            ZeroValueHolder() { // Helping the file user by pre-saving some of the types' 0 val.
+            constexpr ZeroValueHolder() { // Helping the file user by pre-saving some of the types' 0 val.
                 store_of<char>(static_cast<char>(0));
                 store_of<short>(static_cast<short>(0));
                 store_of<int>(static_cast<int>(0));
@@ -124,18 +149,19 @@ namespace math
             }
         public:
             template <typename T>
-            void store_of(const T &val) { // Cannot do noexcept because typeid can throw.
+            constexpr void store_of(const T &val) { // Cannot do noexcept because typeid can throw.
                 m_vals[std::type_index(typeid(T))] = val;
             }
 
             template <typename T>
-            bool exists_of() {
-                auto loc = m_vals.find(std::type_index(typeid(T)));
-                return (loc != m_vals.end());   
+            [[nodiscard("Result of exists_of method not used when called.")]]
+            constexpr bool exists_of() {
+                return (m_vals.find(std::type_index(typeid(T))) != m_vals.end());   
             }
 
             template <typename T>
-            const T &get_of() const {
+            [[nodiscard("Result of get_of method not used when called.")]]
+            constexpr const T &get_of() const {
                 const auto loc = m_vals.find(std::type_index(typeid(T)));
                 if (loc != m_vals.end()) return std::any_cast<const T&>(loc->second);
                 else throw std::logic_error("Cannot provide the zero value of a type that is not already stored in math::helper::zero_vals.\n");

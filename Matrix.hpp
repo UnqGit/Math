@@ -823,7 +823,7 @@ namespace math
         
         public:
             Matrix &operator+=(const Matrix &other)
-            requires math::isAdditionPossible<T> {
+            requires math::compoundAddition<T> {
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot add matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
@@ -867,14 +867,14 @@ namespace math
 
             [[nodiscard("Result of + operator method was ignored.")]]
             Matrix operator+(const Matrix &other) const
-            requires math::isAdditionPossible<T> {
+            requires math::compoundAddition<T> {
                 Matrix temp(*this);
                 temp += other;
                 return temp;
             }
 
             Matrix &operator-=(const Matrix &other)
-            requires math::isSubtractionPossible<T> {
+            requires math::compoundSubtraction<T> {
                 if (!is_same_dimension(other)) throw std::invalid_argument("Cannot subtract matrices of unequal order parameters.");
                 const size_t num_rows = m_order.row();
                 const size_t num_columns = m_order.column();
@@ -918,20 +918,20 @@ namespace math
 
             [[nodiscard("Result of - operator method was ignored.")]]
             Matrix operator-(const Matrix &other) const
-            requires math::isSubtractionPossible<T> {
+            requires math::compoundSubtraction<T> {
                 Matrix temp(*this);
                 return (temp -= other);
             }
 
             Matrix &operator*=(const Matrix &other)
-            requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
+            requires math::compoundMultiplication<T> && math::compoundAddition<T> {
                 *this = *this * other;
                 return *this;
             }
 
             [[nodiscard("Result of * operator_ method was ignored.")]]
             Matrix operator*(const Matrix &other) const
-            requires math::isMultiplicationPossible<T> && math::isAdditionPossible<T> {
+            requires math::compoundMultiplication<T> && math::compoundAddition<T> {
                 if (!is_multipliable_dimension(other)) throw std::invalid_argument("Cannot multiply the matrices because the number of columns in first does not match the number of rows in the second.");
                 Matrix result;
                 if (m_order.is_zero()) return result;
@@ -1069,7 +1069,7 @@ namespace math
         public:
             [[nodiscard("Result of trace method was ignored.")]]
             T trace() const
-            requires math::isAdditionPossible<T> {
+            requires math::compoundAddition<T> {
                 if (!(this->is_square())) throw std::logic_error("Cannot find trace of a non square Matrix.");
                 const bool zero_exists = math::zero_vals.exists_of<T>();
                 if (m_order.is_zero()) {

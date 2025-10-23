@@ -29,29 +29,15 @@ void print_row(const math::Matrix<T> &mat, const size_t row) noexcept {
 }
 
 int main(void) {
+    static_assert(math::isAdditive<int>);
+    static_assert(math::isRefAdditive<int>);
+    static_assert(math::compoundAddition<int>);
     using namespace math;
     using namespace math::matrix;
     std::cout << "Hello World!\n\n";
-    // print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate));
-    // print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate_row));
-    // print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate_column));
-    // print_matrix<int> (Matrix<int>(9, 7, 8));
-    // std::cout << Matrix<int>(9, 7, 8).size() << "\n\n";
-    // print_matrix<int> (Matrix<int>(Order(6, 6), [](){
-    //     static int i = 0;
-    //     return i++;
-    // }).transpose_in_place());
-    Matrix<int> mat(5, 6, CSR::alternate);
-    static_assert(math::helper::isOneDArr<math::matrix::Row<int>, int>);
-    // static_assert(math::helper::isOneDArr<math::Matrix<int>, math::matrix::Row<int>>);
-    print_column<int> (mat, 2);
-    for (auto &x : mat.column(2)) x += 2;
-    print_matrix<int> (mat);
-    for (auto x : mat.row(2)) x += 2;
-    print_matrix<int> (mat);
-    print_row<int> (mat, 2);
-    Matrix<int> mat2(2, 4, 5, ConstructSquareRule::alternate);
-    std::cout << '\n';
-    print_matrix(mat2);
-    std::cout << "Bye World!\n";
+    std::cout << std::type_index(typeid(int)).hash_code() << '\n';
+    std::cout << std::type_index(typeid(int)).name() << '\n';
+    std::cout << std::type_index(typeid(long)).hash_code() << '\n';
+    std::cout << std::type_index(typeid(long)).name() << '\n';
+    std::cout << "\nBye World!";
 }
