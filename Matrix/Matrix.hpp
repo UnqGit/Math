@@ -1,10 +1,10 @@
 // Matrix.hpp
 #pragma once
 
-#include ".\impl\Headers.hpp"
-#include ".\impl\Helper.hpp"
-#include ".\impl\_matrix_impl_.hpp"
-#include ".\impl\_memory_alloc_.hpp"
+#include "_matrix_impl_.hpp"
+#include "..\impl\Headers.hpp"
+#include "..\impl\Helper.hpp"
+#include "..\impl\_memory_alloc_.hpp"
 
 #define _ROW_COL_ const size_t row = m_order.row(); const size_t col = m_order.column();
 

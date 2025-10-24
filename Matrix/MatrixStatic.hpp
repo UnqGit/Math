@@ -1,7 +1,7 @@
 // MatrixStatic.hpp
 
-#include ".\impl\Headers.hpp"
-#include ".\impl\Helper.hpp"
+#include "..\impl\Headers.hpp"
+#include "..\impl\Helper.hpp"
 
 _MATH_START_
 _MTEMPL_ requires _STD_ is_nothrow_destructible_v<T> class _NODISC_ Matrix2x2 {
