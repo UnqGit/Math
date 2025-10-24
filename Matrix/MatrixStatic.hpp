@@ -1,10 +1,10 @@
 // MatrixStatic.hpp
+#pragma once
 
-#include "..\impl\Headers.hpp"
-#include "..\impl\Helper.hpp"
+#include "..\Helper\Helper.hpp"
 
 _MATH_START_
-_MTEMPL_ requires _STD_ is_nothrow_destructible_v<T> class _NODISC_ Matrix2x2 {
+_MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
     public:
         Matrix2x2() requires _CPY_CSTR_ || _DFLT_CSTR_ {
             _ZERO_EXISTS_
@@ -124,15 +124,15 @@ _MTEMPL_ requires _STD_ is_nothrow_destructible_v<T> class _NODISC_ Matrix2x2 {
             return *this;
         }
 
-        _NODISC_ Matrix2x2 operator*(const Matrix &other) const requires _MATH_ isAdditive<T> && _MATH_ isMultiplicative<T> {
-            return this == &other ? this->square() : Matrix {
+        _NODISC_ Matrix2x2 operator*(const Matrix2x2 &other) const requires _MATH_ isAdditive<T> && _MATH_ isMultiplicative<T> {
+            return this == &other ? this->square() : Matrix2x2 {
                 m_ptr[0] * other(0, 0) + m_ptr[1] * other(1, 0),
                 m_ptr[0] * other(0, 1) + m_ptr[1] * other(1, 1),
                 m_ptr[2] * other(0, 0) + m_ptr[3] * other(1, 0),
                 m_ptr[2] * other(0, 1) + m_ptr[3] * other(1, 1),
             };
         }
-        Matrix &operator*=(const Matrix &other) {
+        Matrix2x2 &operator*=(const Matrix2x2 &other) {
             return this == &other ? this->square_in_place() : (*this = *this * other);
         }
 
@@ -141,7 +141,7 @@ _MTEMPL_ requires _STD_ is_nothrow_destructible_v<T> class _NODISC_ Matrix2x2 {
             // Better than normal multiplication as it has 5 multiplication and 3 addition instead of the normal 8 multiplication and 4 addition.
             const T bc = m_ptr[1] * m_ptr[2];
             const T apd = m_ptr[0] + m_ptr[3];
-            return Matrix {
+            return Matrix2x2 {
                 m_ptr[0] * m_ptr[0] + bc,
                 m_ptr[1] * apd,
                 m_ptr[2] * apd,

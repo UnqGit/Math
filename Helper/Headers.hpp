@@ -34,7 +34,7 @@
 #define _MEM_               ::math::memory::
 #define _MEM_IMPL_          ::math::memory::impl::
 #define _MATRIX_            ::math::matrix::
-#define _MHELP_              ::math::helper::
+#define _MHELP_             ::math::helper::
 
 #define _MATH_START_        namespace math {
 #define _MHELP_START_       namespace math::helper {
@@ -51,6 +51,8 @@
 #define _CPY_CSTR_          _STD_ is_copy_constructible_v<T>
 #define _MV_CSTR_           _STD_ is_move_constructible_v<T>
 #define _TRV_DSTR_          _STD_ is_trivially_destructible_v<T>
+#define _NOTHR_DSTR_        _STD_ is_nothrow_destructible_v<T>
+#define _DECL_              _STD_ declval<T>()
 
 #define _ZERO_EXISTS_       const bool zero_exists = _MATH_ zero_vals.exists_of<T>();
 #define _GET_ZERO_          _MATH_ zero_vals.get_of<T>()

@@ -1,16 +1,15 @@
 // Matrix.hpp
 #pragma once
 
-#include "_matrix_impl_.hpp"
-#include "..\impl\Headers.hpp"
-#include "..\impl\Helper.hpp"
-#include "..\impl\_memory_alloc_.hpp"
+#include "MatrixUtils.hpp"
+#include "..\Helper\Helper.hpp"
+#include "..\Memory\TwoDCstrHelper.hpp"
 
 #define _ROW_COL_ const size_t row = m_order.row(); const size_t col = m_order.column();
 
 _MATH_START_
 // Make your type no_throw_destructible first.
-_MTEMPL_ requires _STD_ is_nothrow_destructible_v<T> class _NODISC_ Matrix {
+_MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
     private:
         T **m_data = nullptr;
         _MATRIX_ Order m_order;
@@ -887,7 +886,7 @@ _MTEMPL_ requires _STD_ is_nothrow_destructible_v<T> class _NODISC_ Matrix {
                 const T &cached = m_data[i][0];
                 const T *const cache_data = other.m_data[0];
                 T *const data = to_transfer[i];
-                if constexpr ( noexcept(_STD_ declval<T>() * _STD_ declval<T>()) ) for (d = 0; d < column; d++) _STD_ construct_at(data + d, cached * cache_data[d]);
+                if constexpr ( noexcept(_DECL_ * _DECL_) ) for (d = 0; d < column; d++) _STD_ construct_at(data + d, cached * cache_data[d]);
                 else _TRY_CONSTRUCT_AT_LOOP_(d, (d < column), (d++), data, cached * cache_data[d]) _CATCH_DES_DATA_CONT_(to_transfer, i, d, column)
             }
             // it is fine till here if an exception is called and the destructor of result is called because the order is zero and hence it wouldn't try to free memory.

@@ -1,4 +1,4 @@
 #pragma once
 
-#include ".\impl\Helper.hpp"
-#include "Matrix.hpp"
+#include "Matrix\Matrix.hpp"
+#include "Matrix/MatrixStatic.hpp"

@@ -11,13 +11,13 @@ _MTEMPL_ concept ProperEquality = requires(const T &a, const T &b) {
 // Equality checking functions.
 template <_STD_ floating_point T>
 inline constexpr bool is_equal(const T &a, const T &b) noexcept {
-    static constexpr T rel_tol(static_cast<T>(4) * _STD_ numeric_limits<T>::epsilon());
-    static constexpr T abs_tol(_STD_ numeric_limits<T>::denorm_min());
+    static constexpr const T rel_tol(static_cast<T>(4) * _STD_ numeric_limits<T>::epsilon());
+    static constexpr const T abs_tol(_STD_ numeric_limits<T>::denorm_min());
     return (_STD_ fabs(a - b) <= _STD_ max(rel_tol * _STD_ max(_STD_ fabs(a), _STD_ fabs(b)), abs_tol));
 }
 
 _MTEMPL_ requires (!_STD_ floating_point<T> && _MATH_ ProperEquality<T>)
-inline constexpr bool is_equal(const T &a, const T &b) noexcept( _STD_ declval<T>() == _STD_ declval<T>() ) {
+inline constexpr bool is_equal(const T &a, const T &b) noexcept( _DECL_ == _DECL_ ) {
     return a == b;
 }
 
