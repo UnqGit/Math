@@ -74,4 +74,6 @@ requires ((_STD_ is_nothrow_move_constructible_v<T> || _CPY_CSTR_ || _STD_ is_tr
     _MEM_ free_memory<T>(mem_ptr, old_num_elements);
     return (mem_ptr = temp);
 }
+#define _TRY_CONSTRUCT_AT_(ptr, ...) try { _STD_ construct_at(ptr, ##__VA_ARGS__); }
+#define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var = 0; loop_end_condition; loop_increment_cond) _STD_ construct_at(ptr + loop_var, ##__VA_ARGS__); }
 _MATH_END_

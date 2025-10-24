@@ -82,8 +82,6 @@ _MTEMPL_ inline void destroy_data_continuous(T** &data, const size_t curr_i, con
 #define _CATCH_MEM_ERR_CONT_(ptr, index, size_of_rows) catch(...) { _MEM_ destroy_data_mem_err_continuous<T>(ptr, index, size_of_rows); throw; }
 #define _CATCH_DES_DATA_(ptr, index, index_created_elements, number_of_rows, size_of_rows_before) catch(...) { _MEM_ destroy_data<T>(ptr, index, index_created_elements, number_of_rows, size_of_rows_before); throw; }
 #define _CATCH_DES_DATA_CONT_(ptr, index, index_created_elements, size_of_rows_before) catch(...) { _MEM_ destroy_data_continuous<T>(ptr, index, index_created_elements, size_of_rows_before); throw; }
-#define _TRY_CONSTRUCT_AT_(ptr, ...) try { _STD_ construct_at(ptr, ##__VA_ARGS__); }
-#define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var = 0; loop_end_condition; loop_increment_cond) _STD_ construct_at(ptr + loop_var, ##__VA_ARGS__); }
 
 /**
  * @brief Allocating memory for a 2D array with exception safety.

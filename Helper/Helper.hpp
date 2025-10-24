@@ -61,6 +61,8 @@ _MTEMPL_ concept compoundMultiplication = _MATH_ isMultiplicative<T> && _MATH_ i
 
 _MTEMPL_ concept anyMultiplication = _MATH_ isMultiplicative<T> || _MATH_ isRefMultiplicative<T>;
 
+_MTYPE_TEMPL(T, ...Args) concept allSameType = _STD_ conjunction_v<_STD_ is_same<T, Args>...>;
+
 // Zero value holder class.
 class ZeroValueHolder {
     public:
