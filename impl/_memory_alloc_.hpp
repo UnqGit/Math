@@ -48,7 +48,7 @@ _MTEMPL_ _NODISC_ inline T *allocate_memory(const size_t num_elements) {
 _MTEMPL_ requires _STD_ is_nothrow_destructible_v<T>
 inline void free_memory(T* &memory, const size_t created_items) noexcept {
     if (memory == nullptr) return;
-    if constexpr ( !_STD_ is_trivially_destructible_v<T> ) _STD_ destroy_n(memory, created_items);
+    if constexpr ( !_TRV_DSTR_ ) _STD_ destroy_n(memory, created_items);
     _STD_ free(memory);
     memory = nullptr;
 }
@@ -71,12 +71,12 @@ requires ((_STD_ is_nothrow_move_constructible_v<T> || _CPY_CSTR_ || _STD_ is_tr
         return mem_ptr;
     }
     if (num_elements < old_num_elements) {
-        if constexpr (!_STD_ is_trivially_destructible_v<T>) _STD_ destroy_n(mem_ptr + num_elements, old_num_elements - num_elements);
+        if constexpr (!_TRV_DSTR_) _STD_ destroy_n(mem_ptr + num_elements, old_num_elements - num_elements);
         T *temp = static_cast<T*>(_STD_ realloc(mem_ptr, sizeof(T) * num_elements));
         if (!temp) throw _STD_ bad_alloc{};
         return (mem_ptr = temp);
     }
-    if constexpr (_STD_ is_trivially_copyable_v<T> && _STD_ is_trivially_destructible_v<T>) {
+    if constexpr (_STD_ is_trivially_copyable_v<T> && _TRV_DSTR_) {
         T *temp = static_cast<T*>(_STD_ realloc(mem_ptr, sizeof(T) * num_elements));
         if (!temp) throw _STD_ bad_alloc{};
         return (mem_ptr = temp);

@@ -50,6 +50,7 @@
 #define _DFLT_CSTR_         _STD_ is_default_constructible_v<T>
 #define _CPY_CSTR_          _STD_ is_copy_constructible_v<T>
 #define _MV_CSTR_           _STD_ is_move_constructible_v<T>
+#define _TRV_DSTR_          _STD_ is_trivially_destructible_v<T>
 
 #define _ZERO_EXISTS_       const bool zero_exists = _MATH_ zero_vals.exists_of<T>();
 #define _GET_ZERO_          _MATH_ zero_vals.get_of<T>()

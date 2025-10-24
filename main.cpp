@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include "Math.hpp"
+#include "MatrixStatic.hpp"
 
 template <typename T>
 void print_matrix(const math::Matrix<T> &mat) noexcept {
@@ -29,29 +30,8 @@ void print_row(const math::Matrix<T> &mat, const size_t row) noexcept {
 }
 
 int main(void) {
-    using namespace math;
-    using namespace math::matrix;
-    std::cout << "Hello World!\n\n";
-    // print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate));
-    // print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate_row));
-    // print_matrix<int> (Matrix<int>(5, 6, 7, math::matrix::CSR::alternate_column));
-    // print_matrix<int> (Matrix<int>(9, 7, 8));
-    // std::cout << Matrix<int>(9, 7, 8).size() << "\n\n";
-    // print_matrix<int> (Matrix<int>(Order(6, 6), [](){
-    //     static int i = 0;
-    //     return i++;
-    // }).transpose_in_place());
-    Matrix<int> mat(5, 6, CSR::alternate);
-    static_assert(math::helper::isOneDArr<math::matrix::Row<int>, int>);
-    // static_assert(math::helper::isOneDArr<math::Matrix<int>, math::matrix::Row<int>>);
-    print_column<int> (mat, 2);
-    for (auto &x : mat.column(2)) x += 2;
-    print_matrix<int> (mat);
-    for (auto x : mat.row(2)) x += 2;
-    print_matrix<int> (mat);
-    print_row<int> (mat, 2);
-    Matrix<int> mat2(2, 4, 5, ConstructSquareRule::alternate);
-    std::cout << '\n';
-    print_matrix(mat2);
-    std::cout << "Bye World!\n";
+    math::Matrix2x2<std::string> mat2;
+    math::Matrix2x2<int> mat {1, 2, 3, 4};
+    for (int i = 0; i < 4; i++) mat += mat;
+    std::cout << mat(0, 0) << ' ' << mat(0, 1) << '\n' << mat(1, 0) << ' ' << mat(1, 1);
 }
