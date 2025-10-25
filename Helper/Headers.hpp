@@ -34,6 +34,7 @@
 #define _MEM_               ::math::memory::
 #define _MEM_IMPL_          ::math::memory::impl::
 #define _MATRIX_            ::math::matrix::
+#define _MAT_IMPL_           ::math::matrix::impl::
 #define _MHELP_             ::math::helper::
 
 #define _MATH_START_        namespace math {
@@ -41,6 +42,7 @@
 #define _MMEM_START_        namespace math::memory {
 #define _MMEM_IMPL_START_   namespace math::memory::impl {
 #define _MMATRIX_START_     namespace math::matrix {
+#define _MMAT_IMPL_START_   namespace math::matrix::impl {
 #define _MATH_END_          }
 
 #define _MTEMPL_            template <typename T>

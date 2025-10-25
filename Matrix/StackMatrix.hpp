@@ -1,11 +1,9 @@
 // StackMatrix.hpp
 #pragma once
 
-#include "..\Helper\Helper.hpp"
+#include "Helper\Static.hpp"
 
 _MATH_START_
-#define _DES_N_CLEANUP_ catch(...) { if constexpr (!_TRV_DSTR_) _STD_ destroy_n(m_data, i); throw; }
-
 template <typename T, size_t R, size_t C> requires _NOTHR_DSTR_
 class MatrixS;
 
@@ -17,76 +15,77 @@ class MatrixS<T, R, 0> {};
 template <typename T, size_t C> requires _NOTHR_DSTR_
 class MatrixS<T, 0, C> {};
 
-namespace {
-
-_MTEMPL_ inline constexpr void zero_construct(T *mem_ptr, size_t start_pos, size_t end_pos) {
-    if constexpr (_CPY_CSTR_) {
-        if (zero_exists || !_DFLT_CSTR_) {
-            const T &zero_val = zero_exists ? _GET_ZERO_ : T{};
-            if constexpr (_STD_ is_nothrow_copy_constructible_v<T>) _STD_ uninitialized_fill_n(mem_ptr + start_pos, end_pos, zero_val);
-            else {
-                size_t i = start_pos;
-                try { for (; i < end_pos; i++) _STD_ construct_at(mem_ptr + i, zero_val); } _DES_N_CLEANUP_
-            }
-        }
-        else goto DEFAULT_CONSTRUCT;
-        return;
-    }
-    else goto DEFAULT_CONSTRUCT;
-    DEFAULT_CONSTRUCT:
-        if constexpr (_STD_ is_nothrow_default_constructible_v<T>) _STD_ uninitialized_value_construct_n(mem_ptr + start_pos, end_pos);
-        else {
-            size_t i = start_pos;
-            try { for (; i < end_pos; i++) _STD_ construct_at(mem_ptr + i); } _DES_N_CLEANUP_
-        }
-}
-
-_MTYPE_TEMPL(T, ...Args) inline constexpr void variadic_construct(T *mem_ptr, size_t start_pos, T &&first, Args&& ...args) noexcept ( _STD_ is_nothrow_constructible_v<T> ) {
-    _STD_ construct_at(mem_ptr, _STD_ forward<T>(first));
-    size_t i = start_pos;
-    if constexpr (_STD_ is_nothrow_constructible_v<T>)
-        (_STD_ construct_at(mem_ptr + ++i, _STD_ forward<T>(args)), ...);
-    else
-        try { (_STD_ construct_at(mem_ptr + 1 + (i++), _STD_ forward<T>(args)), ...); } _DES_N_CLEANUP_
-}
-
-}
-
 template <typename T, size_t R, size_t C> requires _NOTHR_DSTR_
 class _NODISC_ MatrixS {
     public:
         constexpr MatrixS() requires _DFLT_CSTR_ || _CPY_CSTR_ {
             _ZERO_EXISTS_
             _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
-            zero_construct<T>(m_data, 0, R * C);
+            _MAT_IMPL_ zero_construct(m_data, 0, R * C);
         }
 
         template <typename ...Args>
-        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) == (R * C - 1))
-        constexpr MatrixS(T &&first, Args&& ...args) noexcept ( _STD_ is_nothrow_constructible_v<T> ) {
-            variadic_construct(m_data, 0, _STD_ move(first), _STD_ forward<T>(args)...);
-        }
-        template <typename ...Args>
-        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) == (R * C - 1))
-        constexpr MatrixS(const T &first, Args&& ...args) noexcept ( _STD_ is_nothrow_constructible_v<T> ) {
-            variadic_construct(m_data, 0, _STD_ forward(first), _STD_ forward<T>(args)...);
+        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) == R * C)
+        constexpr MatrixS(Args&& ...args) noexcept ( _STD_ is_nothrow_constructible_v<T> ) {
+            _MAT_IMPL_ variadic_construct(m_data, 0, _STD_ forward<T>(args)...);
         }
 
         template <typename ...Args>
-        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) < (R * C - 1))
-        constexpr MatrixS(T &&first, Args&& ...args) {
+        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) < R * C)
+        constexpr MatrixS(Args&& ...args) {
             _ZERO_EXISTS_
             _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
-            variadic_construct(m_data, 0, _STD_ move(first), _STD_ forward(args)...);
-            zero_construct<T>(m_data, (sizeof...(Args)) + 1, R * C);
+            _MAT_IMPL_ variadic_construct(m_data, 0, _STD_ forward<T>(args)...);
+            _MAT_IMPL_ zero_construct(m_data, sizeof...(Args), R * C);
         }
-        template <typename ...Args>
-        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) < (R * C - 1))
-        constexpr MatrixS(const T &first, Args&& ...args) {
-            _ZERO_EXISTS_
-            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
-            variadic_construct(m_data, 0, _STD_ forward(first), _STD_ forward(args)...);
-            zero_construct<T>(m_data, (sizeof...(Args)) + 1, R * C);
+
+    public:
+        constexpr MatrixS(T *data) requires _CPY_CSTR_ {
+            _MAT_IMPL_ copy_construct(m_data, data, 0, R * C);
+        }
+
+        constexpr MatrixS(T *data, size_t buffer_size) requires _CPY_CSTR_ {
+            _MAT_IMPL_ copy_construct(m_data, data, 0, _STD_ min(R * C, buffer_size));
+            if (buffer_size < R * C) zero_construct(m_data, buffer_size, R * C);
+        }
+
+        constexpr MatrixS(T **data) requires _CPY_CSTR_ {
+            for (size_t i = 0; i < R; i++) _MAT_IMPL_ copy_construct(m_data, data[i], i * C, (i + 1) * C);
+        }
+        
+        constexpr MatrixS(T *data[C], size_t rows) requires _CPY_CSTR_ {
+            if (rows < R) {
+                _ZERO_EXISTS_
+                _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
+            }
+            const size_t min_size = _STD_ min(R, rows);
+            for (size_t i = 0; i < min_size; i++) _MAT_IMPL_ copy_construct(m_data, data[i], i * C, (i + 1) * C);
+            if (R > rows) zero_construct(m_data, rows * C, R * C);
+        }
+
+    public:
+        constexpr MatrixS(const MatrixS &other) : MatrixS(other.m_data) {}
+        constexpr MatrixS(MatrixS &&other) noexcept {
+            _STD_ swap(m_data, other.m_data);
+        }
+        constexpr MatrixS &operator=(const MatrixS &other) {
+            if (this != &other) {
+                MatrixS temp(other);
+                this->swap(temp);
+            }
+            return *this;
+        }
+        constexpr MatrixS &operator=(Matrix &&other) {
+            if (this != &other) this->swap(other);
+            return *this;
+        }
+        constexpr void swap(MatrixS &other) noexcept requires _STD_ is_nothrow_swappable_v<T> {
+            _STD_ swap(m_data, other.m_data);
+        }
+
+    public:
+        constexpr ~MatrixS() noexcept {
+            if constexpr (!_TRV_DSTR_) std::destroy_n(m_data, R * C);
         }
 
     public:
@@ -94,6 +93,24 @@ class _NODISC_ MatrixS {
         _NODISC_ constexpr size_t num_columns() const noexcept { return C; }
         _NODISC_ constexpr size_t column_len() const noexcept { return R; }
         _NODISC_ constexpr size_t row_len() const noexcept { return C; }
+        _NODISC_ constexpr size_t size() const noexcept { return R * C; }
+
+    public:
+        _NODISC_ constexpr T &operator()(const size_t row, const size_t col) noexcept {
+            return m_data[row * C + col];
+        }
+        _NODISC_ constexpr const T &operator()(const size_t row, const size_t col) const noexcept {
+            return m_data[row * C + col];
+        }
+        
+        _NODISC_ constexpr T &at()(const size_t row, const size_t col) {
+            if (row >= R || col >= C) throw _STD_ out_of_range("Provided index does not exist within the bounds of this Matrix.");
+            return m_data[row * C + col];
+        }
+        _NODISC_ constexpr const T &at()(const size_t row, const size_t col) const {
+            if (row >= R || col >= C) throw _STD_ out_of_range("Provided index does not exist within the bounds of this Matrix.");
+            return m_data[row * C + col];
+        }
 
     private:
         T m_data[R * C];
