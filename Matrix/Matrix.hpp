@@ -1,7 +1,7 @@
 // Matrix.hpp
 #pragma once
 
-#include "MatrixUtils.hpp"
+#include "Helper\MatrixUtils.hpp"
 #include "..\Helper\Helper.hpp"
 #include "..\Memory\TwoDCstrHelper.hpp"
 

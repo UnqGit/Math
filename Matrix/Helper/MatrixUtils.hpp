@@ -1,7 +1,7 @@
 // MatrixUtils.hpp
 #pragma once
 
-#include "..\Helper\Helper.hpp"
+#include "..\..\Helper\Helper.hpp"
 
 _MMATRIX_START_
 // A lightweight wrapper on two size_t(s).
