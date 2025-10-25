@@ -25,13 +25,13 @@ class _NODISC_ MatrixS {
         }
 
         template <typename ...Args>
-        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) == R * C)
+        requires allSameType<T, ...Args> && (sizeof...(Args) == R * C)
         constexpr MatrixS(Args&& ...args) noexcept ( _STD_ is_nothrow_constructible_v<T> ) {
             _MAT_IMPL_ variadic_construct(m_data, 0, _STD_ forward<T>(args)...);
         }
 
         template <typename ...Args>
-        requires _MATH_ allSameType<T, ...Args> && (sizeof...(Args) < R * C)
+        requires allSameType<T, ...Args> && (sizeof...(Args) < R * C)
         constexpr MatrixS(Args&& ...args) {
             _ZERO_EXISTS_
             _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
@@ -40,20 +40,20 @@ class _NODISC_ MatrixS {
         }
 
     public:
-        constexpr MatrixS(T *data) requires _CPY_CSTR_ {
+        constexpr MatrixS(read_ptr<T> data) requires _CPY_CSTR_ {
             _MAT_IMPL_ copy_construct(m_data, data, 0, R * C);
         }
 
-        constexpr MatrixS(T *data, size_t buffer_size) requires _CPY_CSTR_ {
+        constexpr MatrixS(read_ptr<T> data, size_t buffer_size) requires _CPY_CSTR_ {
             _MAT_IMPL_ copy_construct(m_data, data, 0, _STD_ min(R * C, buffer_size));
             if (buffer_size < R * C) zero_construct(m_data, buffer_size, R * C);
         }
 
-        constexpr MatrixS(T **data) requires _CPY_CSTR_ {
+        constexpr MatrixS(read_ptr2d<T> data) requires _CPY_CSTR_ {
             for (size_t i = 0; i < R; i++) _MAT_IMPL_ copy_construct(m_data, data[i], i * C, (i + 1) * C);
         }
         
-        constexpr MatrixS(T *data[C], size_t rows) requires _CPY_CSTR_ {
+        constexpr MatrixS(read_ptr<T> data[C], size_t rows) requires _CPY_CSTR_ {
             if (rows < R) {
                 _ZERO_EXISTS_
                 _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");

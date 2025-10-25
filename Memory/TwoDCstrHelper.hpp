@@ -31,8 +31,8 @@ _MMEM_START_
  * @param curr_i Current index of the 2D array of data.
 */
 _MTEMPL_ inline void destroy_data_mem_err(T** &data, const size_t curr_i) {
-    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory<T>(data[i], 0);
-    _MEM_ free_memory<T*>(data, 0);
+    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory(data[i], 0);
+    _MEM_ free_memory(data, 0);
 }
 
 /**
@@ -43,8 +43,8 @@ _MTEMPL_ inline void destroy_data_mem_err(T** &data, const size_t curr_i) {
  * @param row_size Size of the rows of the 2D array of data.
 */
 _MTEMPL_ inline void destroy_data_mem_err_continuous(T** &data, const size_t curr_i, const size_t row_size) {
-    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory<T>(data[i], row_size);
-    _MEM_ free_memory<T*>(data, 0);
+    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory(data[i], row_size);
+    _MEM_ free_memory(data, 0);
 }
 
 /**
@@ -57,10 +57,10 @@ _MTEMPL_ inline void destroy_data_mem_err_continuous(T** &data, const size_t cur
  * @param row_size Size of the rows of the 2D array of data.
 */
 _MTEMPL_ inline void destroy_data(T** &data, const size_t curr_i, const size_t end_row_created_items, const size_t num_row, const size_t row_size) {
-    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory<T>(data[i], row_size);
-    _MEM_ free_memory<T>(data[curr_i], end_row_created_items);
-    for (size_t i = curr_i + 1; i < num_row; i++) _MEM_ free_memory<T>(data[i], 0);
-    _MEM_ free_memory<T*>(data, 0);
+    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory(data[i], row_size);
+    _MEM_ free_memory(data[curr_i], end_row_created_items);
+    for (size_t i = curr_i + 1; i < num_row; i++) _MEM_ free_memory(data[i], 0);
+    _MEM_ free_memory(data, 0);
 }
 
 /**
@@ -72,16 +72,16 @@ _MTEMPL_ inline void destroy_data(T** &data, const size_t curr_i, const size_t e
  * @param row_size Size of the rows of the 2D array of data.
 */
 _MTEMPL_ inline void destroy_data_continuous(T** &data, const size_t curr_i, const size_t end_row_created_items, const size_t row_size) {
-    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory<T>(data[i], row_size);
-    _MEM_ free_memory<T>(data[curr_i], end_row_created_items);
-    _MEM_ free_memory<T*>(data, 0);
+    for (size_t i = 0; i < curr_i; i++) _MEM_ free_memory(data[i], row_size);
+    _MEM_ free_memory(data[curr_i], end_row_created_items);
+    _MEM_ free_memory(data, 0);
 }
 
 // ======DRY SECTOR======
-#define _CATCH_MEM_ERR_(ptr, index) catch(...) { _MEM_ destroy_data_mem_err<T>(ptr, index); throw; }
-#define _CATCH_MEM_ERR_CONT_(ptr, index, size_of_rows) catch(...) { _MEM_ destroy_data_mem_err_continuous<T>(ptr, index, size_of_rows); throw; }
-#define _CATCH_DES_DATA_(ptr, index, index_created_elements, number_of_rows, size_of_rows_before) catch(...) { _MEM_ destroy_data<T>(ptr, index, index_created_elements, number_of_rows, size_of_rows_before); throw; }
-#define _CATCH_DES_DATA_CONT_(ptr, index, index_created_elements, size_of_rows_before) catch(...) { _MEM_ destroy_data_continuous<T>(ptr, index, index_created_elements, size_of_rows_before); throw; }
+#define _CATCH_MEM_ERR_(ptr, index) catch(...) { _MEM_ destroy_data_mem_err(ptr, index); throw; }
+#define _CATCH_MEM_ERR_CONT_(ptr, index, size_of_rows) catch(...) { _MEM_ destroy_data_mem_err_continuous(ptr, index, size_of_rows); throw; }
+#define _CATCH_DES_DATA_(ptr, index, index_created_elements, number_of_rows, size_of_rows_before) catch(...) { _MEM_ destroy_data(ptr, index, index_created_elements, number_of_rows, size_of_rows_before); throw; }
+#define _CATCH_DES_DATA_CONT_(ptr, index, index_created_elements, size_of_rows_before) catch(...) { _MEM_ destroy_data_continuous(ptr, index, index_created_elements, size_of_rows_before); throw; }
 
 /**
  * @brief Allocating memory for a 2D array with exception safety.
@@ -95,7 +95,7 @@ _MTEMPL_ inline T** allocate_2d_safe_memory(const size_t num_rows, const size_t 
     T** mem_ptr = _MEM_ allocate_memory<T*>(num_rows);
     size_t i = 0;
     try { for (; i < num_rows; i++) mem_ptr[i] = _MEM_ allocate_memory<T>(row_size); }
-    catch(...) { _MEM_ destroy_data_mem_err<T>(mem_ptr, i); throw; }
+    catch(...) { _MEM_ destroy_data_mem_err(mem_ptr, i); throw; }
     return mem_ptr;
 }
 
@@ -337,9 +337,9 @@ requires _CPY_CSTR_ && _STD_ same_as<_STD_ decay_t<T>, _STD_ decay_t<decltype(*_
 * @param extended_size Size of the column extended to.
 * @param curr_i_created_items Number of elements created in the current column.
 */
-_MTEMPL_ inline void rewind_col_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t extended_size, const size_t curr_i_created_items) noexcept {
-    for (size_t i = 0; i < curr_i; i++) _MEM_ reallocate_memory<T>(mem_ptr[i], extended_size, rewind_size);
-    _MEM_ reallocate_memory<T>(mem_ptr[curr_i], rewind_size + curr_i_created_items, rewind_size);
+_MTEMPL_ inline void rewind_col_reallocate_2d_mem(T **&mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t extended_size, const size_t curr_i_created_items) noexcept {
+    for (size_t i = 0; i < curr_i; i++) _MEM_ reallocate_memory(mem_ptr[i], extended_size, rewind_size);
+    _MEM_ reallocate_memory(mem_ptr[curr_i], rewind_size + curr_i_created_items, rewind_size);
     /*
         Does the same thing as:
         _STD_ destroy(m_data[i] + old_col, m_data[i] + old_col + j); // If not trivially destructible
@@ -357,12 +357,12 @@ _MTEMPL_ inline void rewind_col_reallocate_2d_mem(T **mem_ptr, const size_t curr
  * @param curr_i_created_items Number of elements created in the current row.
  * @param row_size Size of the rows of the 2D array of data.
  */
-_MTEMPL_ inline void rewind_row_reallocate_2d_mem(T **mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t new_size, const size_t curr_i_created_items, const size_t row_size) noexcept {
-    for (size_t i = rewind_size; i < curr_i; i++) _MEM_ free_memory<T>(mem_ptr[i], row_size);
-    _MEM_ free_memory<T>(mem_ptr[curr_i], curr_i_created_items);
-    _MEM_ reallocate_memory<T*>(mem_ptr, new_size, rewind_size); // Because T* is trivially copyable, free-ing memory is important.
+_MTEMPL_ inline void rewind_row_reallocate_2d_mem(T **&mem_ptr, const size_t curr_i, const size_t rewind_size, const size_t new_size, const size_t curr_i_created_items, const size_t row_size) noexcept {
+    for (size_t i = rewind_size; i < curr_i; i++) _MEM_ free_memory(mem_ptr[i], row_size);
+    _MEM_ free_memory(mem_ptr[curr_i], curr_i_created_items);
+    _MEM_ reallocate_memory(mem_ptr, new_size, rewind_size); // Because T* is trivially copyable, free-ing memory is important.
 }
 
-#define _CATCH_REW_RLC_(ptr, index, prev_size, extended_size, index_created_items) catch(...) { _MEM_ rewind_col_reallocate_2d_mem<T>(ptr, index, prev_size, extended_size, index_created_items); throw; }
-#define _CATCH_REW_RLR_(ptr, index, prev_size, extended_size, index_created_items, row_size) catch(...) { _MEM_ rewind_row_reallocate_2d_mem<T>(ptr, index, prev_size, extended_size, index_created_items, row_size); throw; }
+#define _CATCH_REW_RLC_(ptr, index, prev_size, extended_size, index_created_items) catch(...) { _MEM_ rewind_col_reallocate_2d_mem(ptr, index, prev_size, extended_size, index_created_items); throw; }
+#define _CATCH_REW_RLR_(ptr, index, prev_size, extended_size, index_created_items, row_size) catch(...) { _MEM_ rewind_row_reallocate_2d_mem(ptr, index, prev_size, extended_size, index_created_items, row_size); throw; }
 _MATH_END_
