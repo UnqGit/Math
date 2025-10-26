@@ -6,6 +6,7 @@
 #include "..\Memory\TwoDCstrHelper.hpp"
 
 #define _ROW_COL_ const size_t row = m_order.row(); const size_t col = m_order.column();
+#define _ORD_ZERO_RET_ if (m_order.is_zero()) return;
 
 _MATH_START_
 // Make your type no_throw_destructible first.
@@ -15,11 +16,10 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         _MATRIX_ Order m_order;
 
     public:
-        Matrix() noexcept {}
+        constexpr Matrix() noexcept {}
         
         Matrix(const size_t size) : m_order(_MATRIX_ Order(size, size)) {
-            if (m_order.is_zero()) return;
-            _ZERO_EXISTS_
+            _ORD_ZERO_RET_ _ZERO_EXISTS_
             _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
             m_data = _MEM_ allocate_memory<T*>(size);
             if (zero_exists)
@@ -36,8 +36,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         
         Matrix(const size_t size, const T &primary_value, const T &secondary_value, const _MATRIX_ ConstructSquareRule construct_rule)
         requires _CPY_CSTR_ : m_order(_MATRIX_ Order(size, size)) {
-            if (m_order.is_zero()) return;
-            switch(construct_rule) {
+            _ORD_ZERO_RET_ switch(construct_rule) {
                 case _MATRIX_ CSR::right_half :
                     *this = Matrix(size, secondary_value, primary_value, _MATRIX_ CSR::left_half); return;
                 case _MATRIX_ CSR::lower_half :
@@ -167,9 +166,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
 
     public:
         Matrix(const _MATRIX_ Order &order, const _MATRIX_ ConstructAllocateRule construct_rule = _MATRIX_ CAR::zero) : m_order(order) {
-            if (m_order.is_zero()) return;
-            _ROW_COL_
-            _ZERO_EXISTS_
+            _ORD_ZERO_RET_ _ROW_COL_ _ZERO_EXISTS_
             if (construct_rule == _MATRIX_ CAR::possible_garbage) {
                 if constexpr (!(_STD_ is_trivially_constructible_v<T> || _DFLT_CSTR_))
                     if (!zero_exists)
@@ -183,7 +180,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
             else {
                 if (!zero_exists)
-                    throw _STD_ logic_error("The zero value is not stored of this type in _MATH_ zero_vals hence can't zero construct the Matrix.");
+                    throw _STD_ logic_error("The zero value is not stored of this type in zero_vals hence can't zero construct the Matrix.");
                 m_data = _MEM_ allocate_memory<T*>(row);
                 for (size_t i = 0; i < row; i++) {
                     _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, col);
@@ -196,13 +193,11 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
     public:
         Matrix(const _MATRIX_ Order &order, const T &to_copy)
         requires _CPY_CSTR_ : m_order(order) {
-            if (m_order.is_zero()) return;
-            const size_t row = m_order.row();
-            const size_t column = m_order.column();
+            _ORD_ZERO_RET_ _ROW_COL_
             m_data = _MEM_ allocate_memory<T*>(row);
             for (size_t i = 0; i < row; i++) {
-                _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, column);
-                _MEM_ mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i], to_copy, column, m_data, i, column);
+                _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, col);
+                _MEM_ mem_2d_safe_uninit_fill_n_continuous<T>(m_data[i], to_copy, col, m_data, i, col);
             }
         }
         
@@ -254,7 +249,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         Matrix(T *data, const size_t size, _MATRIX_ ConstructOrientationRule construct_rule = _MATRIX_ COR::horizontal)
         requires _CPY_CSTR_ {
             if (size == 0) return;
-            const bool zero_exists = (_MATH_ zero_vals.exists_of<T>());
+            const bool zero_exists = (zero_vals.exists_of<T>());
             switch (construct_rule) {
                 case _MATRIX_ COR::horizontal :
                     m_order = _MATRIX_ Order(1, size);
@@ -281,8 +276,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         
         Matrix(T *data, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
-            if (m_order.size()) return;
-            _ROW_COL_
+            _ORD_ZERO_RET_ _ROW_COL_
             m_data = _MEM_ allocate_memory<T*>(row);
             for (size_t i = 0; i < row; i++) {
                 _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, col);
@@ -296,7 +290,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
     public:
         Matrix(T *data, const size_t size, const _MATRIX_ Order &order, const T &fallback_val)
         requires _CPY_CSTR_ : m_order(order) {
-            if (m_order.is_zero()) return;
+            _ORD_ZERO_RET_
             if (size >= m_order.size()) {
                 *this = Matrix(data, m_order);
                 return;
@@ -324,12 +318,12 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
 
         Matrix(T *data, const size_t size, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
-            if (m_order.is_zero()) return;
+            _ORD_ZERO_RET_
             if (size >= m_order.size()) {
                 *this = Matrix(data, m_order);
                 return;
             }
-            if (_MATH_ zero_vals.exists_of<T>()) {
+            if (zero_vals.exists_of<T>()) {
                 *this = Matrix(data, size, order, _GET_ZERO_);
                 return;
             }
@@ -431,8 +425,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         requires _MHELP_ isOneDArr<U, T>
         Matrix(const U &arr, const _MATRIX_ Order &order, const T &fallback_val)
         requires _CPY_CSTR_ : m_order(order) {
-            if (m_order.is_zero()) return;
-            _ROW_COL_
+            _ORD_ZERO_RET_ _ROW_COL_
             const size_t size = arr.size();
             auto Iter = arr.begin();
             size_t j = 0, constructed_items = 0, k;
@@ -463,10 +456,8 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         requires _MHELP_ isOneDArr<U, T>
         Matrix(const U &arr, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
-            if (m_order.is_zero()) return;
-            _ROW_COL_
+            _ORD_ZERO_RET_ _ROW_COL_ _ZERO_EXISTS_
             const size_t size = arr.size();
-            _ZERO_EXISTS_
             size_t k;
             if (size < order.size()) {
                 _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
@@ -491,10 +482,8 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
     public:
         Matrix(T **data, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
-            if (m_order.is_zero()) return;
-            _ROW_COL_
+            _ORD_ZERO_RET_ _ROW_COL_
             m_data = _MEM_ allocate_memory<T*>(row);
-            T* end = nullptr;
             for (size_t i = 0; i < row; i++) {
                 _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, col);
                 _MEM_ mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], col, data[i], m_data, i, col);
@@ -564,7 +553,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
                     if (row_size == 0) return;
                     Iter = arr.begin();
                     if (!are_all_same)
-                        _NO_ZERO_COND_ throw _STD_ invalid_argument("Cannot construct the Matrix because the tag set was _MATRIX_ ConstructContainerRule::expand and all rows were not of the same size and the type is neither default constructible and neither is it's zero value stored in _MATH_ zero_vals.");
+                        _NO_ZERO_COND_ throw _STD_ invalid_argument("Cannot construct the Matrix because the tag set was _MATRIX_ ConstructContainerRule::expand and all rows were not of the same size and the type is neither default constructible and neither is it's zero value stored in zero_vals.");
                     m_order = _MATRIX_ Order(size, row_size);
                     m_data = _MEM_ allocate_memory<T*>(size);
                     for (size_t i = 0; i < size; i++) {
@@ -600,9 +589,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         template <size_t C>
         Matrix(const T (*data)[C], const size_t row)
         requires _CPY_CSTR_ : m_order(_MATRIX_ Order(row, C)) {
-            if (m_order.is_zero()) return;
-            T *end = nullptr;
-            m_data = _MEM_ allocate_memory<T*>(row);
+            _ORD_ZERO_RET_ m_data = _MEM_ allocate_memory<T*>(row);
             for (size_t i = 0; i < row; i++) {
                 _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, C);
                 _MEM_ mem_2d_safe_uninit_copy_n_continuous<T>(m_data[i], C, data[i], m_data, i, C);
@@ -612,9 +599,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
     public:
         Matrix(const _MATRIX_ Order &order, const _STD_ function<T()> &t_creation)
         requires (_CPY_CSTR_ || _MV_CSTR_) : m_order(order) {
-            if (m_order.is_zero()) return;
-            _ROW_COL_
-            size_t j;
+            _ORD_ZERO_RET_ _ROW_COL_ size_t j;
             m_data = _MEM_ allocate_memory<T*>(row);
             for (size_t i = 0; i < row; i++) {
                 _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, col);
@@ -628,9 +613,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
 
         Matrix(const _MATRIX_ Order &order, const _STD_ function<T(size_t, size_t)> &t_creation)
         requires (_CPY_CSTR_ || _MV_CSTR_) : m_order(order) {
-            if (m_order.is_zero()) return;
-            _ROW_COL_
-            size_t j;
+            _ORD_ZERO_RET_ _ROW_COL_ size_t j;
             m_data = _MEM_ allocate_memory<T*>(row);
             for (size_t i = 0; i < row; i++) {
                 _MEM_ allocate_mem_2d_safe_continuous<T>(m_data, i, column);
@@ -777,7 +760,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
     
     public:
         Matrix &operator+=(const Matrix &other)
-        requires _MATH_ compoundAddition<T> {
+        requires compoundAddition<T> {
             if (!is_same_dimension(other)) throw _STD_ invalid_argument("Cannot add matrices of unequal order parameters.");
             _ROW_COL_
             if constexpr ( noexcept( _STD_ declval<_STD_ decay_t<T>>() += _STD_ declval<_STD_ decay_t<T>>() ) ) {
@@ -815,14 +798,14 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         }
 
         _NODISC_ Matrix operator+(const Matrix &other) const
-        requires _MATH_ compoundAddition<T> {
+        requires compoundAddition<T> {
             Matrix temp(*this);
             temp += other;
             return temp;
         }
 
         Matrix &operator-=(const Matrix &other)
-        requires _MATH_ compoundSubtraction<T> {
+        requires compoundSubtraction<T> {
             if (!is_same_dimension(other)) throw _STD_ invalid_argument("Cannot subtract matrices of unequal order parameters.");
             _ROW_COL_
             if constexpr ( noexcept( _STD_ declval<_STD_ decay_t<T>>() -= _STD_ declval<_STD_ decay_t<T>>() ) ) {
@@ -860,19 +843,19 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         }
 
         _NODISC_ Matrix operator-(const Matrix &other) const
-        requires _MATH_ compoundSubtraction<T> {
+        requires compoundSubtraction<T> {
             Matrix temp(*this);
             return (temp -= other);
         }
 
         Matrix &operator*=(const Matrix &other)
-        requires _MATH_ compoundMultiplication<T> && _MATH_ compoundAddition<T> {
+        requires compoundMultiplication<T> && compoundAddition<T> {
             *this = *this * other;
             return *this;
         }
 
         _NODISC_ Matrix operator*(const Matrix &other) const
-        requires _MATH_ compoundMultiplication<T> && _MATH_ compoundAddition<T> {
+        requires compoundMultiplication<T> && compoundAddition<T> {
             if (!is_multipliable_dimension(other)) throw _STD_ invalid_argument("Cannot multiply the matrices because the number of columns in first does not match the number of rows in the second.");
             Matrix result;
             if (m_order.is_zero()) return result;
@@ -1001,7 +984,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
 
     public:
         _NODISC_ T trace() const
-        requires _MATH_ compoundAddition<T> {
+        requires compoundAddition<T> {
             if (!(this->is_square())) throw _STD_ logic_error("Cannot find trace of a non square Matrix.");
             _ZERO_EXISTS_
             if (m_order.is_zero()) {
@@ -1031,43 +1014,43 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         }
 
         _NODISC_ bool is_zero() const
-        requires _MATH_ isEqualityOperationPossible<T> {
+        requires isEqualityOperationPossible<T> {
             _ZERO_EXISTS_
-            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot check for is_zero property of the Matrix as the zero value(stored in _MATH_ zero_vals or defautlt construction for the type) is not defined.");
+            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot check for is_zero property of the Matrix as the zero value(stored in zero_vals or defautlt construction for the type) is not defined.");
             _ROW_COL_
             const T &to_check_from = zero_exists ? _GET_ZERO_ : T{};
             for (size_t i = 0; i < row; i++)
                 for (size_t j = 0; j < col; j++)
-                    if (!_MATH_ is_equal(to_check_from, m_data[i][j])) return false;
+                    if (!is_equal(to_check_from, m_data[i][j])) return false;
             return true;
         }
         
         _NODISC_ bool are_all_same_as(const T &to_check_from) const
-        requires _MATH_ isEqualityOperationPossible<T> {
+        requires isEqualityOperationPossible<T> {
             _ROW_COL_
             for (size_t i = 0; i < row; i++)
                 for (size_t j = 0; j < col; j++)
-                    if (!_MATH_ is_equal(to_check_from, m_data[i][j])) return false;
+                    if (!is_equal(to_check_from, m_data[i][j])) return false;
             return true;
         }
 
         _NODISC_ bool are_all_same() const
-        requires _MATH_ isEqualityOperationPossible<T> {
+        requires isEqualityOperationPossible<T> {
             if (m_order.size() < 2) return true;
             const auto end = this->end_one_d() - 1;
             for (auto it = this->begin_one_d(); it != end; )
-                if (!_MATH_ is_equal(*it, *(++it))) return false;
+                if (!is_equal(*it, *(++it))) return false;
             return true;
         }
 
         _NODISC_ size_t count(const T &to_find) const
-        requires _MATH_ isEqualityOperationPossible<T> {
+        requires isEqualityOperationPossible<T> {
             size_t result{};
             _ROW_COL_
             #pragma omp parallel for collapse(2) schedule(static) reduction(+:result)
             for (size_t i = 0; i < row; i++)
                 for (size_t j = 0; j < col; j++)
-                    result += _MATH_ is_equal(to_find, m_data[i][j]);
+                    result += is_equal(to_find, m_data[i][j]);
             return result;
         }
 
@@ -1081,7 +1064,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
                 const T *const this_cache_data = m_data[r];
                 const T *const other_cache_data = other.m_data[r];
                 for (size_t c = 0; c < col; c++)
-                    if (!_MATH_ is_equal(this_cache_data[c], other_cache_data[c])) return false;
+                    if (!is_equal(this_cache_data[c], other_cache_data[c])) return false;
             }
             return true;
         }
@@ -1105,7 +1088,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         requires _CPY_CSTR_ || _DFLT_CSTR_ {
             if (extend_amount == 0 || m_order.row() == 0) return;
             _ZERO_EXISTS_
-            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot extend the columns of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in _MATH_ zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
+            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot extend the columns of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
             _ROW_COL_
             const size_t new_col = col + extend_amount;
             size_t j;
@@ -1122,7 +1105,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
             else goto DEFAULT_CONSTRUCT;
             DEFAULT_CONSTRUCT:
-                if constexpr (!_DFLT_CSTR_) throw _STD_ logic_error("Cannot extend the columns of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in _MATH_ zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
+                if constexpr (!_DFLT_CSTR_) throw _STD_ logic_error("Cannot extend the columns of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
                 for (size_t i = 0; i < row; i++) {
                     _MEM_ reallocate_memory(m_data[i], col, new_col);
                     if constexpr (_STD_ is_nothrow_default_constructible_v<T>) _STD_ uninitialized_value_construct_n(m_data[i] + col, extend_amount);
@@ -1164,7 +1147,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             _ROW_COL_
             const size_t new_row = row + extend_amount;
             size_t j;
-            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot extend the rows of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in _MATH_ zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
+            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot extend the rows of this matrix without any arguments provided because the zero value(either being default constructible or a value being stored in zero_vals) (or is not being able to copied if its zero value is stored) for this type does not exist.");
             _MEM_ reallocate_memory<T*>(m_data, row, new_row);
             for (size_t i = row; i < new_row; i++) {
                 if constexpr (_CPY_CSTR_) {

@@ -18,6 +18,13 @@ using free_t = void(*)(void*);
 #endif
 _MATH_END_
 
+_MMEM_START_
+_MTEMPL_ class basic_allocator {
+    public:
+
+};
+_MATH_END_
+
 // Destructor of the math::Classes are noexcept(true) because the class itself can only be made if the std::is_nothrow_destructible_v<T> type_trait is true and hence the free mem function is fine being noexcept
 _MMEM_START_
 /**
@@ -29,13 +36,14 @@ _MMEM_START_
 */
 _MTEMPL_ _NODISC_ inline T *allocate_memory(const size_t num_elements) {
     static constexpr const size_t align(alignof(T));
-    static constexpr const size_t size(sizeof(T));
-    if (num_elements == 0) return nullptr;
+    static constexpr const size_t size(sizeof(T) == 0 ? 1 : sizeof(T));
+    if (num_elements > (static_cast<size_t>(~0) / size)) throw _STD_ bad_alloc{};
     size_t bytes = size * num_elements;
-    #ifndef _MSC_VER // msvc version doesn't require alignment correction.
-        if constexpr (size % align) bytes = ((bytes + align - 1) & ~(align - 1));
-    #endif
-    T *ptr = static_cast<T*>(_MEM_IMPL_ aligned_alloc(align, bytes));
+    if (bytes == 0) bytes = 1;
+    T *ptr;
+    if (bytes == 1) ptr = static_cast<T*>(_STD_ malloc(1));
+    else if constexpr (align > alignof(_STD_ max_align_t)) ptr = static_cast<T*>(_MEM_IMPL_ aligned_alloc(align, bytes));
+    else ptr = static_cast<T*>(_STD_ malloc(bytes));        
     if (ptr) [[likely]] return ptr;
     else throw _STD_ bad_alloc{};
 }
@@ -49,10 +57,12 @@ _MTEMPL_ _NODISC_ inline T *allocate_memory(const size_t num_elements) {
 */
 _MTEMPL_ requires _NOTHR_DSTR_
 inline void free_memory(T* &memory, const size_t created_items) noexcept {
-    if (memory == nullptr) return;
-    if constexpr ( !_TRV_DSTR_ ) _STD_ destroy_n(memory, created_items);
-    _MEM_IMPL_ free(memory);
-    memory = nullptr;
+    if (memory != nullptr) {
+        if constexpr (!_TRV_DSTR_) _STD_ destroy_n(memory, created_items);
+        if constexpr (alignof(T) > alignof(_STD_ max_align_t)) _MEM_IMPL_ free(memory);
+        else _STD_ free(memory);
+        memory = nullptr;
+    }
 }
 
 /**

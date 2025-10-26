@@ -112,6 +112,21 @@ class _NODISC_ MatrixS {
             return m_data[row * C + col];
         }
 
+    public:
+        constexpr MatrixS &operator+=(const MatrixS &other) {
+            if constexpr ( _STD_ declval<T&> += _DECL_ ) {
+                #pragma omp parallel for schedule(static)
+                for (size_t i = 0; i < R * C; i++) m_data[i] += other.m_data[i];
+            }
+            else {
+
+            }
+        }
+        _NODISC_ constexpr MatrixS operator+(const MatrixS &other) const {
+            MatrixS result(*this);
+            return (result += other);
+        }
+
     private:
         T m_data[R * C];
 };

@@ -9,20 +9,44 @@ _MTEMPL_ concept ProperEquality = requires(const T &a, const T &b) {
 };
 
 // Equality checking functions.
-template <_STD_ floating_point T>
-inline constexpr bool is_equal(const T &a, const T &b) noexcept {
-    static constexpr const T rel_tol(static_cast<T>(4) * _STD_ numeric_limits<T>::epsilon());
-    static constexpr const T abs_tol(_STD_ numeric_limits<T>::denorm_min());
-    return (_STD_ fabs(a - b) <= _STD_ max(rel_tol * _STD_ max(_STD_ fabs(a), _STD_ fabs(b)), abs_tol));
+template <_STD_ integral T>
+inline constexpr bool is_equal(const T a, const T b) noexcept {
+    return a == b;
 }
 
-_MTEMPL_ requires (!_STD_ floating_point<T> && _MATH_ ProperEquality<T>)
+#define _IS_EQUAL_SHORTCUT_(T) static constexpr const T rel_tol(static_cast<T>(4) * _STD_ numeric_limits<T>::epsilon()); \
+    static constexpr const T abs_tol(_STD_ numeric_limits<T>::denorm_min()); \
+    return (_STD_ fabs(a - b) <= _STD_ max(rel_tol * _STD_ max(_STD_ fabs(a), _STD_ fabs(b)), abs_tol));
+
+template <long double T>
+requires (sizeof(long double) != sizeof(double))
+inline constexpr bool is_equal(const long double &a, const long double &b) noexcept {
+    _IS_EQUAL_SHORTCUT_(long double)
+}
+
+template <long double T>
+requires (sizeof(long double) == sizeof(double))
+inline constexpr bool is_equal(const long double a, const long double b) noexcept {
+    _IS_EQUAL_SHORTCUT_(long double)
+}
+
+template <_STD_ floating_point T> requires (!_STD_ is_same_v<_STD_ decay_t<T>, long double>)
+inline constexpr bool is_equal(const T a, const T b) noexcept {
+    _IS_EQUAL_SHORTCUT_(T)
+}
+
+_MTEMPL_ requires ( _STD_ is_trivially_copyable_v<T> && ProperEquality<T> && (sizeof(T) <= sizeof(double)))
+inline constexpr bool is_equal(const T a, const T b) noexcept {
+    return a == b;
+}
+
+_MTEMPL_ requires ProperEquality<T>
 inline constexpr bool is_equal(const T &a, const T &b) noexcept( _DECL_ == _DECL_ ) {
     return a == b;
 }
 
 _MTEMPL_ concept isEqualityOperationPossible = requires(const T &a, const T &b) {
-    _MATH_ is_equal(a, b);
+    is_equal(a, b);
 };
 
 _MTEMPL_ concept isAdditive = requires(const T &a, const T &b) {
@@ -33,9 +57,9 @@ _MTEMPL_ concept isRefAdditive = requires(T &a, const T &b) {
     { a += b } -> _STD_ same_as<T&>;
 };
 
-_MTEMPL_ concept compoundAddition = _MATH_ isAdditive<T> && _MATH_ isRefAdditive<T>;
+_MTEMPL_ concept compoundAddition = isAdditive<T> && isRefAdditive<T>;
 
-_MTEMPL_ concept anyAddition = _MATH_ isAdditive<T> || _MATH_ isRefAdditive<T>;
+_MTEMPL_ concept anyAddition = isAdditive<T> || isRefAdditive<T>;
 
 _MTEMPL_ concept isSubtractible = requires(const T &a, const T &b) {
     requires _STD_ same_as<_STD_ remove_const_t<decltype(a - b)>, T>;
@@ -45,9 +69,9 @@ _MTEMPL_ concept isRefSubtractible = requires(T &a, const T &b) {
     { a -= b } -> _STD_ same_as<T&>;
 };
 
-_MTEMPL_ concept compoundSubtraction = _MATH_ isSubtractible<T> && _MATH_ isRefSubtractible<T>;
+_MTEMPL_ concept compoundSubtraction = isSubtractible<T> && isRefSubtractible<T>;
 
-_MTEMPL_ concept anySubtraction = _MATH_ isSubtractible<T> || _MATH_ isRefSubtractible<T>;
+_MTEMPL_ concept anySubtraction = isSubtractible<T> || isRefSubtractible<T>;
 
 _MTEMPL_ concept isMultiplicative = requires(const T &a, const T &b) {
     requires _STD_ same_as<_STD_ remove_const_t<decltype(a * b)>, T>;
@@ -57,9 +81,9 @@ _MTEMPL_ concept isRefMultiplicative = requires(T &a, const T &b) {
     { a *= b } -> _STD_ same_as<T&>;
 };
 
-_MTEMPL_ concept compoundMultiplication = _MATH_ isMultiplicative<T> && _MATH_ isRefMultiplicative<T>;
+_MTEMPL_ concept compoundMultiplication = isMultiplicative<T> && isRefMultiplicative<T>;
 
-_MTEMPL_ concept anyMultiplication = _MATH_ isMultiplicative<T> || _MATH_ isRefMultiplicative<T>;
+_MTEMPL_ concept anyMultiplication = isMultiplicative<T> || isRefMultiplicative<T>;
 
 _MTYPE_TEMPL(T, ...Args) concept allSameType = _STD_ conjunction_v<_STD_ is_same<_STD_ decay_t<T>, _STD_ decay_t<Args>>...>;
 
@@ -80,7 +104,7 @@ class ZeroValueHolder {
         _MTEMPL_ _NODISC_ constexpr const T &get_of() const {
             const auto loc = m_vals.find(_STD_ type_index(typeid(T)));
             if (loc != m_vals.end()) return _STD_ any_cast<const T&>(loc->second);
-            else throw _STD_ logic_error("Cannot provide the zero value of a type that is not already stored in _MATH_ helper::zero_vals.\n");
+            else throw _STD_ logic_error("Cannot provide the zero value of a type that is not already stored in helper::zero_vals.\n");
         }
     private:
         _STD_ unordered_map<_STD_ type_index, _STD_ any> m_vals;
@@ -146,7 +170,7 @@ class ZeroValueHolder {
         ZeroValueHolder(const ZeroValueHolder&) = delete;
         ZeroValueHolder& operator=(const ZeroValueHolder&) = delete;
 };
-ZeroValueHolder& zero_vals = _MATH_ ZeroValueHolder::instance();
+ZeroValueHolder& zero_vals = ZeroValueHolder::instance();
 _MATH_END_
 
 _MHELP_START_
