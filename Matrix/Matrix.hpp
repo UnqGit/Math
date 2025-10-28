@@ -205,7 +205,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         requires _CPY_CSTR_ : Matrix(_MATRIX_ Order(row, column), to_copy) {}
         
     public:
-        Matrix(T *data, const size_t size, _MATRIX_ ConstructOrientationRule construct_rule, const T &fallback_val)
+        Matrix(read_ptr<T> data, const size_t size, _MATRIX_ ConstructOrientationRule construct_rule, const T &fallback_val)
         requires _CPY_CSTR_ {
             if (size == 0) return;
             switch (construct_rule) {
@@ -246,7 +246,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
 
-        Matrix(T *data, const size_t size, _MATRIX_ ConstructOrientationRule construct_rule = _MATRIX_ COR::horizontal)
+        Matrix(read_ptr<T> data, const size_t size, _MATRIX_ ConstructOrientationRule construct_rule = _MATRIX_ COR::horizontal)
         requires _CPY_CSTR_ {
             if (size == 0) return;
             const bool zero_exists = (zero_vals.exists_of<T>());
@@ -274,7 +274,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
         
-        Matrix(T *data, const _MATRIX_ Order &order)
+        Matrix(read_ptr<T> data, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
             _ORD_ZERO_RET_ _ROW_COL_
             m_data = _MEM_ allocate_memory<T*>(row);
@@ -284,11 +284,11 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
         
-        Matrix(T *data, const size_t row, const size_t column)
+        Matrix(read_ptr<T> data, const size_t row, const size_t column)
         requires _CPY_CSTR_ : Matrix(data, _MATRIX_ Order(row, column)) {}
 
     public:
-        Matrix(T *data, const size_t size, const _MATRIX_ Order &order, const T &fallback_val)
+        Matrix(read_ptr<T> data, const size_t size, const _MATRIX_ Order &order, const T &fallback_val)
         requires _CPY_CSTR_ : m_order(order) {
             _ORD_ZERO_RET_
             if (size >= m_order.size()) {
@@ -316,7 +316,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
 
-        Matrix(T *data, const size_t size, const _MATRIX_ Order &order)
+        Matrix(read_ptr<T> data, const size_t size, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
             _ORD_ZERO_RET_
             if (size >= m_order.size()) {
@@ -334,15 +334,14 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
         }
         
-        Matrix(T *data, const size_t size, const size_t row, const size_t column, const T &fallback_val)
+        Matrix(read_ptr<T> data, const size_t size, const size_t row, const size_t column, const T &fallback_val)
         requires _CPY_CSTR_ : Matrix(data, size, _MATRIX_ Order(row, column), fallback_val) {}
         
-        Matrix(T *data, const size_t size, const size_t row, const size_t column)
+        Matrix(read_ptr<T> data, const size_t size, const size_t row, const size_t column)
         requires _CPY_CSTR_ : Matrix(data, size, _MATRIX_ Order(row, column)) {} 
         
     public:
-        template <typename U>
-        requires _MHELP_ isOneDArr<U, T>
+        _MTMPLU_ requires _MHELP_ isOneDArr<U, T>
         Matrix(const U& arr, const _MATRIX_ ConstructOrientationRule construct_rule, const T &fallback_val)
         requires _CPY_CSTR_ {
             const size_t size = arr.size();
@@ -390,8 +389,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
 
-        template <typename U>
-        requires _MHELP_ isOneDArr<U, T>
+        _MTMPLU_ requires _MHELP_ isOneDArr<U, T>
         Matrix(const U &arr, const _MATRIX_ ConstructOrientationRule construct_rule = _MATRIX_ COR::horizontal)
         requires _CPY_CSTR_ {
             const size_t size = arr.size();
@@ -421,8 +419,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
         
-        template <typename U>
-        requires _MHELP_ isOneDArr<U, T>
+        _MTMPLU_ requires _MHELP_ isOneDArr<U, T>
         Matrix(const U &arr, const _MATRIX_ Order &order, const T &fallback_val)
         requires _CPY_CSTR_ : m_order(order) {
             _ORD_ZERO_RET_ _ROW_COL_
@@ -447,13 +444,11 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
 
-        template <typename U>
-        requires _MHELP_ isOneDArr<U, T>
+        _MTMPLU_ requires _MHELP_ isOneDArr<U, T>
         Matrix(const U &arr, const size_t row, const size_t column, const T &fallback_val)
         requires _CPY_CSTR_ : Matrix(arr, _MATRIX_ Order(row, column), fallback_val) {}
 
-        template <typename U>
-        requires _MHELP_ isOneDArr<U, T>
+        _MTMPLU_ requires _MHELP_ isOneDArr<U, T>
         Matrix(const U &arr, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
             _ORD_ZERO_RET_ _ROW_COL_ _ZERO_EXISTS_
@@ -474,13 +469,12 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
         
-        template <typename U>
-        requires _MHELP_ isOneDArr<U, T>
+        _MTMPLU_ requires _MHELP_ isOneDArr<U, T>
         Matrix(const U &arr, const size_t row, const size_t column)
         requires _CPY_CSTR_ : Matrix(arr, _MATRIX_ Order(row, column)) {}
 
     public:
-        Matrix(T **data, const _MATRIX_ Order &order)
+        Matrix(read_ptr2d<T> data, const _MATRIX_ Order &order)
         requires _CPY_CSTR_ : m_order(order) {
             _ORD_ZERO_RET_ _ROW_COL_
             m_data = _MEM_ allocate_memory<T*>(row);
@@ -490,12 +484,11 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             }
         }
         
-        Matrix(T **data, const size_t row, const size_t column)
+        Matrix(read_ptr2d<T> data, const size_t row, const size_t column)
         requires _CPY_CSTR_ : Matrix(data, _MATRIX_ Order(row, column)) {}
         
     public:
-        template <typename U>
-        requires _MHELP_ isTwoDArr<U, T>
+        _MTMPLU_ requires _MHELP_ isTwoDArr<U, T>
         Matrix(const U &arr, const _MATRIX_ ConstructContainerRule construct_rule = _MATRIX_ CCR::must_be_same)
         requires _CPY_CSTR_ {
             const size_t size = arr.size();
@@ -587,7 +580,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
 
     public:
         template <size_t C>
-        Matrix(const T (*data)[C], const size_t row)
+        Matrix(read_ptr<T> data[C], const size_t row)
         requires _CPY_CSTR_ : m_order(_MATRIX_ Order(row, C)) {
             _ORD_ZERO_RET_ m_data = _MEM_ allocate_memory<T*>(row);
             for (size_t i = 0; i < row; i++) {
@@ -699,13 +692,13 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
         }
 
     public:
-        const T **const data() const noexcept {
+        read_ptr2d<T> data() const noexcept {
             return m_data;
         }
-        T *const operator[](const size_t row) noexcept {
+        const_ptr<T> operator[](const size_t row) noexcept {
             return m_data[row];
         }
-        const T *const operator[] (const size_t row) const noexcept {
+        read_ptr<T> operator[] (const size_t row) const noexcept {
             return m_data[row];
         }
         _MATRIX_ Row<T> row(const size_t row) const {
@@ -953,7 +946,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix {
             size_t j;
             for (size_t i = 0; i < row; i++) {
                 _MEM_ allocate_mem_2d_safe_continuous<T>(to_transfer, i, col);
-                T *data = to_transfer[i];
+                T* data = to_transfer[i];
                 for (j = 0; j < col; j++)
                     _MEM_ mem_2d_safe_construct_at_continuous<T>(data + j, m_data, i, col, m_data[j][i]);
             }

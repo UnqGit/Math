@@ -5,24 +5,17 @@
 _MMEM_IMPL_START_
 using aligned_alloc_t = void* (*)(size_t, size_t);
 using free_t = void(*)(void*);
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
+    #include <malloc.h>
     inline void *msc_aligned_alloc(size_t alignment, size_t size) {
         return _aligned_malloc(size, alignment);
     }
-    #include <malloc.h>
-    aligned_alloc_t aligned_alloc = msc_aligned_alloc;
+    aligned_alloc_t aligned_allocate = msc_aligned_alloc;
     free_t free = _aligned_free;
 #else
-    alloc_t aligned_alloc = _STD_ aligned_alloc;
+    aligned_alloc_t aligned_allocate = _STD_ aligned_alloc;
     free_t free = _STD_ free;
 #endif
-_MATH_END_
-
-_MMEM_START_
-_MTEMPL_ class basic_allocator {
-    public:
-
-};
 _MATH_END_
 
 // Destructor of the math::Classes are noexcept(true) because the class itself can only be made if the std::is_nothrow_destructible_v<T> type_trait is true and hence the free mem function is fine being noexcept
@@ -42,7 +35,7 @@ _MTEMPL_ _NODISC_ inline T *allocate_memory(const size_t num_elements) {
     if (bytes == 0) bytes = 1;
     T *ptr;
     if (bytes == 1) ptr = static_cast<T*>(_STD_ malloc(1));
-    else if constexpr (align > alignof(_STD_ max_align_t)) ptr = static_cast<T*>(_MEM_IMPL_ aligned_alloc(align, bytes));
+    else if constexpr (align > alignof(_STD_ max_align_t)) ptr = static_cast<T*>(_MEM_IMPL_ aligned_allocate(align, bytes));
     else ptr = static_cast<T*>(_STD_ malloc(bytes));        
     if (ptr) [[likely]] return ptr;
     else throw _STD_ bad_alloc{};

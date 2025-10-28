@@ -46,6 +46,7 @@
 #define _MATH_END_          }
 
 #define _MTEMPL_            template <typename T>
+#define _MTMPLU_            template <typename U>
 #define _MTYPE_TEMPL(x, y)  template <typename x, typename y>
 
 #define _NODISC_            [[nodiscard]]
@@ -66,4 +67,8 @@ _MTEMPL_ using const_ptr    = const T *;
 _MTEMPL_ using mut_ptr      = T *const;
 _MTEMPL_ using read_ptr     = const T *const;
 _MTEMPL_ using read_ptr2d   = const T *const *const;
+_MATH_END_
+
+_MMEM_START_
+_MTYPE_TEMPL(T, Allocator) struct allocator_traits;
 _MATH_END_
