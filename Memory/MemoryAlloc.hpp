@@ -2,7 +2,7 @@
 #pragma once
 #include "..\Helper\Headers.hpp"
 
-_MMEM_IMPL_START_
+namespace math::memory::impl {
 using aligned_alloc_t = void* (*)(size_t, size_t);
 using free_t = void(*)(void*);
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
@@ -13,13 +13,13 @@ using free_t = void(*)(void*);
     aligned_alloc_t aligned_allocate = msc_aligned_alloc;
     free_t free = _aligned_free;
 #else
-    aligned_alloc_t aligned_allocate = _STD_ aligned_alloc;
-    free_t free = _STD_ free;
+    aligned_alloc_t aligned_allocate = std::aligned_alloc;
+    free_t free = std::free;
 #endif
-_MATH_END_
+}
 
 // Destructor of the math::Classes are noexcept(true) because the class itself can only be made if the std::is_nothrow_destructible_v<T> type_trait is true and hence the free mem function is fine being noexcept
-_MMEM_START_
+namespace math::memory {
 /**
  * @brief Allocating row memory, a C++ wrapper on malloc.
  * @tparam T Type of the elements to allocate memory for.
@@ -30,15 +30,15 @@ _MMEM_START_
 _MTEMPL_ _NODISC_ inline T *allocate_memory(const size_t num_elements) {
     static constexpr const size_t align(alignof(T));
     static constexpr const size_t size(sizeof(T) == 0 ? 1 : sizeof(T));
-    if (num_elements > (static_cast<size_t>(~0) / size)) throw _STD_ bad_alloc{};
+    if (num_elements > (static_cast<size_t>(~0) / size)) throw std::bad_alloc{};
     size_t bytes = size * num_elements;
     if (bytes == 0) bytes = 1;
     T *ptr;
-    if (bytes == 1) ptr = static_cast<T*>(_STD_ malloc(1));
-    else if constexpr (align > alignof(_STD_ max_align_t)) ptr = static_cast<T*>(_MEM_IMPL_ aligned_allocate(align, bytes));
-    else ptr = static_cast<T*>(_STD_ malloc(bytes));        
+    if (bytes == 1) ptr = static_cast<T*>(std::malloc(1));
+    else if constexpr (align > alignof(std::max_align_t)) ptr = static_cast<T*>(math::memory::impl::aligned_allocate(align, bytes));
+    else ptr = static_cast<T*>(std::malloc(bytes));        
     if (ptr) [[likely]] return ptr;
-    else throw _STD_ bad_alloc{};
+    else throw std::bad_alloc{};
 }
 
 /**
@@ -48,12 +48,12 @@ _MTEMPL_ _NODISC_ inline T *allocate_memory(const size_t num_elements) {
  * @param created_items Number of elements to call destructor for.
  * @return Pointer to the allocated memory.
 */
-_MTEMPL_ requires _NOTHR_DSTR_
+_MTEMPL_ requires NothrDtor<T>
 inline void free_memory(T* &memory, const size_t created_items) noexcept {
     if (memory != nullptr) {
-        if constexpr (!_TRV_DSTR_) _STD_ destroy_n(memory, created_items);
-        if constexpr (alignof(T) > alignof(_STD_ max_align_t)) _MEM_IMPL_ free(memory);
-        else _STD_ free(memory);
+        if constexpr (!TrvDtor<T>) std::destroy_n(memory, created_items);
+        if constexpr (alignof(T) > alignof(std::max_align_t)) math::memory::impl::free(memory);
+        else std::free(memory);
         memory = nullptr;
     }
 }
@@ -68,7 +68,7 @@ inline void free_memory(T* &memory, const size_t created_items) noexcept {
  * @return Pointer to the reallocated memory.
 */
 _MTEMPL_ inline T *reallocate_memory(T* &mem_ptr, const size_t old_num_elements, const size_t num_elements)
-requires ((_STD_ is_nothrow_move_constructible_v<T> || _CPY_CSTR_ || _STD_ is_trivially_copyable_v<T>) && _NOTHR_DSTR_) {
+requires ((std::is_nothrow_move_constructible_v<T> || CpyCtor<T> || std::is_trivially_copyable_v<T>) && NothrDtor<T>) {
     if (mem_ptr == nullptr) return allocate_memory<T>(num_elements);
     if (old_num_elements == num_elements) return mem_ptr;
     if (num_elements == 0) {
@@ -76,28 +76,28 @@ requires ((_STD_ is_nothrow_move_constructible_v<T> || _CPY_CSTR_ || _STD_ is_tr
         return mem_ptr;
     }
     if (num_elements < old_num_elements) {
-        if constexpr (!_TRV_DSTR_) _STD_ destroy_n(mem_ptr + num_elements, old_num_elements - num_elements);
-        T *temp = static_cast<T*>(_STD_ realloc(mem_ptr, sizeof(T) * num_elements));
-        if (!temp) throw _STD_ bad_alloc{};
+        if constexpr (!TrvDtor<T>) std::destroy_n(mem_ptr + num_elements, old_num_elements - num_elements);
+        T *temp = static_cast<T*>(std::realloc(mem_ptr, sizeof(T) * num_elements));
+        if (!temp) throw std::bad_alloc{};
         return (mem_ptr = temp);
     }
-    if constexpr (_STD_ is_trivially_copyable_v<T> && _TRV_DSTR_) {
-        T *temp = static_cast<T*>(_STD_ realloc(mem_ptr, sizeof(T) * num_elements));
-        if (!temp) throw _STD_ bad_alloc{};
+    if constexpr (std::is_trivially_copyable_v<T> && TrvDtor<T>) {
+        T *temp = static_cast<T*>(std::realloc(mem_ptr, sizeof(T) * num_elements));
+        if (!temp) throw std::bad_alloc{};
         return (mem_ptr = temp);
     }
     T *temp = allocate_memory<T>(num_elements);
-    if constexpr (_STD_ is_nothrow_move_constructible_v<T>)
-        _STD_ uninitialized_move_n(mem_ptr, old_num_elements, temp);
-    else if constexpr (!_STD_ is_nothrow_copy_constructible_v<T>) {
+    if constexpr (std::is_nothrow_move_constructible_v<T>)
+        std::uninitialized_move_n(mem_ptr, old_num_elements, temp);
+    else if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
         size_t created_items = 0;
-        try { for (; created_items < old_num_elements; created_items++) _STD_ construct_at(temp + created_items, *(mem_ptr + created_items)); }
+        try { for (; created_items < old_num_elements; created_items++) std::construct_at(temp + created_items, *(mem_ptr + created_items)); }
         catch(...) { free_memory(temp, created_items); throw; }
     }
-    else _STD_ uninitialized_copy_n(mem_ptr, old_num_elements, temp);
+    else std::uninitialized_copy_n(mem_ptr, old_num_elements, temp);
     free_memory(mem_ptr, old_num_elements);
     return (mem_ptr = temp);
 }
-#define _TRY_CONSTRUCT_AT_(ptr, ...) try { _STD_ construct_at(ptr, ##__VA_ARGS__); }
-#define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var = 0; loop_end_condition; loop_increment_cond) _STD_ construct_at(ptr + loop_var, ##__VA_ARGS__); }
-_MATH_END_
+#define _TRY_CONSTRUCT_AT_(ptr, ...) try { std::construct_at(ptr, ##__VA_ARGS__); }
+#define _TRY_CONSTRUCT_AT_LOOP_(loop_var, loop_end_condition, loop_increment_cond, ptr, ...) try { for (loop_var = 0; loop_end_condition; loop_increment_cond) std::construct_at(ptr + loop_var, ##__VA_ARGS__); }
+}

@@ -3,7 +3,7 @@
 
 #include "..\..\Helper\Helper.hpp"
 
-_MMATRIX_START_
+namespace math::matrix {
 // A lightweight wrapper on two size_t(s).
 class Order {
     private:
@@ -62,11 +62,11 @@ class Order {
 
     public:
         void flip() noexcept {
-            _STD_ swap(m_rows, m_columns);
+            std::swap(m_rows, m_columns);
         }
         void swap(Order &other) noexcept {
-            _STD_ swap(m_rows, other.m_rows);
-            _STD_ swap(m_columns, other.m_columns);
+            std::swap(m_rows, other.m_rows);
+            std::swap(m_columns, other.m_columns);
         }
         void set_row(const size_t row) noexcept {
             m_rows = row;
@@ -81,11 +81,11 @@ class Order {
         }
     };
 
-// So we can use the matrix in STL functions like _STD_ sort using begin_one_d and end_one_d.
+// So we can use the matrix in STL functions like std::sort using begin_one_d and end_one_d.
 _MTEMPL_ class MatrixOneDIterator {
     public:
-        using iterator_category = _STD_ random_access_iterator_tag;
-        using difference_type   = _STD_ ptrdiff_t;
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
         using value_type        = T;
         using pointer           = T*;
         using reference         = T&;
@@ -176,11 +176,11 @@ _MTEMPL_ class MatrixOneDIterator {
         }
 };
 
-// So we can use the matrix in STL functions like _STD_ sort using begin_one_d and end_one_d.
+// So we can use the matrix in STL functions like std::sort using begin_one_d and end_one_d.
 _MTEMPL_ class MatrixOneDColumnIterator {
     public:
-        using iterator_category = _STD_ random_access_iterator_tag;
-        using difference_type   = _STD_ ptrdiff_t;
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
         using value_type        = T;
         using pointer           = T*;
         using reference         = T&;
@@ -274,8 +274,8 @@ _MTEMPL_ class MatrixOneDColumnIterator {
 // Column Iterator for view type column object of a row major matrix
 _MTEMPL_ class ColumnIterator {
     public:
-        using iterator_category = _STD_ random_access_iterator_tag;
-        using difference_type   = _STD_ ptrdiff_t;
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
         using value_type        = T;
         using pointer           = T*;
         using reference         = T&;
@@ -377,11 +377,11 @@ _MTEMPL_ class Row {
 
     public:
         _NODISC_ T &at(const size_t index) {
-            if (index >= m_row_len) throw _STD_ out_of_range("Index is greater than number of elements in the row and hence can't be accessed.");
+            if (index >= m_row_len) throw std::out_of_range("Index is greater than number of elements in the row and hence can't be accessed.");
             return m_data[index];
         }
         const T &at(const size_t index) const {
-            if (index >= m_row_len) throw _STD_ out_of_range("Index is greater than number of elements in the row and hence can't be accessed.");
+            if (index >= m_row_len) throw std::out_of_range("Index is greater than number of elements in the row and hence can't be accessed.");
             return m_data[index];
         }
         
@@ -434,8 +434,8 @@ _MTEMPL_ class Row {
         _NODISC_ bool is_zero() const
         requires _MATH_ isEqualityOperationPossible<T> {
             _ZERO_EXISTS_
-            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot check for is_zero property of the row as the zero value(stored in _MATH_ zero_vals or defautlt construction for the type) is not defined.");
-            if constexpr (!_DFLT_CSTR_)
+            _NO_ZERO_COND_ throw std::logic_error("Cannot check for is_zero property of the row as the zero value(stored in _MATH_ zero_vals or defautlt construction for the type) is not defined.");
+            if constexpr (!DfltCtor<T>)
                 return are_all_same_as(_GET_ZERO_);
             else return are_all_same_as(T{});
         }
@@ -476,11 +476,11 @@ _MTEMPL_ class Column {
 
     public:
         _NODISC_ T &at(const size_t index) {
-            if (index >= m_num_rows) _STD_ out_of_range("Cannot access provided row on this column because it exceeds the number of rows in the matrix.");
+            if (index >= m_num_rows) std::out_of_range("Cannot access provided row on this column because it exceeds the number of rows in the matrix.");
             return m_data[index][m_column_index];
         }
         const T &at(const size_t index) const {
-            if (index >= m_num_rows) _STD_ out_of_range("Cannot access provided row on this column because it exceeds the number of rows in the matrix.");
+            if (index >= m_num_rows) std::out_of_range("Cannot access provided row on this column because it exceeds the number of rows in the matrix.");
             return m_data[index][m_column_index];
         }
         
@@ -532,8 +532,8 @@ _MTEMPL_ class Column {
 // Iterator for the matrix class.
 _MTEMPL_ class MatrixIterator {
     public:
-        using iterator_category = _STD_ random_access_iterator_tag;
-        using difference_type   = _STD_ ptrdiff_t;
+        using iterator_category = std::random_access_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
         using value_type        = Row<T>;
         using pointer           = Row<T>*;
         using reference         = Row<T>; // Proxy iterator.
@@ -638,4 +638,4 @@ enum class ConstructSquareRule : char {
     full, upper_half, lower_half, left_half, right_half, top_left_quarter, top_right_quarter, bottom_left_quarter, bottom_right_quarter, top_left_triangle, top_right_triangle, bottom_left_triangle, bottom_right_triangle, main_diagonal, off_diagonal, alternate, alternate_row, alternate_column
 };
 using CSR = ConstructSquareRule;
-_MATH_END_
+}

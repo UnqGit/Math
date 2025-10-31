@@ -3,20 +3,20 @@
 
 #include "..\Helper\Helper.hpp"
 
-_MATH_START_
-_MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
+namespace math {
+_MTEMPL_ requires NothrDtor<T> class _NODISC_ Matrix2x2 {
     public:
-        Matrix2x2() requires _CPY_CSTR_ || _DFLT_CSTR_ {
+        Matrix2x2() requires CpyCtor<T> || DfltCtor<T> {
             _ZERO_EXISTS_
-            _NO_ZERO_COND_ throw _STD_ logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
-            if constexpr (_CPY_CSTR_) {
-                if (zero_exists || !_DFLT_CSTR_) {
+            _NO_ZERO_COND_ throw std::logic_error("Cannot construct the Matrix for this type because neither zero value is stored and neither is it default constructible.");
+            if constexpr (CpyCtor<T>) {
+                if (zero_exists || !DfltCtor<T>) {
                     const T &zero_val = zero_exists ? _GET_ZERO_ : T{};
-                    if constexpr (_STD_ is_nothrow_copy_constructible_v<T>) _STD_ uninitialized_fill_n(m_ptr, 4, zero_val);
+                    if constexpr (std::is_nothrow_copy_constructible_v<T>) std::uninitialized_fill_n(m_ptr, 4, zero_val);
                     else {
                         unsigned char i = 0;
-                        try { for (; i < 4; i++) _STD_ construct_at(m_ptr + i, zero_val); }
-                        catch(...) { if constexpr (!_TRV_DSTR_) _STD_ destroy_n(m_ptr, i); throw; }
+                        try { for (; i < 4; i++) std::construct_at(m_ptr + i, zero_val); }
+                        catch(...) { if constexpr (!TrvDtor<T>) std::destroy_n(m_ptr, i); throw; }
                     }
                 }
                 else goto DEFAULT_CONSTRUCT;
@@ -24,53 +24,53 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
             }
             else goto DEFAULT_CONSTRUCT;
             DEFAULT_CONSTRUCT:
-                if constexpr (_STD_ is_nothrow_default_constructible_v<T>) _STD_ uninitialized_value_construct_n(m_ptr, 4);
+                if constexpr (std::is_nothrow_default_constructible_v<T>) std::uninitialized_value_construct_n(m_ptr, 4);
                 else {
                     unsigned char i = 0;
-                    try { for (; i < 4; i++) _STD_ construct_at(m_ptr + i); }
-                    catch(...) { if constexpr (!_TRV_DSTR_) _STD_ destroy_n(m_ptr, i); throw; }
+                    try { for (; i < 4; i++) std::construct_at(m_ptr + i); }
+                    catch(...) { if constexpr (!TrvDtor<T>) std::destroy_n(m_ptr, i); throw; }
                 }
         }
 
-        Matrix2x2(T &&a, T &&b, T &&c, T &&d) requires _CPY_CSTR_ || _MV_CSTR_ {
+        Matrix2x2(T &&a, T &&b, T &&c, T &&d) requires CpyCtor<T> || MvCtor<T> {
             unsigned char i = 0;
             try {
-                _STD_ construct_at(m_ptr + i, _STD_ forward<T>(a)); ++i;
-                _STD_ construct_at(m_ptr + i, _STD_ forward<T>(b)); ++i;
-                _STD_ construct_at(m_ptr + i, _STD_ forward<T>(c)); ++i;
-                _STD_ construct_at(m_ptr + i, _STD_ forward<T>(d)); ++i;                
-            } catch(...) { if constexpr (!_TRV_DSTR_) _STD_ destroy_n(m_ptr, i); throw; }
+                std::construct_at(m_ptr + i, std::forward<T>(a)); ++i;
+                std::construct_at(m_ptr + i, std::forward<T>(b)); ++i;
+                std::construct_at(m_ptr + i, std::forward<T>(c)); ++i;
+                std::construct_at(m_ptr + i, std::forward<T>(d)); ++i;                
+            } catch(...) { if constexpr (!TrvDtor<T>) std::destroy_n(m_ptr, i); throw; }
         }
 
-        Matrix2x2(T *data) requires _CPY_CSTR_ {
-            if constexpr (!_STD_ is_nothrow_copy_constructible_v<T>) {
+        Matrix2x2(T *data) requires CpyCtor<T> {
+            if constexpr (!std::is_nothrow_copy_constructible_v<T>) {
                 unsigned char i = 0;
-                try { for (; i < 4; i++) _STD_ construct_at(m_ptr + i, data[i]); }
-                catch(...) { if constexpr (!_TRV_DSTR_) _STD_ destroy_n(m_ptr, i); throw; }
-            } else _STD_ uninitialized_copy_n(data, 4, m_ptr);
+                try { for (; i < 4; i++) std::construct_at(m_ptr + i, data[i]); }
+                catch(...) { if constexpr (!TrvDtor<T>) std::destroy_n(m_ptr, i); throw; }
+            } else std::uninitialized_copy_n(data, 4, m_ptr);
         }
 
-        Matrix2x2(T data[2][2]) requires _CPY_CSTR_ {
-            if constexpr (_STD_ is_nothrow_copy_constructible_v<T>) {
-                _STD_ construct_at(m_ptr, data[0][0]);
-                _STD_ construct_at(m_ptr + 1, data[0][1]);
-                _STD_ construct_at(m_ptr + 2, data[1][0]);
-                _STD_ construct_at(m_ptr + 3, data[1][1]);
+        Matrix2x2(T data[2][2]) requires CpyCtor<T> {
+            if constexpr (std::is_nothrow_copy_constructible_v<T>) {
+                std::construct_at(m_ptr, data[0][0]);
+                std::construct_at(m_ptr + 1, data[0][1]);
+                std::construct_at(m_ptr + 2, data[1][0]);
+                std::construct_at(m_ptr + 3, data[1][1]);
             }
             else {
                 unsigned char i = 0;
                 try {
-                    _STD_ construct_at(m_ptr, data[0][0]); ++i;
-                    _STD_ construct_at(m_ptr + 1, data[0][1]); ++i;
-                    _STD_ construct_at(m_ptr + 2, data[1][0]); ++i;
-                    _STD_ construct_at(m_ptr + 3, data[1][1]); ++i;
+                    std::construct_at(m_ptr, data[0][0]); ++i;
+                    std::construct_at(m_ptr + 1, data[0][1]); ++i;
+                    std::construct_at(m_ptr + 2, data[1][0]); ++i;
+                    std::construct_at(m_ptr + 3, data[1][1]); ++i;
                 }
-                catch(...) { if constexpr (!_TRV_DSTR_) _STD_ destroy_n(m_ptr, i); throw; }
+                catch(...) { if constexpr (!TrvDtor<T>) std::destroy_n(m_ptr, i); throw; }
             }
         }
 
     public:
-        Matrix2x2(const Matrix2x2 &other) requires _CPY_CSTR_ : Matrix2x2(other.m_ptr) {}
+        Matrix2x2(const Matrix2x2 &other) requires CpyCtor<T> : Matrix2x2(other.m_ptr) {}
         Matrix2x2(Matrix2x2 &&other) noexcept {
             this->swap(other);
         }
@@ -95,36 +95,36 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
         }
 
         _NODISC_ T &at(const size_t row, const size_t col) {
-            if (row >= 2 || col >= 2) throw _STD_ out_of_range("Provided index does not exist within the bounds of this Matrix.");
+            if (row >= 2 || col >= 2) throw std::out_of_range("Provided index does not exist within the bounds of this Matrix.");
             return m_ptr[(row << 1) + col];
         }
         const T &at(const size_t row, const size_t col) const {
-            if (row >= 2 || col >= 2) throw _STD_ out_of_range("Provided index does not exist within the bounds of this Matrix.");
+            if (row >= 2 || col >= 2) throw std::out_of_range("Provided index does not exist within the bounds of this Matrix.");
             return m_ptr[(row << 1) + col];
         }
     
     public:
-        _NODISC_ Matrix2x2 operator+(const Matrix2x2 &other) const requires _MATH_ isAdditive<T> {
+        _NODISC_ Matrix2x2 operator+(const Matrix2x2 &other) const requires math::isAdditive<T> {
             return Matrix2x2(m_ptr[0] + other.m_ptr[0], m_ptr[1] + other.m_ptr[1], m_ptr[2] + other.m_ptr[2], m_ptr[3] + other.m_ptr[3]);
         }
-        Matrix2x2 &operator+=(const Matrix2x2 &other) requires _MATH_ compoundAddition<T> {
-            if constexpr (noexcept( _STD_ declval<T&>() += _STD_ declval<T>() ))
+        Matrix2x2 &operator+=(const Matrix2x2 &other) requires math::compoundAddition<T> {
+            if constexpr (noexcept( std::declval<T&>() += std::declval<T>() ))
                 for (unsigned char i = 0; i < 4; i++) m_ptr[i] += other.m_ptr[i];
             else *this = *this + other;
             return *this;
         }
 
-        _NODISC_ Matrix2x2 operator-(const Matrix2x2 &other) const requires _MATH_ isSubtractible<T> {
+        _NODISC_ Matrix2x2 operator-(const Matrix2x2 &other) const requires math::isSubtractible<T> {
             return Matrix2x2(m_ptr[0] - other.m_ptr[0], m_ptr[1] - other.m_ptr[1], m_ptr[2] - other.m_ptr[2], m_ptr[3] - other.m_ptr[3]);
         }
-        Matrix2x2 &operator-=(const Matrix2x2 &other) requires _MATH_ compoundSubtraction<T> {
-            if constexpr (noexcept( _STD_ declval<T&>() -= _STD_ declval<T>() ))
+        Matrix2x2 &operator-=(const Matrix2x2 &other) requires math::compoundSubtraction<T> {
+            if constexpr (noexcept( std::declval<T&>() -= std::declval<T>() ))
                 for (unsigned char i = 0; i < 4; i++) m_ptr[i] -= other.m_ptr[i];
             else *this = *this - other;
             return *this;
         }
 
-        _NODISC_ Matrix2x2 operator*(const Matrix2x2 &other) const requires _MATH_ isAdditive<T> && _MATH_ isMultiplicative<T> {
+        _NODISC_ Matrix2x2 operator*(const Matrix2x2 &other) const requires math::isAdditive<T> && math::isMultiplicative<T> {
             return this == &other ? this->square() : Matrix2x2 {
                 m_ptr[0] * other(0, 0) + m_ptr[1] * other(1, 0),
                 m_ptr[0] * other(0, 1) + m_ptr[1] * other(1, 1),
@@ -137,7 +137,7 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
         }
 
     public:
-        _NODISC_ Matrix2x2 square() requires _MATH_ isAdditive<T> && _MATH_ isMultiplicative<T> { // Assuming commutative-ness.
+        _NODISC_ Matrix2x2 square() requires math::isAdditive<T> && math::isMultiplicative<T> { // Assuming commutative-ness.
             // Better than normal multiplication as it has 5 multiplication and 3 addition instead of the normal 8 multiplication and 4 addition.
             const T bc = m_ptr[1] * m_ptr[2];
             const T apd = m_ptr[0] + m_ptr[3];
@@ -149,10 +149,10 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
             };
         }
 
-        Matrix2x2 &square_in_place() requires _MATH_ isAdditive<T> && _MATH_ isMultiplicative<T> {
+        Matrix2x2 &square_in_place() requires math::isAdditive<T> && math::isMultiplicative<T> {
             if constexpr (
-                noexcept( _STD_ declval<T>() + _STD_ declval<T>() ) &&
-                noexcept( _STD_ declval<T>() * _STD_ declval<T>() )
+                noexcept( std::declval<T>() + std::declval<T>() ) &&
+                noexcept( std::declval<T>() * std::declval<T>() )
             ) {
                 const T bc = m_ptr[1] * m_ptr[2];
                 const T apd = m_ptr[0] + m_ptr[3];
@@ -165,11 +165,11 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
             return *this;
         }
 
-        _NODISC_ T trace() requires _MATH_ isAdditive<T> {
+        _NODISC_ T trace() requires math::isAdditive<T> {
             return m_ptr[0] + m_ptr[3];
         }
 
-        _NODISC_ T determinant() requires _MATH_ isMultiplicative<T> && _MATH_ isSubtractible<T> {
+        _NODISC_ T determinant() requires math::isMultiplicative<T> && math::isSubtractible<T> {
             return m_ptr[0] * m_ptr[3] - m_ptr[1] * m_ptr[2];
         }
 
@@ -182,35 +182,35 @@ _MTEMPL_ requires _NOTHR_DSTR_ class _NODISC_ Matrix2x2 {
         }
 
         Matrix2x2 &transpose_in_place() {
-            if constexpr (_STD_ is_nothrow_swappable_v<T>)
-                _STD_ swap(m_ptr[1], m_ptr[2]);
+            if constexpr (std::is_nothrow_swappable_v<T>)
+                std::swap(m_ptr[1], m_ptr[2]);
             else *this = this->transpose();
             return *this;
         }
 
     public:
-        _NODISC_ bool operator==(const Matrix2x2 &other) requires _MATH_ isEqualityOperationPossible<T> {
-            return  _MATH_ is_equal(m_ptr[0], other.m_ptr[0]) &&
-                    _MATH_ is_equal(m_ptr[1], other.m_ptr[1]) &&
-                    _MATH_ is_equal(m_ptr[2], other.m_ptr[2]) &&
-                    _MATH_ is_equal(m_ptr[3], other.m_ptr[3]);
+        _NODISC_ bool operator==(const Matrix2x2 &other) requires math::isEqualityOperationPossible<T> {
+            return  math::is_equal(m_ptr[0], other.m_ptr[0]) &&
+                    math::is_equal(m_ptr[1], other.m_ptr[1]) &&
+                    math::is_equal(m_ptr[2], other.m_ptr[2]) &&
+                    math::is_equal(m_ptr[3], other.m_ptr[3]);
         }
-        _NODISC_ bool operator!=(const Matrix2x2 &other) requires _MATH_ isEqualityOperationPossible<T> {
+        _NODISC_ bool operator!=(const Matrix2x2 &other) requires math::isEqualityOperationPossible<T> {
             return !(*this == other);
         }
 
     public:
         ~Matrix2x2() noexcept {
-            if constexpr (!_TRV_DSTR_) _STD_ destroy_n(m_ptr, 4);
+            if constexpr (!TrvDtor<T>) std::destroy_n(m_ptr, 4);
         }
 
     public:
         void swap(Matrix2x2 &other) noexcept {
-            _STD_ swap(m_ptr, other.m_ptr);
+            std::swap(m_ptr, other.m_ptr);
         }
 
     private:
         T m_ptr[4];
 };
 
-_MATH_END_
+}

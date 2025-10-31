@@ -3,20 +3,20 @@
 
 #include "Headers.hpp"
 
-_MATH_START_
+namespace math {
 _MTEMPL_ concept ProperEquality = requires(const T &a, const T &b) {
-    { a == b } -> _STD_ same_as<bool>;
+    { a == b } -> std::same_as<bool>;
 };
 
 // Equality checking functions.
-template <_STD_ integral T>
+template <std::integral T>
 inline constexpr bool is_equal(const T a, const T b) noexcept {
     return a == b;
 }
 
-#define _IS_EQUAL_SHORTCUT_(T) static constexpr const T rel_tol(static_cast<T>(4) * _STD_ numeric_limits<T>::epsilon()); \
-    static constexpr const T abs_tol(_STD_ numeric_limits<T>::denorm_min()); \
-    return (_STD_ fabs(a - b) <= _STD_ max(rel_tol * _STD_ max(_STD_ fabs(a), _STD_ fabs(b)), abs_tol));
+#define _IS_EQUAL_SHORTCUT_(T) static constexpr const T rel_tol(static_cast<T>(4) * std::numeric_limits<T>::epsilon()); \
+    static constexpr const T abs_tol(std::numeric_limits<T>::denorm_min()); \
+    return (std::fabs(a - b) <= std::max(rel_tol * std::max(std::fabs(a), std::fabs(b)), abs_tol));
 
 template <long double T>
 requires (sizeof(long double) != sizeof(double))
@@ -30,12 +30,12 @@ inline constexpr bool is_equal(const long double a, const long double b) noexcep
     _IS_EQUAL_SHORTCUT_(long double)
 }
 
-template <_STD_ floating_point T> requires (!_STD_ is_same_v<_STD_ decay_t<T>, long double>)
+template <std::floating_point T> requires (!std::is_same_v<std::decay_t<T>, long double>)
 inline constexpr bool is_equal(const T a, const T b) noexcept {
     _IS_EQUAL_SHORTCUT_(T)
 }
 
-_MTEMPL_ requires ( _STD_ is_trivially_copyable_v<T> && ProperEquality<T> && (sizeof(T) <= sizeof(double)))
+_MTEMPL_ requires ( std::is_trivially_copyable_v<T> && ProperEquality<T> && (sizeof(T) <= sizeof(double)))
 inline constexpr bool is_equal(const T a, const T b) noexcept {
     return a == b;
 }
@@ -50,11 +50,11 @@ _MTEMPL_ concept isEqualityOperationPossible = requires(const T &a, const T &b) 
 };
 
 _MTEMPL_ concept isAdditive = requires(const T &a, const T &b) {
-    requires _STD_ same_as<_STD_ remove_const_t<decltype(a + b)>, T>;
+    requires std::same_as<std::remove_const_t<decltype(a + b)>, T>;
 };
 
 _MTEMPL_ concept isRefAdditive = requires(T &a, const T &b) {
-    { a += b } -> _STD_ same_as<T&>;
+    { a += b } -> std::same_as<T&>;
 };
 
 _MTEMPL_ concept compoundAddition = isAdditive<T> && isRefAdditive<T>;
@@ -62,11 +62,11 @@ _MTEMPL_ concept compoundAddition = isAdditive<T> && isRefAdditive<T>;
 _MTEMPL_ concept anyAddition = isAdditive<T> || isRefAdditive<T>;
 
 _MTEMPL_ concept isSubtractible = requires(const T &a, const T &b) {
-    requires _STD_ same_as<_STD_ remove_const_t<decltype(a - b)>, T>;
+    requires std::same_as<std::remove_const_t<decltype(a - b)>, T>;
 };
 
 _MTEMPL_ concept isRefSubtractible = requires(T &a, const T &b) {
-    { a -= b } -> _STD_ same_as<T&>;
+    { a -= b } -> std::same_as<T&>;
 };
 
 _MTEMPL_ concept compoundSubtraction = isSubtractible<T> && isRefSubtractible<T>;
@@ -74,18 +74,18 @@ _MTEMPL_ concept compoundSubtraction = isSubtractible<T> && isRefSubtractible<T>
 _MTEMPL_ concept anySubtraction = isSubtractible<T> || isRefSubtractible<T>;
 
 _MTEMPL_ concept isMultiplicative = requires(const T &a, const T &b) {
-    requires _STD_ same_as<_STD_ remove_const_t<decltype(a * b)>, T>;
+    requires std::same_as<std::remove_const_t<decltype(a * b)>, T>;
 };
 
 _MTEMPL_ concept isRefMultiplicative = requires(T &a, const T &b) {
-    { a *= b } -> _STD_ same_as<T&>;
+    { a *= b } -> std::same_as<T&>;
 };
 
 _MTEMPL_ concept compoundMultiplication = isMultiplicative<T> && isRefMultiplicative<T>;
 
 _MTEMPL_ concept anyMultiplication = isMultiplicative<T> || isRefMultiplicative<T>;
 
-_MTYPE_TEMPL(T, ...Args) concept allSameType = _STD_ conjunction_v<_STD_ is_same<_STD_ decay_t<T>, _STD_ decay_t<Args>>...>;
+_MTYPE_TEMPL(T, ...Args) concept allSameType = std::conjunction_v<std::is_same<std::decay_t<T>, std::decay_t<Args>>...>;
 
 // Zero value holder class.
 class ZeroValueHolder {
@@ -96,18 +96,18 @@ class ZeroValueHolder {
         }
     public:
         _MTEMPL_ constexpr void store_of(const T &val) { // Cannot do noexcept because typeid can throw.
-            m_vals[_STD_ type_index(typeid(T))] = val;
+            m_vals[std::type_index(typeid(T))] = val;
         }
         _MTEMPL_ _NODISC_ constexpr bool exists_of() {
-            return (m_vals.find(_STD_ type_index(typeid(T))) != m_vals.end());   
+            return (m_vals.find(std::type_index(typeid(T))) != m_vals.end());   
         }
         _MTEMPL_ _NODISC_ constexpr const T &get_of() const {
-            const auto loc = m_vals.find(_STD_ type_index(typeid(T)));
-            if (loc != m_vals.end()) return _STD_ any_cast<const T&>(loc->second);
-            else throw _STD_ logic_error("Cannot provide the zero value of a type that is not already stored in helper::zero_vals.\n");
+            const auto loc = m_vals.find(std::type_index(typeid(T)));
+            if (loc != m_vals.end()) return std::any_cast<const T&>(loc->second);
+            else throw std::logic_error("Cannot provide the zero value of a type that is not already stored in helper::zero_vals.\n");
         }
     private:
-        _STD_ unordered_map<_STD_ type_index, _STD_ any> m_vals;
+        std::unordered_map<std::type_index, std::any> m_vals;
     private:
         constexpr ZeroValueHolder() { // Helping the file user by pre-saving some of the types' 0 val.
             store_of<char>(static_cast<char>(0));
@@ -171,20 +171,20 @@ class ZeroValueHolder {
         ZeroValueHolder& operator=(const ZeroValueHolder&) = delete;
 };
 ZeroValueHolder& zero_vals = ZeroValueHolder::instance();
-_MATH_END_
+}
 
-_MHELP_START_
+namespace math::helper {
 _MTYPE_TEMPL(Container, RequiredData) concept isOneDArr =
-    _RANGES_ sized_range<Container> &&
-    _STD_ same_as<
-        _STD_ decay_t<_RANGES_ range_value_t<Container>>,
-        _STD_ decay_t<RequiredData>
+    std::ranges::sized_range<Container> &&
+    std::same_as<
+        std::decay_t<std::ranges::range_value_t<Container>>,
+        std::decay_t<RequiredData>
     >;
 
 _MTYPE_TEMPL(Container, RequiredData) concept isTwoDArr =
-    _RANGES_ sized_range<Container> &&
+    std::ranges::sized_range<Container> &&
     isOneDArr<
-        _STD_ decay_t<_RANGES_ range_value_t<Container>>,
+        std::decay_t<std::ranges::range_value_t<Container>>,
         RequiredData
     >;
-_MATH_END_
+}
