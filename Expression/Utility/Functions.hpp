@@ -12,7 +12,7 @@ enum class Function : char {
 };
 using FN = Function;
 
-namespace func {
+inline namespace func {
 
 inline constexpr bool is_binary(const Function val) noexcept {
     switch(val) {
@@ -82,6 +82,8 @@ inline constexpr bool is_hyperbolic(const Function val) noexcept {
         default:
             return false;
     }
+}
+
 }
 
 }

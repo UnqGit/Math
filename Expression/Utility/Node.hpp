@@ -7,7 +7,7 @@
 namespace math::expr {
 
 enum class NodeType : char {
-    num, func, var
+    num, func, var,
 };
 using NT = NodeType;
 
