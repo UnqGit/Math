@@ -1,3 +1,5 @@
+// VariableString.hpp
+#pragma once
 #include "..\..\Helper\Headers.hpp"
 
 namespace math::expr {
