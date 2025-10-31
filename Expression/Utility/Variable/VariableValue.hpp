@@ -1,9 +1,19 @@
+// VariableValue.hpp
 #pragma once
+
+#include "VariableString.hpp"
+
+namespace math::expr {
 
 enum class Precision : char {
     less, regular, high
 };
 using PC = Precision;
+
+enum class VariableAllowance : char {
+    no_variable, single_variable, multi_variable
+};
+using VA = VariableAllowance;
 
 template <Precision ValPrecision>
 struct VariableValue;
@@ -35,3 +45,10 @@ struct VariableValue<PC::high> {
     }
 };
 
+template <Precision ValPrecision>
+struct Variable {
+    VariableString name;
+    VariableValue<ValPrecision> val;
+};
+
+}
