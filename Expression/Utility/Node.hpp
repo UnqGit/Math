@@ -1,6 +1,7 @@
 // Node.hpp
 #pragma once
 
+#include "Functions.hpp"
 #include "Variable\VariableValue.hpp"
 
 namespace math::expr {
