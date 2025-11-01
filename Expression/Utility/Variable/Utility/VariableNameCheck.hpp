@@ -36,7 +36,7 @@ constexpr inline bool is_space(const char c) noexcept {
 }
 
 enum class VarNameErrType : char {
-    no_err, too_small, too_large, first_character_be_letter, has_invalid_char, contains_space, last_letter_underscore, underscore_must_separate_digits, contains_space, is_math_constant, is_math_function, one_char_var_name_be_letter
+    no_err, too_small, too_large, first_character_be_letter, has_invalid_char, last_letter_underscore, underscore_must_separate_digits, contains_space, is_math_constant, is_math_function, one_char_var_name_be_letter
 };
 using VNET = VarNameErrType;
 
