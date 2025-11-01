@@ -6,35 +6,63 @@
 namespace math::expr {
 
 using size8_t = unsigned char;
+constexpr size_t SSO_SIZE = 2 * sizeof(mut_ptr<char>) - 1; // So that the size of the VariableString is at most as big as the size of two pointers.
+constexpr size8_t MAX_VAR_SIZE = ~0;
+constexpr size8_t MIN_VAR_SIZE = 1;
+
+struct VariableStringData {
+    #pragma pack(1)
+    using memloc_t = union memory_location
+    {
+        char internal_buffer[SSO_SIZE];
+        mut_ptr<char> external_buffer;
+    };
+    #pragma pack()
+    memloc_t data;
+    size8_t size;
+};
 
 class VariableString {
 public:
-    VariableString(const char val) : m_size(1) {
-        m_data = static_cast<mut_ptr<char> >(::operator new(m_size + 1));
-        m_data[0] = val;
-        m_data[1] = '\0';
-    }
-
-    VariableString(const char val, size_t size) : m_size(size) {
-        if (size == 0) throw std::invalid_argument("Can't instantiate a variable with no name.");
-        if (size > 255) throw std::invalid_argument("Can't make a variable with a name greater than 255 characters.");
-        m_data = static_cast<mut_ptr<char> >(::operator new(m_size + 1));
-        std::memset(m_data, val, m_size);
-        m_data[m_size] = '\0';
-    }
-
-    VariableString(read_ptr<char> data, size_t size) : m_size(size) {
-        if (size == 0) throw std::invalid_argument("Can't instantiate a variable with no name.");
-        if (size > 255) throw std::invalid_argument("Can't make a variable with a name greater than 255 characters.");
-        m_data = static_cast<mut_ptr<char> >(::operator new(m_size + 1));
-        std::memcpy(m_data, data, m_size);
-        m_data[m_size] = '\0';
-    }
-
-    VariableString(const std::string_view &s) : VariableString(s.data(), s.size()) {}
+    using data_t = VariableStringData;
 
 public:
-    VariableString(const VariableString &other) : VariableString(other.m_data, other.m_size) {};
+    constexpr VariableString() noexcept {
+        m_data.size = 1;
+        m_data.data.internal_buffer[0] = 'x';
+        m_data.data.internal_buffer[1] = '\0';
+    }
+
+    VariableString(const char val) {
+        m_data.size = 1;
+        m_data.data.internal_buffer[0] = val;
+        m_data.data.internal_buffer[1] = '\0';
+    }
+
+    VariableString(const char val, size_t size) {
+        if (size < MIN_VAR_SIZE) throw std::invalid_argument("Can't instantiate a variable with no name.");
+        if (size > MAX_VAR_SIZE) throw std::invalid_argument("Can't make a variable with a name greater than 255 characters.");
+        m_data.size = size;
+        if (m_data.size >= SSO_SIZE) m_data.data.external_buffer = static_cast<mut_ptr<char> >(::operator new(static_cast<size_t>(m_data.size + 1)));
+        mut_ptr<char> loc = m_data.size >= SSO_SIZE ? m_data.data.external_buffer : m_data.data.internal_buffer;
+        std::memset(loc, val, m_data.size);
+        loc[m_data.size] = '\0';
+    }
+
+    VariableString(read_ptr<char> data, size_t size) {
+        if (size < MIN_VAR_SIZE) throw std::invalid_argument("Can't instantiate a variable with no name.");
+        if (size > MAX_VAR_SIZE) throw std::invalid_argument("Can't make a variable with a name greater than 255 characters.");
+        m_data.size = size;
+        if (m_data.size >= SSO_SIZE) m_data.data.external_buffer = static_cast<mut_ptr<char> >(::operator new(static_cast<size_t>(m_data.size + 1)));
+        mut_ptr<char> loc = m_data.size >= SSO_SIZE ? m_data.data.external_buffer : m_data.data.internal_buffer;
+        std::memcpy(loc, data, m_data.size);
+        loc[m_data.size] = '\0';
+    }
+
+    VariableString(std::string_view s) : VariableString(s.data(), s.size()) {}
+
+public:
+    VariableString(const VariableString &other) : VariableString(other.data(), other.size()) {}
     VariableString &operator=(const VariableString &other) {
         if (this != &other) {
             VariableString temp(other);
@@ -42,7 +70,8 @@ public:
         }
         return *this;
     }
-    VariableString(VariableString &&other) noexcept : m_data(nullptr), m_size(0) {
+    VariableString(VariableString &&other) noexcept {
+        m_data.size = 0;
         this->swap(other);
     }
     VariableString &operator=(VariableString &&other) noexcept {
@@ -52,28 +81,25 @@ public:
 
 public:
     ~VariableString() noexcept {
-        ::operator delete(m_data);
+        if (m_data.size >= SSO_SIZE) ::operator delete(m_data.data.external_buffer);
     }
 
 public:
     void swap(VariableString &other) noexcept {
-        mut_ptr<char> temp = m_data;
-        m_data = other.m_data;
-        other.m_data = temp;
-        size8_t temp_size = m_size;
-        m_size = other.m_size;
-        other.m_size = temp_size;
+        data_t temp = other.m_data;
+        other.m_data = m_data;
+        m_data = temp;
     }
 
 public:
-    read_ptr<char> c_str() const noexcept {
-        return m_data;
+    const_ptr<char> c_str() const noexcept {
+        return data();
     }
-    read_ptr<char> data() const noexcept {
-        return m_data;
+    const_ptr<char> data() const noexcept {
+        return m_data.size < SSO_SIZE ? m_data.data.internal_buffer : m_data.data.external_buffer;
     }
     size8_t size() const noexcept {
-        return m_size;
+        return m_data.size;
     }
     constexpr bool empty() const noexcept {
         return false;
@@ -81,42 +107,45 @@ public:
 
 public:
     const char &operator[](const size_t index) const noexcept {
-        return m_data[index];
+        return data()[index];
     }
     const char &at(const size_t index) const {
-        if (index >= m_size) throw std::out_of_range("Cannot access index out of the size of this variable's name.");
-        return m_data[index];
+        if (index >= m_data.size) throw std::out_of_range("Cannot access index out of the size of this variable's name.");
+        return data()[index];
     }
 
 public:
     const_ptr<char> begin() const noexcept {
-        return m_data;
+        return data();
     }
     const_ptr<char> end() const noexcept {
-        return m_data + m_size;
+        return data() + m_data.size;
     }
 
 public:
     bool operator==(const VariableString &other) noexcept {
         if (this == &other) return true;
-        if (m_size != other.m_size) return false;
-        return std::memcmp(m_data, other.m_data, m_size) == 0;
+        if (m_data.size != other.m_data.size) return false;
+        return std::memcmp(data(), other.data(), m_data.size) == 0;
     }
     bool operator!=(const VariableString &other) noexcept {
         if (this == &other) return false;
-        if (m_size != other.m_size) return true;
-        return std::memcmp(m_data, other.m_data, m_size) != 0;
+        if (m_data.size != other.m_data.size) return true;
+        return std::memcmp(data(), other.data(), m_data.size) != 0;
     }
 
 public:
     operator std::string_view() const {
-        return std::string_view(m_data, m_size);
+        return std::string_view(data(), m_data.size);
     }
 
 private:
-    mut_ptr<char> m_data;
-    size8_t m_size;
+    data_t m_data;
 };
 using VariableName = VariableString;
+
+VariableString operator"" _var(read_ptr<char> data, size_t size) {
+    return VariableString(data, size);
+}
 
 }
