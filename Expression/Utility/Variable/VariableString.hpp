@@ -31,7 +31,7 @@ public:
         m_data[m_size] = '\0';
     }
 
-    VariableString(const std::string &s) : VariableString(s.c_str(), s.size()) {}
+    VariableString(const std::string_view &s) : VariableString(s.data(), s.size()) {}
 
 public:
     VariableString(const VariableString &other) : VariableString(other.m_data, other.m_size) {};

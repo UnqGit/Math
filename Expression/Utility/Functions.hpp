@@ -5,7 +5,7 @@ namespace math::expr {
 
 enum class Function : char {
     add , sub , mul , div , neg ,       // Basic operators.
-    exp , log , logk, pow ,             // Power related functions. // logk is log(x) with arbitrary base.
+    exp , log , logk, pow , sqrt, cbrt, // Power related functions. // logk is log(x) with arbitrary base.
     sin , cos , tan , csc , sec , cot , // Trig functions.
     asin, acos, atan, acsc, asec, acot, // Inverse Trig functions.
     sinh, cosh, tanh, csch, sech, coth, // Hyperbolic Trig functions.
